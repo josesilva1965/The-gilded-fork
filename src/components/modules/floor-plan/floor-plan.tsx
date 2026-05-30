@@ -439,73 +439,108 @@ function CanvasTableCard({
   onServerChange: (tableId: string, serverId: string | null) => void;
 }) {
   const t = useT();
-  const dragRef = useRef<{ startX: number; startY: number; isDragging: boolean }>({
-    startX: 0,
-    startY: 0,
-    isDragging: false,
-  });
+  const elementRef = useRef<HTMLDivElement>(null);
   const [hovered, setHovered] = useState(false);
   const [serverPopoverOpen, setServerPopoverOpen] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const statusColor = TABLE_STATUS_COLORS[table.status] || '';
   const hasActiveOrder = table.orders.length > 0;
 
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    // Don't start drag if clicking on buttons or interactive elements
-    const target = e.target as HTMLElement;
-    if (target.closest('button') || target.closest('[data-interactive]')) return;
+  // Use refs for callbacks to avoid stale closures in document event listeners
+  const onDragMoveRef = useRef(onDragMove);
+  const onClickRef = useRef(onClick);
+  useEffect(() => {
+    onDragMoveRef.current = onDragMove;
+    onClickRef.current = onClick;
+  });
 
-    e.preventDefault();
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    dragRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      isDragging: false,
+  // Document-level drag handling for robust pointer tracking
+  useEffect(() => {
+    const el = elementRef.current;
+    if (!el) return;
+
+    let dragState: { isDragging: boolean; lastX: number; lastY: number } | null = null;
+
+    const handlePointerDown = (e: PointerEvent) => {
+      // Don't start drag if clicking on buttons or interactive elements
+      const target = e.target as HTMLElement;
+      if (target.closest('button') || target.closest('[data-interactive]')) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      dragState = {
+        isDragging: false,
+        lastX: e.clientX,
+        lastY: e.clientY,
+      };
+
+      // Attach document-level listeners for reliable tracking
+      document.addEventListener('pointermove', handlePointerMove);
+      document.addEventListener('pointerup', handlePointerUp);
+      document.addEventListener('pointercancel', handlePointerUp);
     };
-  }, []);
 
-  const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!dragRef.current) return;
-    const deltaX = e.clientX - dragRef.current.startX;
-    const deltaY = e.clientY - dragRef.current.startY;
+    const handlePointerMove = (e: PointerEvent) => {
+      if (!dragState) return;
 
-    // Only start dragging after a minimum movement threshold
-    if (!dragRef.current.isDragging && (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3)) {
-      dragRef.current.isDragging = true;
-    }
+      const deltaX = e.clientX - dragState.lastX;
+      const deltaY = e.clientY - dragState.lastY;
 
-    if (dragRef.current.isDragging) {
-      onDragMove(table.id, deltaX, deltaY);
-      dragRef.current.startX = e.clientX;
-      dragRef.current.startY = e.clientY;
-    }
-  }, [table.id, onDragMove]);
+      // Only start dragging after a minimum movement threshold
+      if (!dragState.isDragging && (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3)) {
+        dragState.isDragging = true;
+        setIsDragging(true);
+      }
 
-  const handlePointerUp = useCallback((e: React.PointerEvent) => {
-    if (dragRef.current && !dragRef.current.isDragging) {
-      onClick();
-    }
-    dragRef.current = { startX: 0, startY: 0, isDragging: false };
-  }, [onClick]);
+      if (dragState.isDragging) {
+        e.preventDefault();
+        onDragMoveRef.current(table.id, deltaX, deltaY);
+        dragState.lastX = e.clientX;
+        dragState.lastY = e.clientY;
+      }
+    };
+
+    const handlePointerUp = () => {
+      if (dragState && !dragState.isDragging) {
+        onClickRef.current();
+      }
+      dragState = null;
+      setIsDragging(false);
+
+      // Remove document-level listeners
+      document.removeEventListener('pointermove', handlePointerMove);
+      document.removeEventListener('pointerup', handlePointerUp);
+      document.removeEventListener('pointercancel', handlePointerUp);
+    };
+
+    el.addEventListener('pointerdown', handlePointerDown);
+
+    return () => {
+      el.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('pointermove', handlePointerMove);
+      document.removeEventListener('pointerup', handlePointerUp);
+      document.removeEventListener('pointercancel', handlePointerUp);
+    };
+  }, [table.id]);
 
   const eligibleStaff = staff.filter((s) => ['FOH', 'MANAGER', 'ADMIN'].includes(s.role));
 
   return (
     <div
+      ref={elementRef}
       className={cn(
         'absolute group select-none',
-        table.shape === 'ROUND' ? '' : '',
+        isDragging && 'z-50',
       )}
       style={{
         left: table.x,
         top: table.y,
         width: table.width || (table.shape === 'RECTANGLE' ? 140 : 110),
         height: table.height || (table.shape === 'RECTANGLE' ? 70 : 110),
-        zIndex: isSelected ? 30 : hovered ? 20 : 10,
+        zIndex: isDragging ? 50 : isSelected ? 30 : hovered ? 20 : 10,
+        touchAction: 'none',
       }}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -514,15 +549,16 @@ function CanvasTableCard({
           'relative w-full h-full border-2 rounded-lg transition-shadow duration-200 cursor-grab active:cursor-grabbing overflow-hidden',
           'focus:outline-none',
           statusColor,
-          isSelected && 'ring-2 ring-emerald-400 ring-offset-1 ring-offset-zinc-950',
+          isSelected && !isDragging && 'ring-2 ring-emerald-400 ring-offset-1 ring-offset-zinc-950',
           table.shape === 'ROUND' && 'rounded-full',
-          hovered && !isSelected && 'ring-1 ring-zinc-500',
+          hovered && !isSelected && !isDragging && 'ring-1 ring-zinc-500',
+          isDragging && 'shadow-xl shadow-black/40 ring-2 ring-emerald-400/50',
         )}
       >
         {/* Move icon on hover */}
         <div className={cn(
           'absolute top-1 right-1 transition-opacity duration-200',
-          hovered ? 'opacity-60' : 'opacity-0'
+          (hovered || isDragging) ? 'opacity-60' : 'opacity-0'
         )}>
           <Move className="size-3" />
         </div>
@@ -540,7 +576,7 @@ function CanvasTableCard({
           </span>
 
           {/* Capacity with +/- buttons - always visible */}
-          <div className={cn("flex items-center gap-0.5 transition-opacity duration-150", hovered ? "opacity-100" : "opacity-50")}>
+          <div className={cn("flex items-center gap-0.5 transition-opacity duration-150", (hovered || isDragging) ? "opacity-100" : "opacity-50")}>
             <button
               data-interactive
               onClick={(e) => {
@@ -568,7 +604,7 @@ function CanvasTableCard({
           </div>
 
           {/* Server - always visible assign button */}
-          <div className={cn("transition-opacity duration-150", hovered ? "opacity-100" : "opacity-50")}>
+          <div className={cn("transition-opacity duration-150", (hovered || isDragging) ? "opacity-100" : "opacity-50")}>
             <Popover open={serverPopoverOpen} onOpenChange={setServerPopoverOpen}>
               <PopoverTrigger asChild>
                 <button
@@ -660,22 +696,36 @@ function FloorViewCanvas({
   const t = useT();
   const containerRef = useRef<HTMLDivElement>(null);
   const localPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
-  const unsavedPositionRef = useRef<Set<string>>(new Set());
-  const saveTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>({});
+  // Track tables that have local position changes that haven't been confirmed by the server yet
+  const pendingPositionRef = useRef<Set<string>>(new Set());
+  const saveTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const [localPositions, setLocalPositions] = useState<Record<string, { x: number; y: number }>>({});
+  const [initialized, setInitialized] = useState(false);
+
+  // Use ref for onTablePositionChange to avoid stale closures
+  const onTablePositionChangeRef = useRef(onTablePositionChange);
+  useEffect(() => {
+    onTablePositionChangeRef.current = onTablePositionChange;
+  });
 
   // Sync local positions when tables data changes
+  // Preserve positions for tables that have pending local changes
   useEffect(() => {
-    const newPos: Record<string, { x: number; y: number }> = {};
-    tables.forEach((tbl) => {
-      if (unsavedPositionRef.current.has(tbl.id) && localPositionsRef.current[tbl.id]) {
-        newPos[tbl.id] = localPositionsRef.current[tbl.id];
-      } else {
-        newPos[tbl.id] = { x: tbl.x, y: tbl.y };
-      }
+    setLocalPositions((prev) => {
+      const newPos: Record<string, { x: number; y: number }> = {};
+      tables.forEach((tbl) => {
+        // If this table has a pending position change, keep the local position
+        if (pendingPositionRef.current.has(tbl.id) && prev[tbl.id]) {
+          newPos[tbl.id] = prev[tbl.id];
+        } else {
+          // Otherwise use the server data
+          newPos[tbl.id] = { x: tbl.x, y: tbl.y };
+        }
+      });
+      localPositionsRef.current = newPos;
+      return newPos;
     });
-    localPositionsRef.current = newPos;
-    setLocalPositions(newPos);
+    setInitialized(true);
   }, [tables]);
 
   const handleDragMove = useCallback((tableId: string, deltaX: number, deltaY: number) => {
@@ -685,24 +735,29 @@ function FloorViewCanvas({
     const newX = Math.max(0, Math.min(current.x + deltaX, CANVAS_MIN_WIDTH - 80));
     const newY = Math.max(0, Math.min(current.y + deltaY, CANVAS_MIN_HEIGHT - 60));
 
+    // Mark this table as having a pending position change
+    pendingPositionRef.current.add(tableId);
+
     // Update ref immediately for next calculation
     localPositionsRef.current[tableId] = { x: newX, y: newY };
-
-    // Mark as unsaved
-    unsavedPositionRef.current.add(tableId);
 
     // Update React state immediately for rendering
     setLocalPositions((prev) => ({ ...prev, [tableId]: { x: newX, y: newY } }));
 
-    // Debounce API save only
+    // Debounce API save
     if (saveTimeoutRef.current[tableId]) {
       clearTimeout(saveTimeoutRef.current[tableId]);
     }
-    saveTimeoutRef.current[tableId] = setTimeout(() => {
-      onTablePositionChange(tableId, newX, newY);
-      unsavedPositionRef.current.delete(tableId);
+    saveTimeoutRef.current[tableId] = setTimeout(async () => {
+      await onTablePositionChangeRef.current(tableId, newX, newY);
+      // Only clear pending after the API call succeeds and state is updated
+      // Use a small delay to ensure the React state update from onTablePositionChange
+      // has been processed before we allow the position to be overwritten
+      setTimeout(() => {
+        pendingPositionRef.current.delete(tableId);
+      }, 200);
     }, 500);
-  }, [onTablePositionChange]);
+  }, []);
 
   return (
     <div className="relative rounded-xl border border-zinc-800 bg-zinc-950 overflow-auto">
@@ -742,8 +797,9 @@ function FloorViewCanvas({
 
         {/* Table cards */}
         {tables.map((table) => (
-          <div key={table.id} data-table-id={table.id}>
+          initialized && (
             <CanvasTableCard
+              key={table.id}
               table={{
                 ...table,
                 x: localPositions[table.id]?.x ?? table.x,
@@ -756,7 +812,7 @@ function FloorViewCanvas({
               onCapacityChange={onCapacityChange}
               onServerChange={onServerChange}
             />
-          </div>
+          )
         ))}
 
         {/* Drag hint */}
