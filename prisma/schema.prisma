@@ -47,6 +47,7 @@ model User {
 
   // Relations
   orders        Order[]       @relation("OrderCreator")
+  tables        RestaurantTable[] @relation("ServerTables")
   clockLogs     ClockLog[]
   shifts        ShiftAssignment[]
   wastageLogs   WastageLog[]
@@ -68,6 +69,8 @@ model RestaurantTable {
   height    Int      @default(1) // Grid height
   section   String   @default("MAIN") // MAIN, BAR, PATIO, VIP, PRIVATE
   shape     String   @default("ROUND") // ROUND, SQUARE, RECTANGLE
+  serverId  String?  // Assigned server/waiter
+  server    User?    @relation("ServerTables", fields: [serverId], references: [id])
   notes     String?
   active    Boolean  @default(true)
   createdAt DateTime @default(now())

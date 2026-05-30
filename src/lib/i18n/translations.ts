@@ -151,6 +151,19 @@ export interface Translations {
     statusDessert: string;
     statusBillRequested: string;
     statusDirty: string;
+    // Edit table
+    editTable: string;
+    tableName: string;
+    capacity: string;
+    assignServer: string;
+    noServer: string;
+    removeServer: string;
+    tableSection: string;
+    tableShape: string;
+    saveChanges: string;
+    dragToReorder: string;
+    tableUpdated: string;
+    failedToUpdateTable: string;
   };
 
   // ─── POS ───
@@ -499,6 +512,18 @@ export const enGB: Translations = {
     statusDessert: 'Dessert',
     statusBillRequested: 'Bill Requested',
     statusDirty: 'Needs Cleaning',
+    editTable: 'Edit Table',
+    tableName: 'Table Name',
+    capacity: 'Capacity',
+    assignServer: 'Assign Server',
+    noServer: 'No server assigned',
+    removeServer: 'Remove server',
+    tableSection: 'Section',
+    tableShape: 'Shape',
+    saveChanges: 'Save Changes',
+    dragToReorder: 'Drag to reorder',
+    tableUpdated: 'Table updated',
+    failedToUpdateTable: 'Failed to update table',
   },
   pos: {
     newOrder: 'New Order',
@@ -825,6 +850,18 @@ export const ptPT: Translations = {
     statusDessert: 'Sobremesa',
     statusBillRequested: 'Conta Pedida',
     statusDirty: 'Necessita Limpeza',
+    editTable: 'Editar Mesa',
+    tableName: 'Nome da Mesa',
+    capacity: 'Capacidade',
+    assignServer: 'Atribuir Empregado',
+    noServer: 'Sem empregado atribuído',
+    removeServer: 'Remover empregado',
+    tableSection: 'Secção',
+    tableShape: 'Formato',
+    saveChanges: 'Guardar Alterações',
+    dragToReorder: 'Arraste para reordenar',
+    tableUpdated: 'Mesa atualizada',
+    failedToUpdateTable: 'Falha ao atualizar mesa',
   },
   pos: {
     newOrder: 'Novo Pedido',
@@ -1151,6 +1188,18 @@ export const frFR: Translations = {
     statusDessert: 'Dessert',
     statusBillRequested: 'Note Demandée',
     statusDirty: 'À Nettoyer',
+    editTable: 'Modifier la Table',
+    tableName: 'Nom de la Table',
+    capacity: 'Capacité',
+    assignServer: 'Assigner un Serveur',
+    noServer: 'Aucun serveur assigné',
+    removeServer: 'Retirer le serveur',
+    tableSection: 'Section',
+    tableShape: 'Forme',
+    saveChanges: 'Enregistrer',
+    dragToReorder: 'Glisser pour réorganiser',
+    tableUpdated: 'Table mise à jour',
+    failedToUpdateTable: 'Échec de la mise à jour de la table',
   },
   pos: {
     newOrder: 'Nouvelle Commande',
@@ -1477,6 +1526,18 @@ export const esES: Translations = {
     statusDessert: 'Postre',
     statusBillRequested: 'Cuenta Solicitada',
     statusDirty: 'Necesita Limpieza',
+    editTable: 'Editar Mesa',
+    tableName: 'Nombre de la Mesa',
+    capacity: 'Capacidad',
+    assignServer: 'Asignar Camarero',
+    noServer: 'Sin camarero asignado',
+    removeServer: 'Quitar camarero',
+    tableSection: 'Sección',
+    tableShape: 'Forma',
+    saveChanges: 'Guardar Cambios',
+    dragToReorder: 'Arrastra para reordenar',
+    tableUpdated: 'Mesa actualizada',
+    failedToUpdateTable: 'Error al actualizar mesa',
   },
   pos: {
     newOrder: 'Nuevo Pedido',

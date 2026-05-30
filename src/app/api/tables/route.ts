@@ -16,6 +16,9 @@ export async function GET() {
           orderBy: { reservationDate: 'asc' },
           take: 1,
         },
+        server: {
+          select: { id: true, name: true, role: true },
+        },
       },
     });
     return NextResponse.json(tables);
@@ -28,7 +31,7 @@ export async function GET() {
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
-    const { id, status, x, y, width, height } = body;
+    const { id, status, x, y, width, height, capacity, serverId, section, shape, name } = body;
 
     const table = await db.restaurantTable.update({
       where: { id },
@@ -38,6 +41,16 @@ export async function PATCH(request: Request) {
         ...(y !== undefined && { y }),
         ...(width !== undefined && { width }),
         ...(height !== undefined && { height }),
+        ...(capacity !== undefined && { capacity }),
+        ...(serverId !== undefined && { serverId: serverId || null }),
+        ...(section !== undefined && { section }),
+        ...(shape !== undefined && { shape }),
+        ...(name !== undefined && { name }),
+      },
+      include: {
+        server: {
+          select: { id: true, name: true, role: true },
+        },
       },
     });
     return NextResponse.json(table);
