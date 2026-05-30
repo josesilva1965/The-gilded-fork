@@ -221,6 +221,7 @@ function maskPin(pin: string): string {
 
 /* Summary Cards */
 function SummaryCards({ staff }: { staff: StaffUser[] }) {
+  const t = useT();
   const locale = useLocale();
   const fmtCur = useCallback((a: number) => formatCurrencyByLocale(a, locale), [locale]);
   const clockedInStaff = staff.filter(isClockedIn);
@@ -251,15 +252,15 @@ function SummaryCards({ staff }: { staff: StaffUser[] }) {
 
   const cards = [
     {
-      title: 'Total Staff',
+      title: t.common.total,
       value: staff.length.toString(),
-      subtitle: `${staff.filter((s) => s.active).length} active`,
+      subtitle: `${staff.filter((s) => s.active).length} ${t.common.active}`,
       icon: Users,
       color: 'text-emerald-400',
       bgColor: 'bg-emerald-500/10',
     },
     {
-      title: 'Clocked In',
+      title: t.staff.clockedIn,
       value: clockedInStaff.length.toString(),
       subtitle: clockedInStaff.length > 0 ? clockedInStaff.map((s) => s.name.split(' ')[0]).join(', ') : 'None',
       icon: LogIn,
@@ -267,7 +268,7 @@ function SummaryCards({ staff }: { staff: StaffUser[] }) {
       bgColor: 'bg-sky-500/10',
     },
     {
-      title: 'On Shift Today',
+      title: t.staff.todayShift,
       value: todayShifts.length.toString(),
       subtitle: `${new Set(todayShifts.flatMap((u) => u.shifts.filter((s) => isSameDay(new Date(s.date), today)).map((s) => s.position || 'General'))).size} positions`,
       icon: Calendar,
@@ -315,6 +316,7 @@ function SummaryCards({ staff }: { staff: StaffUser[] }) {
 
 /* Schedule Tab */
 function ScheduleTab({ staff }: { staff: StaffUser[] }) {
+  const t = useT();
   const [weekOffset, setWeekOffset] = useState(0);
   const [referenceDate] = useState(new Date());
 
@@ -405,7 +407,7 @@ function ScheduleTab({ staff }: { staff: StaffUser[] }) {
             {staffWithShifts.length === 0 ? (
               <div className="text-center py-12 text-zinc-500">
                 <Calendar className="size-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No shifts scheduled</p>
+                <p className="text-sm">{t.staff.noStaffOnShift}</p>
               </div>
             ) : (
               staffWithShifts.map((user) => (
@@ -478,6 +480,7 @@ function ScheduleTab({ staff }: { staff: StaffUser[] }) {
 
 /* Staff Directory Tab */
 function StaffDirectoryTab({ staff }: { staff: StaffUser[] }) {
+  const t = useT();
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
   const [visiblePins, setVisiblePins] = useState<Set<string>>(new Set());
@@ -529,7 +532,7 @@ function StaffDirectoryTab({ staff }: { staff: StaffUser[] }) {
                   : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
               )}
             >
-              {role === 'ALL' ? 'All' : role}
+              {role === 'ALL' ? t.common.all : role}
             </Button>
           ))}
         </div>
@@ -542,13 +545,13 @@ function StaffDirectoryTab({ staff }: { staff: StaffUser[] }) {
             <Table>
               <TableHeader>
                 <TableRow className="border-zinc-800 hover:bg-transparent">
-                  <TableHead className="text-zinc-500 text-xs">Name</TableHead>
-                  <TableHead className="text-zinc-500 text-xs">Role</TableHead>
-                  <TableHead className="text-zinc-500 text-xs hidden md:table-cell">Email</TableHead>
-                  <TableHead className="text-zinc-500 text-xs hidden lg:table-cell">Phone</TableHead>
-                  <TableHead className="text-zinc-500 text-xs text-right">Rate</TableHead>
+                  <TableHead className="text-zinc-500 text-xs">{t.common.name}</TableHead>
+                  <TableHead className="text-zinc-500 text-xs">{t.staff.role}</TableHead>
+                  <TableHead className="text-zinc-500 text-xs hidden md:table-cell">{t.common.email}</TableHead>
+                  <TableHead className="text-zinc-500 text-xs hidden lg:table-cell">{t.common.phone}</TableHead>
+                  <TableHead className="text-zinc-500 text-xs text-right">{t.staff.hourlyRate}</TableHead>
                   <TableHead className="text-zinc-500 text-xs text-center">PIN</TableHead>
-                  <TableHead className="text-zinc-500 text-xs text-center">Status</TableHead>
+                  <TableHead className="text-zinc-500 text-xs text-center">{t.common.status}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -608,11 +611,11 @@ function StaffDirectoryTab({ staff }: { staff: StaffUser[] }) {
                     <TableCell className="text-center">
                       {user.active ? (
                         <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]">
-                          Active
+                          {t.common.active}
                         </Badge>
                       ) : (
                         <Badge className="bg-zinc-500/20 text-zinc-400 border-zinc-500/30 text-[10px]">
-                          Inactive
+                          {t.common.inactive}
                         </Badge>
                       )}
                     </TableCell>
@@ -633,6 +636,7 @@ function StaffDirectoryTab({ staff }: { staff: StaffUser[] }) {
 
 /* Clock In/Out Tab */
 function ClockInOutTab({ staff, onClockAction }: { staff: StaffUser[]; onClockAction: () => void }) {
+  const t = useT();
   const [pinInput, setPinInput] = useState('');
   const [clockMessage, setClockMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -843,7 +847,7 @@ function ClockInOutTab({ staff, onClockAction }: { staff: StaffUser[]; onClockAc
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-zinc-300 flex items-center gap-2">
               <UserCheck className="size-4 text-emerald-400" />
-              Currently Clocked In
+              {t.staff.clockedIn}
               <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 ml-auto">
                 {clockedInStaff.length}
               </Badge>
@@ -853,7 +857,7 @@ function ClockInOutTab({ staff, onClockAction }: { staff: StaffUser[]; onClockAc
             {clockedInStaff.length === 0 ? (
               <div className="text-center py-8 text-zinc-500">
                 <Clock className="size-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No one is clocked in</p>
+                <p className="text-sm">{t.staff.noStaffOnShift}</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -910,6 +914,7 @@ function ClockInOutTab({ staff, onClockAction }: { staff: StaffUser[]; onClockAc
 
 /* Tips Tab */
 function TipsTab({ staff }: { staff: StaffUser[] }) {
+  const t = useT();
   const [tipPool, setTipPool] = useState<string>('500');
   const [distributions, setDistributions] = useState<TipDistribution[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -965,8 +970,8 @@ function TipsTab({ staff }: { staff: StaffUser[] }) {
                 <CircleDollarSign className="size-5 text-emerald-400" />
               </div>
               <div>
-                <p className="text-sm font-medium text-zinc-200">Total Tip Pool</p>
-                <p className="text-[10px] text-zinc-500">Enter the total tips to distribute</p>
+                <p className="text-sm font-medium text-zinc-200">{t.staff.totalTips}</p>
+                <p className="text-[10px] text-zinc-500">{t.staff.tipDistribution}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -989,7 +994,7 @@ function TipsTab({ staff }: { staff: StaffUser[] }) {
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium text-zinc-300 flex items-center gap-2">
             <Calculator className="size-4 text-emerald-400" />
-            Tip Distribution — Today
+            {t.staff.tipDistribution} — Today
             <Badge className="bg-zinc-800 text-zinc-400 border-zinc-700 ml-auto">
               {calculatedShares.length} staff
             </Badge>
@@ -1003,16 +1008,16 @@ function TipsTab({ staff }: { staff: StaffUser[] }) {
           ) : calculatedShares.length === 0 ? (
             <div className="text-center py-12 text-zinc-500">
               <Clock className="size-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No staff worked today</p>
+              <p className="text-sm">{t.staff.noStaffOnShift}</p>
             </div>
           ) : (
             <ScrollArea className="max-h-[400px]">
               <Table>
                 <TableHeader>
                   <TableRow className="border-zinc-800 hover:bg-transparent">
-                    <TableHead className="text-zinc-500 text-xs">Staff</TableHead>
-                    <TableHead className="text-zinc-500 text-xs">Role</TableHead>
-                    <TableHead className="text-zinc-500 text-xs text-center">Hours</TableHead>
+                    <TableHead className="text-zinc-500 text-xs">{t.staff.title}</TableHead>
+                    <TableHead className="text-zinc-500 text-xs">{t.staff.role}</TableHead>
+                    <TableHead className="text-zinc-500 text-xs text-center">{t.staff.hoursWorked}</TableHead>
                     <TableHead className="text-zinc-500 text-xs text-center">Tip Pts</TableHead>
                     <TableHead className="text-zinc-500 text-xs text-center">Points</TableHead>
                     <TableHead className="text-zinc-500 text-xs text-right">Share</TableHead>
@@ -1061,7 +1066,7 @@ function TipsTab({ staff }: { staff: StaffUser[] }) {
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <DollarSign className="size-4 text-emerald-400" />
-                  <span className="text-lg font-bold text-zinc-100">Total: {fmtCur(totalDistributed)}</span>
+                  <span className="text-lg font-bold text-zinc-100">{t.common.total}: {fmtCur(totalDistributed)}</span>
                 </div>
                 <p className="text-xs text-zinc-500">
                   Pool: {fmtCur(tipPoolAmount)} · Points: {totalTipPoints.toFixed(1)} · Per point: {totalTipPoints > 0 ? fmtCur(tipPoolAmount / totalTipPoints) : fmtCur(0)}
@@ -1085,7 +1090,7 @@ function TipsTab({ staff }: { staff: StaffUser[] }) {
                 ) : (
                   <>
                     <DollarSign className="size-4 mr-2" />
-                    Distribute Tips
+                    {t.staff.distribute}
                   </>
                 )}
               </Button>
@@ -1137,7 +1142,7 @@ export function StaffManagement() {
       <div className="flex items-center justify-center py-20">
         <div className="flex flex-col items-center gap-3">
           <div className="animate-spin size-8 border-2 border-emerald-500 border-t-transparent rounded-full" />
-          <p className="text-sm text-zinc-500">Loading staff data...</p>
+          <p className="text-sm text-zinc-500">{t.common.loading}</p>
         </div>
       </div>
     );
@@ -1154,7 +1159,7 @@ export function StaffManagement() {
             className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-zinc-400 text-xs"
           >
             <Calendar className="size-3.5 mr-1.5" />
-            Schedule
+            {t.staff.shiftSchedule}
           </TabsTrigger>
           <TabsTrigger
             value="directory"
@@ -1168,14 +1173,14 @@ export function StaffManagement() {
             className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-zinc-400 text-xs"
           >
             <Clock className="size-3.5 mr-1.5" />
-            Clock In/Out
+            {`${t.staff.clockIn}/${t.staff.clockOut}`}
           </TabsTrigger>
           <TabsTrigger
             value="tips"
             className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-zinc-400 text-xs"
           >
             <DollarSign className="size-3.5 mr-1.5" />
-            Tips
+            {t.staff.tips}
           </TabsTrigger>
         </TabsList>
 

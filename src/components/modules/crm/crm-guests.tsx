@@ -170,30 +170,32 @@ function SummaryCards({ customers }: { customers: Customer[] }) {
       ? customers.reduce((sum, c) => sum + c.lifetimeSpend, 0) / totalCustomers
       : 0;
 
+  const t = useT();
+
   const cards = [
     {
-      label: 'Total Customers',
+      label: t.crm.totalGuests,
       value: totalCustomers,
       icon: Users,
       color: 'text-emerald-400',
       bgColor: 'bg-emerald-500/10',
     },
     {
-      label: 'Gold / Platinum',
+      label: t.crm.vipGuests,
       value: goldPlatinum,
       icon: Crown,
       color: 'text-yellow-500',
       bgColor: 'bg-yellow-500/10',
     },
     {
-      label: 'Total Loyalty Points',
+      label: t.crm.loyaltyPoints,
       value: totalPoints.toLocaleString(),
       icon: Gift,
       color: 'text-purple-400',
       bgColor: 'bg-purple-500/10',
     },
     {
-      label: 'Avg Lifetime Spend',
+      label: t.crm.averageSpend,
       value: formatCurrencyByLocale(avgSpend),
       icon: TrendingUp,
       color: 'text-sky-400',
@@ -237,6 +239,7 @@ function CustomerDetailSheet({
 }) {
   const [addingPoints, setAddingPoints] = useState(false);
   const [pointsToAdd, setPointsToAdd] = useState(100);
+  const t = useT();
 
   if (!customer) return null;
 
@@ -316,7 +319,7 @@ function CustomerDetailSheet({
           {allergies.length > 0 && (
             <div className="space-y-2">
               <h4 className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
-                Allergies
+                {t.crm.allergies}
               </h4>
               <div className="flex flex-wrap gap-1.5">
                 {allergies.map((allergy) => (
@@ -377,7 +380,7 @@ function CustomerDetailSheet({
           {/* Visit History */}
           <div className="space-y-3">
             <h4 className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
-              Recent Visits
+              {t.crm.visitHistory}
             </h4>
             {customer.visits.length > 0 ? (
               <div className="space-y-2">
@@ -401,7 +404,7 @@ function CustomerDetailSheet({
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-zinc-600">No visit history recorded</p>
+              <p className="text-xs text-zinc-600">{t.common.noData}</p>
             )}
           </div>
 
@@ -410,7 +413,7 @@ function CustomerDetailSheet({
           {/* Favorite Items */}
           <div className="space-y-3">
             <h4 className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
-              Favorite Items
+              {t.crm.preferences}
             </h4>
             {customer.favorites.length > 0 ? (
               <div className="space-y-1.5">
@@ -430,7 +433,7 @@ function CustomerDetailSheet({
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-zinc-600">No favorite items</p>
+              <p className="text-xs text-zinc-600">{t.common.noData}</p>
             )}
           </div>
 
@@ -439,7 +442,7 @@ function CustomerDetailSheet({
           {/* Quick Actions */}
           <div className="space-y-3">
             <h4 className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
-              Quick Actions
+              {t.common.actions}
             </h4>
             <div className="flex items-end gap-2">
               <div className="flex-1">
@@ -516,6 +519,7 @@ function AddCustomerDialog({
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
 
   function resetForm() {
     setForm({
@@ -599,7 +603,7 @@ function AddCustomerDialog({
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs text-zinc-400">Email</Label>
+            <Label className="text-xs text-zinc-400">{t.common.email}</Label>
             <Input
               type="email"
               value={form.email}
@@ -609,7 +613,7 @@ function AddCustomerDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs text-zinc-400">Phone</Label>
+            <Label className="text-xs text-zinc-400">{t.common.phone}</Label>
             <Input
               value={form.phone}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
@@ -627,7 +631,7 @@ function AddCustomerDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs text-zinc-400">Allergies</Label>
+            <Label className="text-xs text-zinc-400">{t.crm.allergies}</Label>
             <Input
               value={form.allergies}
               onChange={(e) => setForm({ ...form, allergies: e.target.value })}
@@ -662,7 +666,7 @@ function AddCustomerDialog({
             onClick={() => { resetForm(); onOpenChange(false); }}
             className="border-zinc-700 text-zinc-300 hover:bg-zinc-800"
           >
-            Cancel
+            {t.common.cancel}
           </Button>
           <Button
             onClick={handleSubmit}
@@ -707,6 +711,7 @@ export function CRMGuests() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const addNotification = useAppStore((s) => s.addNotification);
+  const t = useT();
 
   /* Fetch customers */
   const fetchCustomers = useCallback(async (showLoader = false) => {
@@ -801,7 +806,7 @@ export function CRMGuests() {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <Loader2 className="size-8 text-emerald-500 animate-spin mb-3" />
-        <p className="text-sm text-zinc-500">Loading guest data...</p>
+        <p className="text-sm text-zinc-500">{t.common.loading}</p>
       </div>
     );
   }
@@ -819,7 +824,7 @@ export function CRMGuests() {
           className="border-zinc-700 text-zinc-300 hover:bg-zinc-800"
         >
           <RefreshCw className="size-4 mr-2" />
-          Retry
+          {t.common.retry}
         </Button>
       </div>
     );
@@ -832,10 +837,10 @@ export function CRMGuests() {
         <div>
           <h2 className="text-xl font-bold text-zinc-100 flex items-center gap-2">
             <Heart className="size-5 text-red-400" />
-            CRM / Guests
+            {t.crm.title}
           </h2>
           <p className="text-xs text-zinc-500 mt-0.5">
-            {customers.length} total customers
+            {customers.length} {t.crm.totalGuests}
           </p>
         </div>
         <Button
@@ -855,7 +860,7 @@ export function CRMGuests() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-zinc-500" />
           <Input
-            placeholder="Search by name or email..."
+            placeholder={t.crm.searchGuests}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 bg-zinc-900 border-zinc-800 text-zinc-200 h-9"
@@ -867,7 +872,7 @@ export function CRMGuests() {
           </SelectTrigger>
           <SelectContent className="bg-zinc-800 border-zinc-700">
             <SelectItem value="ALL" className="text-zinc-200 focus:bg-zinc-700 focus:text-zinc-100">
-              All Tiers
+              {t.common.all}
             </SelectItem>
             {ALL_TIERS.map((tier) => (
               <SelectItem
@@ -895,29 +900,29 @@ export function CRMGuests() {
                   className="text-zinc-400 cursor-pointer select-none hover:text-zinc-200"
                   onClick={() => handleSort('name')}
                 >
-                  Name <SortIcon field="name" currentSort={sortField} currentDir={sortDir} />
+                  {t.common.name} <SortIcon field="name" currentSort={sortField} currentDir={sortDir} />
                 </TableHead>
-                <TableHead className="text-zinc-400 hidden md:table-cell">Email</TableHead>
-                <TableHead className="text-zinc-400 hidden lg:table-cell">Phone</TableHead>
+                <TableHead className="text-zinc-400 hidden md:table-cell">{t.common.email}</TableHead>
+                <TableHead className="text-zinc-400 hidden lg:table-cell">{t.common.phone}</TableHead>
                 <TableHead className="text-zinc-400">Tier</TableHead>
                 <TableHead
                   className="text-zinc-400 cursor-pointer select-none hover:text-zinc-200 text-right"
                   onClick={() => handleSort('visits')}
                 >
-                  Visits <SortIcon field="visits" currentSort={sortField} currentDir={sortDir} />
+                  {t.crm.totalVisits} <SortIcon field="visits" currentSort={sortField} currentDir={sortDir} />
                 </TableHead>
                 <TableHead
                   className="text-zinc-400 cursor-pointer select-none hover:text-zinc-200 text-right"
                   onClick={() => handleSort('lifetimeSpend')}
                 >
-                  Spend <SortIcon field="lifetimeSpend" currentSort={sortField} currentDir={sortDir} />
+                  {t.crm.totalSpent} <SortIcon field="lifetimeSpend" currentSort={sortField} currentDir={sortDir} />
                 </TableHead>
-                <TableHead className="text-zinc-400 hidden sm:table-cell text-right">Points</TableHead>
+                <TableHead className="text-zinc-400 hidden sm:table-cell text-right">{t.crm.loyaltyPoints}</TableHead>
                 <TableHead
                   className="text-zinc-400 cursor-pointer select-none hover:text-zinc-200 text-right hidden md:table-cell"
                   onClick={() => handleSort('lastVisit')}
                 >
-                  Last Visit <SortIcon field="lastVisit" currentSort={sortField} currentDir={sortDir} />
+                  {t.crm.lastVisit} <SortIcon field="lastVisit" currentSort={sortField} currentDir={sortDir} />
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -982,7 +987,7 @@ export function CRMGuests() {
                     >
                       <div className="flex flex-col items-center gap-2">
                         <Search className="size-6 text-zinc-600" />
-                        <p className="text-sm">No customers found</p>
+                        <p className="text-sm">{t.crm.noGuestsFound}</p>
                         <p className="text-xs text-zinc-600">
                           Try adjusting your search or filter
                         </p>

@@ -65,3 +65,117 @@ Stage Summary:
 - POS tax calculation dynamically uses the selected locale's tax rate
 - Zustand store with localStorage persistence for language preference
 - Tax info displayed in footer showing current locale's tax short name and percentage
+
+---
+Task ID: 2-a
+Agent: i18n-staff-agent
+Task: Add i18n translations to staff-management.tsx
+
+Work Log:
+- Read staff-management.tsx (1201 lines) and translations.ts to identify available t.staff and t.common keys
+- Verified useT import already present on line 47: `import { useT, useLocale } from '@/stores/locale-store';`
+- Added `const t = useT();` to 5 sub-components: SummaryCards, ScheduleTab, StaffDirectoryTab, ClockInOutTab, TipsTab (StaffManagement already had it)
+- Replaced hardcoded strings with translation keys across all 6 component functions:
+
+  SummaryCards:
+  - 'Total Staff' → t.common.total
+  - 'active' (subtitle) → t.common.active
+  - 'Clocked In' → t.staff.clockedIn
+  - 'On Shift Today' → t.staff.todayShift
+
+  ScheduleTab:
+  - 'No shifts scheduled' → t.staff.noStaffOnShift
+
+  StaffDirectoryTab:
+  - 'All' (role filter) → t.common.all
+  - 'Name' → t.common.name
+  - 'Role' → t.staff.role
+  - 'Email' → t.common.email
+  - 'Phone' → t.common.phone
+  - 'Rate' → t.staff.hourlyRate
+  - 'Status' → t.common.status
+  - 'Active' badge → t.common.active
+  - 'Inactive' badge → t.common.inactive
+
+  ClockInOutTab:
+  - 'Currently Clocked In' → t.staff.clockedIn
+  - 'No one is clocked in' → t.staff.noStaffOnShift
+
+  TipsTab:
+  - 'Total Tip Pool' → t.staff.totalTips
+  - 'Enter the total tips to distribute' → t.staff.tipDistribution
+  - 'Tip Distribution — Today' → t.staff.tipDistribution (with "— Today" kept as is)
+  - 'No staff worked today' → t.staff.noStaffOnShift
+  - 'Staff' table head → t.staff.title
+  - 'Role' table head → t.staff.role
+  - 'Hours' table head → t.staff.hoursWorked
+  - 'Total:' → t.common.total
+  - 'Distribute Tips' → t.staff.distribute
+
+  StaffManagement (main):
+  - 'Loading staff data...' → t.common.loading
+  - 'Schedule' tab → t.staff.shiftSchedule
+  - 'Clock In/Out' tab → `${t.staff.clockIn}/${t.staff.clockOut}`
+  - 'Tips' tab → t.staff.tips
+
+- Strings without matching translation keys were left unchanged (e.g., 'Weekly Labor Cost', 'This Week', 'Today', 'Staff Directory', 'Enter', dynamic messages like 'Welcome/Goodbye', 'Since', '/hr', 'PIN', etc.)
+- Lint passes clean with no errors
+- No non-string logic or styling was changed
+
+Stage Summary:
+- Added i18n translation support to all 6 React component functions in staff-management.tsx
+- 28 hardcoded English strings replaced with t.staff.xxx / t.common.xxx translation keys
+- 5 components received `const t = useT();` hook call
+- All changes are purely string replacements; no logic, styling, or structural changes
+
+---
+Task ID: 2-b
+Agent: i18n-crm-agent
+Task: Add i18n translations to crm-guests.tsx
+
+Work Log:
+- Read crm-guests.tsx (1018 lines) and translations.ts to identify available t.crm and t.common keys
+- Verified useT import already present: `import { useT, useLocale } from '@/stores/locale-store';`
+- Noted SummaryCards already had `const t = useT();` and card labels already used t.crm keys (pre-applied by prior agent)
+- Noted CustomerDetailSheet already had `const t = useT();` and Allergies heading already used t.crm.allergies (pre-applied)
+- Added `const t = useT();` to AddCustomerDialog and CRMGuests (2 new hook calls)
+- Replaced hardcoded strings with translation keys across 4 component functions:
+
+  CustomerDetailSheet:
+  - 'Recent Visits' → t.crm.visitHistory
+  - 'No visit history recorded' → t.common.noData
+  - 'Favorite Items' → t.crm.preferences
+  - 'No favorite items' → t.common.noData
+  - 'Quick Actions' → t.common.actions
+
+  AddCustomerDialog:
+  - 'Email' label → t.common.email
+  - 'Phone' label → t.common.phone
+  - 'Allergies' label → t.crm.allergies
+  - 'Cancel' button → t.common.cancel
+
+  CRMGuests:
+  - 'Loading guest data...' → t.common.loading
+  - 'Retry' button → t.common.retry
+  - 'CRM / Guests' heading → t.crm.title
+  - '{count} total customers' subtitle → '{count} {t.crm.totalGuests}'
+  - 'Search by name or email...' placeholder → t.crm.searchGuests
+  - 'All Tiers' select option → t.common.all
+  - 'Name' table head → t.common.name
+  - 'Email' table head → t.common.email
+  - 'Phone' table head → t.common.phone
+  - 'Visits' table head → t.crm.totalVisits
+  - 'Spend' table head → t.crm.totalSpent
+  - 'Points' table head → t.crm.loyaltyPoints
+  - 'Last Visit' table head → t.crm.lastVisit
+  - 'No customers found' → t.crm.noGuestsFound
+
+- Strings without matching translation keys were left unchanged (e.g., 'Contact Info', 'Loyalty Program', 'Add Points', 'Add', 'Send Marketing Email', 'Member since', 'Add New Customer', 'First Name *', 'Last Name *', 'Birthday', 'Marketing opt-in', 'Add Customer', 'Tier', 'Filter by tier', 'Try adjusting your search or filter', 'Failed to load customers', error messages in catch blocks)
+- Lint passes clean with no errors
+- No non-string logic or styling was changed
+
+Stage Summary:
+- Added i18n translation support to all 4 React component functions in crm-guests.tsx
+- 21 hardcoded English strings replaced with t.crm.xxx / t.common.xxx translation keys
+- 2 components received new `const t = useT();` hook calls (AddCustomerDialog, CRMGuests)
+- All changes are purely string replacements; no logic, styling, or structural changes

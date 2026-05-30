@@ -116,14 +116,6 @@ const STATUS_COLORS: Record<ReservationStatus, { bg: string; text: string; borde
   COMPLETED: { bg: 'bg-zinc-500/15', text: 'text-zinc-400', border: 'border-zinc-500/30', dot: 'bg-zinc-500' },
 };
 
-const STATUS_LABELS: Record<ReservationStatus, string> = {
-  CONFIRMED: 'Confirmed',
-  CANCELLED: 'Cancelled',
-  NO_SHOW: 'No Show',
-  SEATED: 'Seated',
-  COMPLETED: 'Completed',
-};
-
 /* ─── Helper: get time slot category ─── */
 function getTimeCategory(time: string): 'past' | 'current' | 'future' {
   const now = new Date();
@@ -153,17 +145,26 @@ function formatTime12(time: string): string {
 
 /* ─── Status Badge Component ─── */
 function StatusBadge({ status }: { status: ReservationStatus }) {
+  const t = useT();
   const colors = STATUS_COLORS[status];
+  const labels: Record<ReservationStatus, string> = {
+    CONFIRMED: t.reservations.confirmed,
+    CANCELLED: t.reservations.cancelled,
+    NO_SHOW: t.reservations.noShow,
+    SEATED: t.reservations.seated,
+    COMPLETED: t.common.completed,
+  };
   return (
     <Badge variant="outline" className={cn('gap-1.5 font-medium text-xs px-2 py-0.5', colors.bg, colors.text, colors.border)}>
       <span className={cn('size-1.5 rounded-full', colors.dot)} />
-      {STATUS_LABELS[status]}
+      {labels[status]}
     </Badge>
   );
 }
 
 /* ─── Summary Cards ─── */
 function SummaryCards({ reservations, tables }: { reservations: ReservationData[]; tables: TableData[] }) {
+  const t = useT();
   const today = new Date().toISOString().split('T')[0];
   const todayReservations = reservations.filter(
     (r) => r.reservationDate.startsWith(today) && !r.isWalkIn
@@ -171,7 +172,7 @@ function SummaryCards({ reservations, tables }: { reservations: ReservationData[
   const walkIns = reservations.filter(
     (r) => r.isWalkIn && r.status === 'CONFIRMED'
   );
-  const freeTables = tables.filter((t) => t.status === 'FREE').length;
+  const freeTables = tables.filter((tbl) => tbl.status === 'FREE').length;
 
   // Average wait time for walk-ins
   const avgWait =
@@ -183,7 +184,7 @@ function SummaryCards({ reservations, tables }: { reservations: ReservationData[
 
   const cards = [
     {
-      label: "Today's Reservations",
+      label: t.reservations.todayReservations,
       value: todayReservations.length,
       icon: CalendarDays,
       color: 'text-emerald-400',
@@ -191,7 +192,7 @@ function SummaryCards({ reservations, tables }: { reservations: ReservationData[
       borderColor: 'border-emerald-500/20',
     },
     {
-      label: 'Walk-ins Waiting',
+      label: t.reservations.waitlist,
       value: walkIns.length,
       icon: UserPlus,
       color: 'text-amber-400',
@@ -207,8 +208,8 @@ function SummaryCards({ reservations, tables }: { reservations: ReservationData[
       borderColor: 'border-sky-500/20',
     },
     {
-      label: 'Avg Wait Time',
-      value: `${avgWait}m`,
+      label: t.reservations.estimatedWait,
+      value: `${avgWait}${t.reservations.minutes}`,
       icon: Timer,
       color: 'text-purple-400',
       bgColor: 'bg-purple-500/10',
@@ -251,6 +252,7 @@ function TimelineReservation({
   onNoShow: (r: ReservationData) => void;
   isLast: boolean;
 }) {
+  const t = useT();
   const timeCat = getTimeCategory(reservation.reservationTime);
   const timeColors = TIME_COLORS[timeCat];
   const isActive = reservation.status === 'CONFIRMED' || reservation.status === 'SEATED';
@@ -337,7 +339,7 @@ function TimelineReservation({
                   variant="ghost"
                   className="size-8 p-0 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
                   onClick={() => onNoShow(reservation)}
-                  title="No Show"
+                  title={t.reservations.noShow}
                 >
                   <AlertCircle className="size-4" />
                 </Button>
@@ -346,7 +348,7 @@ function TimelineReservation({
                   variant="ghost"
                   className="size-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
                   onClick={() => onCancel(reservation)}
-                  title="Cancel"
+                  title={t.common.cancel}
                 >
                   <X className="size-4" />
                 </Button>
@@ -373,6 +375,7 @@ function WaitlistEntry({
   onSeat: (r: ReservationData) => void;
   onRemove: (r: ReservationData) => void;
 }) {
+  const t = useT();
   const [elapsed, setElapsed] = useState(0);
   const createdAt = new Date(entry.createdAt);
 
@@ -408,12 +411,12 @@ function WaitlistEntry({
           </span>
           <span className="flex items-center gap-1">
             <Timer className="size-3" />
-            {elapsed}m wait
+            {elapsed}{t.reservations.minutes} wait
           </span>
           {entry.estimatedWait && (
             <span className="flex items-center gap-1 text-amber-500">
               <Clock className="size-3" />
-              ~{entry.estimatedWait}m est.
+              ~{entry.estimatedWait}{t.reservations.minutes}
             </span>
           )}
           {entry.guestPhone && (
@@ -471,6 +474,7 @@ function AddWalkInDialog({
   tables: TableData[];
   onSubmit: (data: { guestName: string; guestPhone: string; partySize: number; estimatedWait: number }) => void;
 }) {
+  const t = useT();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [partySize, setPartySize] = useState(2);
@@ -492,7 +496,7 @@ function AddWalkInDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="size-5 text-amber-400" />
-            Add Walk-in Guest
+            {t.reservations.addToWaitlist}
           </DialogTitle>
           <DialogDescription className="text-zinc-500">
             Add a walk-in guest to the waitlist
@@ -500,7 +504,7 @@ function AddWalkInDialog({
         </DialogHeader>
         <div className="grid gap-4 py-2">
           <div className="grid gap-2">
-            <Label className="text-zinc-400 text-xs">Guest Name *</Label>
+            <Label className="text-zinc-400 text-xs">{t.reservations.guestName} *</Label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -509,7 +513,7 @@ function AddWalkInDialog({
             />
           </div>
           <div className="grid gap-2">
-            <Label className="text-zinc-400 text-xs">Phone Number</Label>
+            <Label className="text-zinc-400 text-xs">{t.reservations.phone}</Label>
             <Input
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
@@ -519,7 +523,7 @@ function AddWalkInDialog({
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
-              <Label className="text-zinc-400 text-xs">Party Size</Label>
+              <Label className="text-zinc-400 text-xs">{t.reservations.partySize}</Label>
               <Select value={String(partySize)} onValueChange={(v) => setPartySize(Number(v))}>
                 <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100">
                   <SelectValue />
@@ -534,7 +538,7 @@ function AddWalkInDialog({
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label className="text-zinc-400 text-xs">Est. Wait (min)</Label>
+              <Label className="text-zinc-400 text-xs">{t.reservations.estimatedWait} ({t.reservations.minutes})</Label>
               <Select value={String(estimatedWait)} onValueChange={(v) => setEstimatedWait(Number(v))}>
                 <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100">
                   <SelectValue />
@@ -542,7 +546,7 @@ function AddWalkInDialog({
                 <SelectContent className="bg-zinc-800 border-zinc-700">
                   {[5, 10, 15, 20, 25, 30, 45, 60].map((n) => (
                     <SelectItem key={n} value={String(n)} className="text-zinc-100 focus:bg-zinc-700 focus:text-zinc-100">
-                      {n} min
+                      {n} {t.reservations.minutes}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -552,11 +556,11 @@ function AddWalkInDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} className="border-zinc-700 text-zinc-400 hover:text-zinc-100">
-            Cancel
+            {t.common.cancel}
           </Button>
           <Button onClick={handleSubmit} disabled={!name.trim()} className="bg-amber-600 hover:bg-amber-700 text-white">
             <UserPlus className="size-4 mr-1.5" />
-            Add to Waitlist
+            {t.reservations.addToWaitlist}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -578,6 +582,7 @@ function NewReservationDialog({
   customers: CustomerData[];
   onSubmit: (data: Record<string, unknown>) => void;
 }) {
+  const t = useT();
   const [guestName, setGuestName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
@@ -633,7 +638,7 @@ function NewReservationDialog({
   };
 
   // Filter available tables (free or reserved) with enough capacity
-  const availableTables = tables.filter((t) => t.status === 'FREE' || t.status === 'RESERVED');
+  const availableTables = tables.filter((tbl) => tbl.status === 'FREE' || tbl.status === 'RESERVED');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -641,7 +646,7 @@ function NewReservationDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CalendarDays className="size-5 text-emerald-400" />
-            New Reservation
+            {t.reservations.newReservation}
           </DialogTitle>
           <DialogDescription className="text-zinc-500">
             Create a new reservation for a guest
@@ -700,7 +705,7 @@ function NewReservationDialog({
 
           {/* Guest Name */}
           <div className="grid gap-2">
-            <Label className="text-zinc-400 text-xs">Guest Name *</Label>
+            <Label className="text-zinc-400 text-xs">{t.reservations.guestName} *</Label>
             <Input
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
@@ -713,7 +718,7 @@ function NewReservationDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-2">
               <Label className="text-zinc-400 text-xs flex items-center gap-1">
-                <Phone className="size-3" /> Phone
+                <Phone className="size-3" /> {t.reservations.phone}
               </Label>
               <Input
                 value={guestPhone}
@@ -724,7 +729,7 @@ function NewReservationDialog({
             </div>
             <div className="grid gap-2">
               <Label className="text-zinc-400 text-xs flex items-center gap-1">
-                <Mail className="size-3" /> Email
+                <Mail className="size-3" /> {t.common.email}
               </Label>
               <Input
                 value={guestEmail}
@@ -739,7 +744,7 @@ function NewReservationDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-2">
               <Label className="text-zinc-400 text-xs flex items-center gap-1">
-                <Users className="size-3" /> Party Size
+                <Users className="size-3" /> {t.reservations.partySize}
               </Label>
               <Select value={String(partySize)} onValueChange={(v) => setPartySize(Number(v))}>
                 <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100">
@@ -767,10 +772,10 @@ function NewReservationDialog({
                     No table assigned
                   </SelectItem>
                   {availableTables
-                    .filter((t) => t.capacity >= partySize)
-                    .map((t) => (
-                      <SelectItem key={t.id} value={t.id} className="text-zinc-100 focus:bg-zinc-700 focus:text-zinc-100">
-                        {t.name} ({t.capacity} seats, {t.section})
+                    .filter((tbl) => tbl.capacity >= partySize)
+                    .map((tbl) => (
+                      <SelectItem key={tbl.id} value={tbl.id} className="text-zinc-100 focus:bg-zinc-700 focus:text-zinc-100">
+                        {tbl.name} ({tbl.capacity} seats, {tbl.section})
                       </SelectItem>
                     ))}
                 </SelectContent>
@@ -782,7 +787,7 @@ function NewReservationDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-2">
               <Label className="text-zinc-400 text-xs flex items-center gap-1">
-                <Calendar className="size-3" /> Date
+                <Calendar className="size-3" /> {t.reservations.date}
               </Label>
               <Popover>
                 <PopoverTrigger asChild>
@@ -806,7 +811,7 @@ function NewReservationDialog({
             </div>
             <div className="grid gap-2">
               <Label className="text-zinc-400 text-xs flex items-center gap-1">
-                <Clock className="size-3" /> Time
+                <Clock className="size-3" /> {t.reservations.time}
               </Label>
               <Select value={time} onValueChange={setTime}>
                 <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100">
@@ -831,7 +836,7 @@ function NewReservationDialog({
           {/* Notes */}
           <div className="grid gap-2">
             <Label className="text-zinc-400 text-xs flex items-center gap-1">
-              <StickyNote className="size-3" /> Notes
+              <StickyNote className="size-3" /> {t.reservations.notes}
             </Label>
             <Textarea
               value={notes}
@@ -844,11 +849,11 @@ function NewReservationDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} className="border-zinc-700 text-zinc-400 hover:text-zinc-100">
-            Cancel
+            {t.common.cancel}
           </Button>
           <Button onClick={handleSubmit} disabled={!guestName.trim()} className="bg-emerald-600 hover:bg-emerald-700 text-white">
             <Check className="size-4 mr-1.5" />
-            Create Reservation
+            {t.reservations.newReservation}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -870,6 +875,7 @@ function SeatGuestDialog({
   tables: TableData[];
   onSeat: (reservationId: string, tableId: string) => void;
 }) {
+  const t = useT();
   const [selectedTable, setSelectedTable] = useState('');
   const [prevResId, setPrevResId] = useState<string | null>(null);
 
@@ -888,7 +894,7 @@ function SeatGuestDialog({
   }
 
   const suitableTables = tables.filter(
-    (t) => (t.status === 'FREE' || t.status === 'RESERVED') && t.capacity >= reservation.partySize
+    (tbl) => (tbl.status === 'FREE' || tbl.status === 'RESERVED') && tbl.capacity >= reservation.partySize
   );
 
   return (
@@ -911,9 +917,9 @@ function SeatGuestDialog({
                 <SelectValue placeholder="Select a table" />
               </SelectTrigger>
               <SelectContent className="bg-zinc-800 border-zinc-700">
-                {suitableTables.map((t) => (
-                  <SelectItem key={t.id} value={t.id} className="text-zinc-100 focus:bg-zinc-700 focus:text-zinc-100">
-                    {t.name} — {t.capacity} seats ({t.section}, {t.status})
+                {suitableTables.map((tbl) => (
+                  <SelectItem key={tbl.id} value={tbl.id} className="text-zinc-100 focus:bg-zinc-700 focus:text-zinc-100">
+                    {tbl.name} — {tbl.capacity} seats ({tbl.section}, {tbl.status})
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -922,7 +928,7 @@ function SeatGuestDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} className="border-zinc-700 text-zinc-400 hover:text-zinc-100">
-            Cancel
+            {t.common.cancel}
           </Button>
           <Button
             onClick={() => {
@@ -942,6 +948,7 @@ function SeatGuestDialog({
 
 /* ─── Main Reservations Component ─── */
 export function Reservations() {
+  const t = useT();
   const queryClient = useQueryClient();
   const addNotification = useAppStore((s) => s.addNotification);
 
@@ -1128,7 +1135,7 @@ export function Reservations() {
         <div>
           <h2 className="text-lg md:text-xl font-bold text-zinc-100 flex items-center gap-2">
             <CalendarDays className="size-5 text-emerald-400" />
-            Reservations & Waitlist
+            {t.reservations.title} & {t.reservations.waitlist}
           </h2>
           <p className="text-xs text-zinc-500 mt-0.5">
             {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
@@ -1158,7 +1165,7 @@ export function Reservations() {
             className="bg-emerald-600 hover:bg-emerald-700 text-white"
           >
             <Plus className="size-4 mr-1.5" />
-            New Reservation
+            {t.reservations.newReservation}
           </Button>
         </div>
       </div>
@@ -1171,7 +1178,7 @@ export function Reservations() {
         <TabsList className="bg-zinc-900 border border-zinc-800">
           <TabsTrigger value="today" className="data-[state=active]:bg-emerald-600/20 data-[state=active]:text-emerald-400">
             <CalendarDays className="size-4 mr-1.5" />
-            Today&apos;s Reservations
+            {t.reservations.todayReservations}
             {todayReservations.length > 0 && (
               <Badge variant="outline" className="ml-1.5 text-[10px] px-1.5 py-0 border-emerald-500/30 text-emerald-400">
                 {todayReservations.length}
@@ -1180,7 +1187,7 @@ export function Reservations() {
           </TabsTrigger>
           <TabsTrigger value="waitlist" className="data-[state=active]:bg-amber-600/20 data-[state=active]:text-amber-400">
             <UserPlus className="size-4 mr-1.5" />
-            Waitlist
+            {t.reservations.waitlist}
             {walkIns.length > 0 && (
               <Badge variant="outline" className="ml-1.5 text-[10px] px-1.5 py-0 border-amber-500/30 text-amber-400">
                 {walkIns.length}
@@ -1189,7 +1196,7 @@ export function Reservations() {
           </TabsTrigger>
           <TabsTrigger value="all" className="data-[state=active]:bg-sky-600/20 data-[state=active]:text-sky-400">
             <Calendar className="size-4 mr-1.5" />
-            All Reservations
+            {t.common.all} {t.reservations.title}
           </TabsTrigger>
         </TabsList>
 
@@ -1305,15 +1312,15 @@ export function Reservations() {
                 {/* Status Filter */}
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-[160px] bg-zinc-800 border-zinc-700 text-zinc-100">
-                    <SelectValue placeholder="Filter by status" />
+                    <SelectValue placeholder={`${t.common.all} ${t.reservations.status}`} />
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-800 border-zinc-700">
-                    <SelectItem value="ALL" className="text-zinc-100 focus:bg-zinc-700 focus:text-zinc-100">All Statuses</SelectItem>
-                    <SelectItem value="CONFIRMED" className="text-zinc-100 focus:bg-zinc-700 focus:text-zinc-100">Confirmed</SelectItem>
-                    <SelectItem value="SEATED" className="text-zinc-100 focus:bg-zinc-700 focus:text-zinc-100">Seated</SelectItem>
-                    <SelectItem value="COMPLETED" className="text-zinc-100 focus:bg-zinc-700 focus:text-zinc-100">Completed</SelectItem>
-                    <SelectItem value="CANCELLED" className="text-zinc-100 focus:bg-zinc-700 focus:text-zinc-100">Cancelled</SelectItem>
-                    <SelectItem value="NO_SHOW" className="text-zinc-100 focus:bg-zinc-700 focus:text-zinc-100">No Show</SelectItem>
+                    <SelectItem value="ALL" className="text-zinc-100 focus:bg-zinc-700 focus:text-zinc-100">{t.common.all} {t.reservations.status}</SelectItem>
+                    <SelectItem value="CONFIRMED" className="text-zinc-100 focus:bg-zinc-700 focus:text-zinc-100">{t.reservations.confirmed}</SelectItem>
+                    <SelectItem value="SEATED" className="text-zinc-100 focus:bg-zinc-700 focus:text-zinc-100">{t.reservations.seated}</SelectItem>
+                    <SelectItem value="COMPLETED" className="text-zinc-100 focus:bg-zinc-700 focus:text-zinc-100">{t.common.completed}</SelectItem>
+                    <SelectItem value="CANCELLED" className="text-zinc-100 focus:bg-zinc-700 focus:text-zinc-100">{t.reservations.cancelled}</SelectItem>
+                    <SelectItem value="NO_SHOW" className="text-zinc-100 focus:bg-zinc-700 focus:text-zinc-100">{t.reservations.noShow}</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -1404,7 +1411,7 @@ export function Reservations() {
                                 variant="ghost"
                                 className="size-7 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
                                 onClick={() => handleCancel(r)}
-                                title="Cancel"
+                                title={t.common.cancel}
                               >
                                 <X className="size-3.5" />
                               </Button>

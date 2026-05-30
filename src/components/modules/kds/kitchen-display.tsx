@@ -181,6 +181,7 @@ async function updateItemStatus(itemId: string, status: OrderItemStatus): Promis
 /* ─── Stats Bar ─── */
 
 function StatsBar({ orders, role }: { orders: Order[]; role: UserRole }) {
+  const t = useT();
   const filteredItems = orders.flatMap((o) =>
     o.items.filter(
       (i) =>
@@ -222,17 +223,17 @@ function StatsBar({ orders, role }: { orders: Order[]; role: UserRole }) {
     <div className="flex flex-wrap items-center gap-3 md:gap-4">
       <div className="flex items-center gap-2 rounded-lg bg-zinc-900 border border-zinc-800 px-3 py-2 md:px-4">
         <Bell className="size-4 text-emerald-400" />
-        <span className="text-xs text-zinc-500">Active</span>
+        <span className="text-xs text-zinc-500">{t.common.active}</span>
         <span className="text-lg font-bold text-zinc-100">{activeTickets}</span>
       </div>
       <div className="flex items-center gap-2 rounded-lg bg-zinc-900 border border-zinc-800 px-3 py-2 md:px-4">
         <Timer className="size-4 text-amber-400" />
-        <span className="text-xs text-zinc-500">Avg Time</span>
+        <span className="text-xs text-zinc-500">{t.kds.elapsed}</span>
         <span className="text-lg font-bold text-zinc-100">{avgTicketTime}m</span>
       </div>
       <div className="flex items-center gap-2 rounded-lg bg-zinc-900 border border-zinc-800 px-3 py-2 md:px-4">
         <UtensilsCrossed className="size-4 text-sky-400" />
-        <span className="text-xs text-zinc-500">Pending</span>
+        <span className="text-xs text-zinc-500">{t.common.pending}</span>
         <span className="text-lg font-bold text-zinc-100">{itemsPending}</span>
       </div>
       {urgentCount > 0 && (
@@ -242,7 +243,7 @@ function StatsBar({ orders, role }: { orders: Order[]; role: UserRole }) {
           className="flex items-center gap-2 rounded-lg bg-red-950/50 border border-red-500/30 px-3 py-2 md:px-4"
         >
           <AlertTriangle className="size-4 text-red-400" />
-          <span className="text-xs text-red-300">Urgent</span>
+          <span className="text-xs text-red-300">!</span>
           <span className="text-lg font-bold text-red-400">{urgentCount}</span>
         </motion.div>
       )}
@@ -267,6 +268,7 @@ function OrderItemRow({
   onUpdate: (itemId: string, status: OrderItemStatus) => void;
   updating: boolean;
 }) {
+  const t = useT();
   const nextStatus = getNextStatus(item.status);
   const config = STATUS_CONFIG[item.status];
 
@@ -304,7 +306,7 @@ function OrderItemRow({
               variant="outline"
               className="text-[10px] px-1.5 py-0 h-4 border-zinc-700 text-zinc-400"
             >
-              Seat {item.seatNumber}
+              {t.pos.seat} {item.seatNumber}
             </Badge>
           )}
         </div>
@@ -419,7 +421,7 @@ function OrderTicket({
                 {order.table.name}
               </CardTitle>
               <p className="text-xs text-zinc-500 mt-0.5">
-                {order.type === 'DINE_IN' ? 'Dine In' : order.type} · {order.guestCount} guest{order.guestCount !== 1 ? 's' : ''}
+                {order.type === 'DINE_IN' ? t.floorPlan.statusSeated : order.type} · {order.guestCount} {order.guestCount !== 1 ? t.floorPlan.guests : t.floorPlan.guest}
               </p>
             </div>
             <div className="text-right">
@@ -444,13 +446,13 @@ function OrderTicket({
           {urgency === 'red' && (
             <div className="flex items-center gap-1 mt-1 text-xs text-red-400">
               <AlertTriangle className="size-3" />
-              <span className="font-medium">Over 20 minutes!</span>
+              <span className="font-medium">20+ {t.kds.minutes}!</span>
             </div>
           )}
           {urgency === 'amber' && (
             <div className="flex items-center gap-1 mt-1 text-xs text-amber-400">
               <Clock className="size-3" />
-              <span>Approaching deadline</span>
+              <span>{t.kds.elapsed}...</span>
             </div>
           )}
         </CardHeader>
@@ -633,7 +635,7 @@ export function KitchenDisplay() {
       <div className="flex items-center justify-center h-64">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-zinc-500">Loading orders...</p>
+          <p className="text-sm text-zinc-500">{t.common.loading}</p>
         </div>
       </div>
     );
@@ -647,7 +649,7 @@ export function KitchenDisplay() {
           <AlertTriangle className="size-8 text-red-400" />
           <p className="text-sm text-red-400">{error}</p>
           <Button variant="outline" onClick={loadOrders}>
-            Retry
+            {t.common.retry}
           </Button>
         </div>
       </div>
@@ -666,7 +668,7 @@ export function KitchenDisplay() {
             className="fixed top-4 right-4 z-50 flex items-center gap-2 bg-emerald-600 text-white px-4 py-3 rounded-lg shadow-lg shadow-emerald-600/30"
           >
             <Bell className="size-5 animate-bounce" />
-            <span className="text-sm font-semibold">New Order!</span>
+            <span className="text-sm font-semibold">{t.pos.newOrder}!</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -690,7 +692,7 @@ export function KitchenDisplay() {
               </TabsTrigger>
               <TabsTrigger value="bar" className="gap-1.5 data-[state=active]:bg-purple-600/20 data-[state=active]:text-purple-400">
                 <Wine className="size-4" />
-                Bar
+                {t.kds.barDisplay}
                 {barOrders.length > 0 && (
                   <Badge className="ml-1 bg-purple-600/20 text-purple-400 border-purple-500/30 text-[10px] h-4 px-1.5">
                     {barOrders.length}
@@ -746,7 +748,7 @@ export function KitchenDisplay() {
               <div className="flex-1 flex flex-col min-w-0">
                 <div className="flex items-center gap-2 mb-3">
                   <Wine className="size-5 text-purple-400" />
-                  <h3 className="text-sm font-semibold text-purple-400">Bar Orders</h3>
+                  <h3 className="text-sm font-semibold text-purple-400">{t.kds.barDisplay}</h3>
                   <Badge variant="outline" className="text-[10px] border-purple-500/30 text-purple-400">
                     {barOrders.length}
                   </Badge>
@@ -840,6 +842,7 @@ export function KitchenDisplay() {
 /* ─── Empty State ─── */
 
 function EmptyState({ station }: { station: 'kitchen' | 'bar' }) {
+  const t = useT();
   return (
     <div className="flex flex-col items-center justify-center py-16 w-full text-center">
       <div
@@ -855,10 +858,10 @@ function EmptyState({ station }: { station: 'kitchen' | 'bar' }) {
         )}
       </div>
       <h3 className="text-lg font-semibold text-zinc-400 mb-1">
-        No {station} orders
+        {t.kds.noTickets} — {station === 'kitchen' ? t.kds.kitchenDisplay : t.kds.barDisplay}
       </h3>
       <p className="text-sm text-zinc-600 max-w-xs">
-        Active {station} orders will appear here. Hang tight!
+        {t.kds.allCaughtUp}
       </p>
     </div>
   );
