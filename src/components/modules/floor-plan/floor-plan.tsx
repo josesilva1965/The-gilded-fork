@@ -426,6 +426,7 @@ function CanvasTableCard({
   isSelected,
   onClick,
   onDragMove,
+  onDragEnd,
   staff,
   onCapacityChange,
   onServerChange,
@@ -434,6 +435,7 @@ function CanvasTableCard({
   isSelected: boolean;
   onClick: () => void;
   onDragMove: (tableId: string, deltaX: number, deltaY: number) => void;
+  onDragEnd: (tableId: string) => void;
   staff: StaffMember[];
   onCapacityChange: (tableId: string, newCapacity: number) => void;
   onServerChange: (tableId: string, serverId: string | null) => void;
@@ -448,9 +450,11 @@ function CanvasTableCard({
 
   // Use refs for callbacks to avoid stale closures in document event listeners
   const onDragMoveRef = useRef(onDragMove);
+  const onDragEndRef = useRef(onDragEnd);
   const onClickRef = useRef(onClick);
   useEffect(() => {
     onDragMoveRef.current = onDragMove;
+    onDragEndRef.current = onDragEnd;
     onClickRef.current = onClick;
   });
 
@@ -502,11 +506,17 @@ function CanvasTableCard({
     };
 
     const handlePointerUp = () => {
-      if (dragState && !dragState.isDragging) {
+      const wasDragging = dragState?.isDragging ?? false;
+      if (dragState && !wasDragging) {
         onClickRef.current();
       }
       dragState = null;
       setIsDragging(false);
+
+      // Notify parent that drag ended - save position to API
+      if (wasDragging) {
+        onDragEndRef.current(table.id);
+      }
 
       // Remove document-level listeners
       document.removeEventListener('pointermove', handlePointerMove);
@@ -695,10 +705,10 @@ function FloorViewCanvas({
 }) {
   const t = useT();
   const containerRef = useRef<HTMLDivElement>(null);
+  // Ref to track which table is currently being dragged (prevents sync from overwriting)
+  const draggingTableIdRef = useRef<string | null>(null);
+  // Ref to always have latest local positions for drag calculations (avoids stale closures)
   const localPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
-  // Track tables that have local position changes that haven't been confirmed by the server yet
-  const pendingPositionRef = useRef<Set<string>>(new Set());
-  const saveTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const [localPositions, setLocalPositions] = useState<Record<string, { x: number; y: number }>>({});
   const [initialized, setInitialized] = useState(false);
 
@@ -709,16 +719,16 @@ function FloorViewCanvas({
   });
 
   // Sync local positions when tables data changes
-  // Preserve positions for tables that have pending local changes
+  // Skip the currently-dragged table to prevent position jumps during drag
   useEffect(() => {
     setLocalPositions((prev) => {
       const newPos: Record<string, { x: number; y: number }> = {};
       tables.forEach((tbl) => {
-        // If this table has a pending position change, keep the local position
-        if (pendingPositionRef.current.has(tbl.id) && prev[tbl.id]) {
+        // If this table is currently being dragged, preserve its local position
+        if (draggingTableIdRef.current === tbl.id && prev[tbl.id]) {
           newPos[tbl.id] = prev[tbl.id];
         } else {
-          // Otherwise use the server data
+          // Otherwise use the data from props (server data)
           newPos[tbl.id] = { x: tbl.x, y: tbl.y };
         }
       });
@@ -728,6 +738,7 @@ function FloorViewCanvas({
     setInitialized(true);
   }, [tables]);
 
+  // During drag: only update local state for visual feedback (no API calls)
   const handleDragMove = useCallback((tableId: string, deltaX: number, deltaY: number) => {
     const current = localPositionsRef.current[tableId];
     if (!current) return;
@@ -735,28 +746,35 @@ function FloorViewCanvas({
     const newX = Math.max(0, Math.min(current.x + deltaX, CANVAS_MIN_WIDTH - 80));
     const newY = Math.max(0, Math.min(current.y + deltaY, CANVAS_MIN_HEIGHT - 60));
 
-    // Mark this table as having a pending position change
-    pendingPositionRef.current.add(tableId);
+    // Mark this table as being actively dragged
+    draggingTableIdRef.current = tableId;
 
-    // Update ref immediately for next calculation
+    // Update ref immediately for next drag calculation
     localPositionsRef.current[tableId] = { x: newX, y: newY };
 
-    // Update React state immediately for rendering
+    // Update React state for rendering
     setLocalPositions((prev) => ({ ...prev, [tableId]: { x: newX, y: newY } }));
+  }, []);
 
-    // Debounce API save
-    if (saveTimeoutRef.current[tableId]) {
-      clearTimeout(saveTimeoutRef.current[tableId]);
-    }
-    saveTimeoutRef.current[tableId] = setTimeout(async () => {
-      await onTablePositionChangeRef.current(tableId, newX, newY);
-      // Only clear pending after the API call succeeds and state is updated
-      // Use a small delay to ensure the React state update from onTablePositionChange
-      // has been processed before we allow the position to be overwritten
+  // On drag end: save the final position to the API
+  const handleDragEnd = useCallback((tableId: string) => {
+    const finalPos = localPositionsRef.current[tableId];
+    if (finalPos) {
+      // Save to API - the parent will update tables state, which triggers the sync useEffect
+      // The sync useEffect will see draggingTableIdRef is still set, so it preserves the local position
+      onTablePositionChangeRef.current(tableId, finalPos.x, finalPos.y);
+
+      // Clear the dragging flag after enough time for:
+      // 1. API call to complete and update setTables
+      // 2. React to process the state update
+      // 3. Sync useEffect to run and preserve the local position
+      // After this delay, subsequent state changes will use the (now correct) server data
       setTimeout(() => {
-        pendingPositionRef.current.delete(tableId);
-      }, 200);
-    }, 500);
+        draggingTableIdRef.current = null;
+      }, 500);
+    } else {
+      draggingTableIdRef.current = null;
+    }
   }, []);
 
   return (
@@ -808,6 +826,7 @@ function FloorViewCanvas({
               isSelected={selectedTableId === table.id}
               onClick={() => onSelectTable(table)}
               onDragMove={handleDragMove}
+              onDragEnd={handleDragEnd}
               staff={staff}
               onCapacityChange={onCapacityChange}
               onServerChange={onServerChange}
