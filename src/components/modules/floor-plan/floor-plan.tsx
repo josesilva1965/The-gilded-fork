@@ -539,40 +539,36 @@ function CanvasTableCard({
             {table.name}
           </span>
 
-          {/* Capacity with +/- buttons (show on hover) */}
-          <div className="flex items-center gap-0.5">
-            {hovered && (
-              <button
-                data-interactive
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCapacityChange(table.id, Math.max(1, table.capacity - 1));
-                }}
-                className="size-4 flex items-center justify-center rounded bg-zinc-700/80 hover:bg-zinc-600 text-zinc-300 transition-colors"
-              >
-                <Minus className="size-2.5" />
-              </button>
-            )}
+          {/* Capacity with +/- buttons - always visible */}
+          <div className={cn("flex items-center gap-0.5 transition-opacity duration-150", hovered ? "opacity-100" : "opacity-50")}>
+            <button
+              data-interactive
+              onClick={(e) => {
+                e.stopPropagation();
+                onCapacityChange(table.id, Math.max(1, table.capacity - 1));
+              }}
+              className="size-4 flex items-center justify-center rounded bg-zinc-700/80 hover:bg-zinc-600 text-zinc-300 transition-colors"
+            >
+              <Minus className="size-2.5" />
+            </button>
             <span className="text-[10px] text-zinc-400 flex items-center gap-0.5">
               <Users className="size-2.5" />
               {table.capacity}
             </span>
-            {hovered && (
-              <button
-                data-interactive
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCapacityChange(table.id, Math.min(20, table.capacity + 1));
-                }}
-                className="size-4 flex items-center justify-center rounded bg-zinc-700/80 hover:bg-zinc-600 text-zinc-300 transition-colors"
-              >
-                <Plus className="size-2.5" />
-              </button>
-            )}
+            <button
+              data-interactive
+              onClick={(e) => {
+                e.stopPropagation();
+                onCapacityChange(table.id, Math.min(20, table.capacity + 1));
+              }}
+              className="size-4 flex items-center justify-center rounded bg-zinc-700/80 hover:bg-zinc-600 text-zinc-300 transition-colors"
+            >
+              <Plus className="size-2.5" />
+            </button>
           </div>
 
-          {/* Server - quick assign popover on hover */}
-          {hovered ? (
+          {/* Server - always visible assign button */}
+          <div className={cn("transition-opacity duration-150", hovered ? "opacity-100" : "opacity-50")}>
             <Popover open={serverPopoverOpen} onOpenChange={setServerPopoverOpen}>
               <PopoverTrigger asChild>
                 <button
@@ -628,11 +624,7 @@ function CanvasTableCard({
                 </div>
               </PopoverContent>
             </Popover>
-          ) : table.server ? (
-            <span className="text-[8px] bg-zinc-800/80 text-emerald-400 px-1 py-0 rounded-full border border-emerald-500/20 truncate max-w-full">
-              {table.server.name.split(' ').map(n => n[0]).join('')}
-            </span>
-          ) : null}
+          </div>
 
           {/* Order indicator */}
           {hasActiveOrder && (
@@ -668,6 +660,7 @@ function FloorViewCanvas({
   const t = useT();
   const containerRef = useRef<HTMLDivElement>(null);
   const localPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
+  const unsavedPositionRef = useRef<Set<string>>(new Set());
   const saveTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>({});
   const [localPositions, setLocalPositions] = useState<Record<string, { x: number; y: number }>>({});
 
@@ -675,39 +668,40 @@ function FloorViewCanvas({
   useEffect(() => {
     const newPos: Record<string, { x: number; y: number }> = {};
     tables.forEach((tbl) => {
-      newPos[tbl.id] = { x: tbl.x, y: tbl.y };
+      if (unsavedPositionRef.current.has(tbl.id) && localPositionsRef.current[tbl.id]) {
+        newPos[tbl.id] = localPositionsRef.current[tbl.id];
+      } else {
+        newPos[tbl.id] = { x: tbl.x, y: tbl.y };
+      }
     });
     localPositionsRef.current = newPos;
     setLocalPositions(newPos);
   }, [tables]);
 
   const handleDragMove = useCallback((tableId: string, deltaX: number, deltaY: number) => {
-    const container = containerRef.current;
-    if (!container) return;
-
     const current = localPositionsRef.current[tableId];
     if (!current) return;
 
     const newX = Math.max(0, Math.min(current.x + deltaX, CANVAS_MIN_WIDTH - 80));
     const newY = Math.max(0, Math.min(current.y + deltaY, CANVAS_MIN_HEIGHT - 60));
 
+    // Update ref immediately for next calculation
     localPositionsRef.current[tableId] = { x: newX, y: newY };
 
-    // Update the DOM position directly for smooth rendering
-    const el = container.querySelector(`[data-table-id="${tableId}"]`) as HTMLElement;
-    if (el) {
-      el.style.left = `${newX}px`;
-      el.style.top = `${newY}px`;
-    }
+    // Mark as unsaved
+    unsavedPositionRef.current.add(tableId);
 
-    // Debounce save and state sync
+    // Update React state immediately for rendering
+    setLocalPositions((prev) => ({ ...prev, [tableId]: { x: newX, y: newY } }));
+
+    // Debounce API save only
     if (saveTimeoutRef.current[tableId]) {
       clearTimeout(saveTimeoutRef.current[tableId]);
     }
     saveTimeoutRef.current[tableId] = setTimeout(() => {
       onTablePositionChange(tableId, newX, newY);
-      setLocalPositions((prev) => ({ ...prev, [tableId]: { x: newX, y: newY } }));
-    }, 300);
+      unsavedPositionRef.current.delete(tableId);
+    }, 500);
   }, [onTablePositionChange]);
 
   return (
@@ -1530,7 +1524,7 @@ export function FloorPlan() {
       setSelectedTable((prev) =>
         prev && prev.id === tableId ? { ...prev, x, y } : prev
       );
-      toast({ title: t.floorPlan.positionSaved });
+      // Silent success - no toast for position saves (fires frequently during drag)
     } catch {
       toast({ title: t.floorPlan.positionSaveFailed, variant: 'destructive' });
     }
