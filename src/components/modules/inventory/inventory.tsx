@@ -649,7 +649,7 @@ function POCard({ po }: { po: PurchaseOrder }) {
               <div className="min-w-0">
                 <p className="text-sm font-medium text-zinc-200 truncate">{po.vendor.name}</p>
                 <p className="text-[10px] text-zinc-600">
-                  {po.orderedAt ? formatDateByLocale(po.orderedAt) : 'Not ordered yet'}
+                  {po.orderedAt ? formatDateByLocale(po.orderedAt, locale) : 'Not ordered yet'}
                 </p>
               </div>
             </div>
@@ -1086,7 +1086,7 @@ export function Inventory() {
                       <div className="text-right shrink-0 ml-3">
                         <p className="text-sm font-mono text-amber-400">{fmtCur(log.value)}</p>
                         <p className="text-[10px] text-zinc-600">
-                          {log.reporter.name} · {formatDateByLocale(log.createdAt)}
+                          {log.reporter.name} · {formatDateByLocale(log.createdAt, locale)}
                         </p>
                       </div>
                     </div>

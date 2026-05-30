@@ -160,6 +160,7 @@ function getTierProgress(points: number, tier: LoyaltyTier): number {
 /* ─── Summary Cards ─── */
 
 function SummaryCards({ customers }: { customers: Customer[] }) {
+  const locale = useLocale();
   const totalCustomers = customers.length;
   const goldPlatinum = customers.filter(
     (c) => c.loyaltyTier === 'GOLD' || c.loyaltyTier === 'PLATINUM'
@@ -196,7 +197,7 @@ function SummaryCards({ customers }: { customers: Customer[] }) {
     },
     {
       label: t.crm.averageSpend,
-      value: formatCurrencyByLocale(avgSpend),
+      value: formatCurrencyByLocale(avgSpend, locale),
       icon: TrendingUp,
       color: 'text-sky-400',
       bgColor: 'bg-sky-500/10',
@@ -240,6 +241,7 @@ function CustomerDetailSheet({
   const [addingPoints, setAddingPoints] = useState(false);
   const [pointsToAdd, setPointsToAdd] = useState(100);
   const t = useT();
+  const locale = useLocale();
 
   if (!customer) return null;
 
@@ -281,7 +283,7 @@ function CustomerDetailSheet({
                 {customer.firstName} {customer.lastName}
               </SheetTitle>
               <SheetDescription className="text-xs text-zinc-500">
-                Member since {formatDateByLocale(customer.createdAt)}
+                Member since {formatDateByLocale(customer.createdAt, locale)}
               </SheetDescription>
             </div>
           </div>
@@ -309,7 +311,7 @@ function CustomerDetailSheet({
               {customer.birthday && (
                 <div className="flex items-center gap-2 text-xs text-zinc-300">
                   <Cake className="size-3.5 text-zinc-500" />
-                  {formatDateByLocale(customer.birthday)}
+                  {formatDateByLocale(customer.birthday, locale)}
                 </div>
               )}
             </div>
@@ -389,7 +391,7 @@ function CustomerDetailSheet({
                     <CardContent className="p-2.5 flex items-center justify-between">
                       <div>
                         <p className="text-xs text-zinc-300 font-medium">
-                          {formatDateByLocale(visit.visitDate)}
+                          {formatDateByLocale(visit.visitDate, locale)}
                         </p>
                         <p className="text-[10px] text-zinc-500">
                           {visit.partySize} guest{visit.partySize !== 1 ? 's' : ''}
@@ -397,7 +399,7 @@ function CustomerDetailSheet({
                         </p>
                       </div>
                       <span className="text-sm font-semibold text-emerald-400">
-                        {formatCurrencyByLocale(visit.totalSpend)}
+                        {formatCurrencyByLocale(visit.totalSpend, locale)}
                       </span>
                     </CardContent>
                   </Card>
@@ -427,7 +429,7 @@ function CustomerDetailSheet({
                       <span className="text-xs text-zinc-300">{fav.menuItem.name}</span>
                     </div>
                     <span className="text-[11px] text-zinc-500">
-                      {formatCurrencyByLocale(fav.menuItem.price)}
+                      {formatCurrencyByLocale(fav.menuItem.price, locale)}
                     </span>
                   </div>
                 ))}
@@ -712,6 +714,7 @@ export function CRMGuests() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const addNotification = useAppStore((s) => s.addNotification);
   const t = useT();
+  const locale = useLocale();
 
   /* Fetch customers */
   const fetchCustomers = useCallback(async (showLoader = false) => {
@@ -969,13 +972,13 @@ export function CRMGuests() {
                         {customer.visitCount}
                       </TableCell>
                       <TableCell className="text-right text-zinc-300">
-                        {formatCurrencyByLocale(customer.lifetimeSpend)}
+                        {formatCurrencyByLocale(customer.lifetimeSpend, locale)}
                       </TableCell>
                       <TableCell className="text-right text-zinc-300 hidden sm:table-cell">
                         {customer.loyaltyPoints.toLocaleString()}
                       </TableCell>
                       <TableCell className="text-right text-zinc-400 hidden md:table-cell">
-                        {customer.lastVisit ? formatDateByLocale(customer.lastVisit) : '—'}
+                        {customer.lastVisit ? formatDateByLocale(customer.lastVisit, locale) : '—'}
                       </TableCell>
                     </motion.tr>
                   ))

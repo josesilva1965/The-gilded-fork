@@ -79,7 +79,7 @@ export function getTaxPercent(locale: Locale): number {
 }
 
 export function formatCurrencyByLocale(amount: number, locale: Locale): string {
-  const config = LOCALE_CONFIGS[locale];
+  const config = LOCALE_CONFIGS[locale] ?? LOCALE_CONFIGS['en-GB'];
   try {
     return new Intl.NumberFormat(config.numberFormat, {
       style: 'currency',
@@ -91,7 +91,7 @@ export function formatCurrencyByLocale(amount: number, locale: Locale): string {
 }
 
 export function formatDateByLocale(date: string | Date, locale: Locale, options?: Intl.DateTimeFormatOptions): string {
-  const config = LOCALE_CONFIGS[locale];
+  const config = LOCALE_CONFIGS[locale] ?? LOCALE_CONFIGS['en-GB'];
   const d = typeof date === 'string' ? new Date(date) : date;
   try {
     return new Intl.DateTimeFormat(config.dateFormat, options || {
@@ -105,7 +105,7 @@ export function formatDateByLocale(date: string | Date, locale: Locale, options?
 }
 
 export function formatTimeByLocale(date: string | Date, locale: Locale): string {
-  const config = LOCALE_CONFIGS[locale];
+  const config = LOCALE_CONFIGS[locale] ?? LOCALE_CONFIGS['en-GB'];
   const d = typeof date === 'string' ? new Date(date) : date;
   try {
     return new Intl.DateTimeFormat(config.dateFormat, {

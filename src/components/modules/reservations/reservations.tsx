@@ -583,6 +583,7 @@ function NewReservationDialog({
   onSubmit: (data: Record<string, unknown>) => void;
 }) {
   const t = useT();
+  const locale = useLocale();
   const [guestName, setGuestName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
@@ -796,7 +797,7 @@ function NewReservationDialog({
                     className="bg-zinc-800 border-zinc-700 text-zinc-100 hover:bg-zinc-700 justify-start text-left font-normal"
                   >
                     <CalendarDays className="size-4 mr-2 text-zinc-500" />
-                    {formatDateByLocale(date)}
+                    {formatDateByLocale(date, locale)}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 bg-zinc-900 border-zinc-800" align="start">
@@ -949,6 +950,7 @@ function SeatGuestDialog({
 /* ─── Main Reservations Component ─── */
 export function Reservations() {
   const t = useT();
+  const locale = useLocale();
   const queryClient = useQueryClient();
   const addNotification = useAppStore((s) => s.addNotification);
 
@@ -1296,7 +1298,7 @@ export function Reservations() {
                       className="bg-zinc-800 border-zinc-700 text-zinc-100 hover:bg-zinc-700 justify-start text-left font-normal"
                     >
                       <CalendarDays className="size-4 mr-2 text-zinc-500" />
-                      {formatDateByLocale(selectedDate)}
+                      {formatDateByLocale(selectedDate, locale)}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0 bg-zinc-900 border-zinc-800" align="start">
@@ -1336,7 +1338,7 @@ export function Reservations() {
                   <div className="size-12 rounded-xl bg-zinc-800 flex items-center justify-center mb-3">
                     <CalendarDays className="size-6 text-zinc-600" />
                   </div>
-                  <p className="text-sm text-zinc-500">No reservations for {formatDateByLocale(selectedDate)}</p>
+                  <p className="text-sm text-zinc-500">No reservations for {formatDateByLocale(selectedDate, locale)}</p>
                   <p className="text-xs text-zinc-600 mt-1">Try selecting a different date or changing the filter</p>
                 </div>
               ) : (
