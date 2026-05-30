@@ -28,6 +28,9 @@ import {
   UserCheck,
   Plus,
   Minus,
+  Move,
+  LayoutGrid,
+  ChevronDown,
 } from 'lucide-react';
 import { useT, useLocale } from '@/stores/locale-store';
 import { useAppStore } from '@/stores/app-store';
@@ -50,6 +53,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
 /* ─── Types ─── */
@@ -67,6 +71,7 @@ type TableStatus =
 
 type TableSection = 'MAIN' | 'BAR' | 'PATIO' | 'VIP';
 type TableShape = 'ROUND' | 'SQUARE' | 'RECTANGLE';
+type ViewMode = 'sections' | 'floor';
 
 interface ServerInfo {
   id: string;
@@ -161,6 +166,20 @@ const SECTION_COLORS: Record<TableSection, string> = {
   VIP: 'text-yellow-400',
 };
 
+const SECTION_BG_COLORS: Record<TableSection, string> = {
+  MAIN: 'bg-emerald-500/5 border-emerald-500/10',
+  BAR: 'bg-purple-500/5 border-purple-500/10',
+  PATIO: 'bg-amber-500/5 border-amber-500/10',
+  VIP: 'bg-yellow-500/5 border-yellow-500/10',
+};
+
+const SECTION_LABEL_BG: Record<TableSection, string> = {
+  MAIN: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20',
+  BAR: 'bg-purple-500/15 text-purple-400 border-purple-500/20',
+  PATIO: 'bg-amber-500/15 text-amber-400 border-amber-500/20',
+  VIP: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/20',
+};
+
 function getTableStatusLabel(status: string, t: any): string {
   const keyMap: Record<string, string> = {
     FREE: 'statusFree',
@@ -205,12 +224,26 @@ const ALL_SECTIONS: TableSection[] = ['MAIN', 'BAR', 'PATIO', 'VIP'];
 const ALL_SHAPES: TableShape[] = ['ROUND', 'SQUARE', 'RECTANGLE'];
 
 const SHAPE_LABELS: Record<TableShape, string> = {
-  ROUND: '⬤ Round',
-  SQUARE: '■ Square',
-  RECTANGLE: '▬ Rectangle',
+  ROUND: '\u2B24 Round',
+  SQUARE: '\u25A0 Square',
+  RECTANGLE: '\u25AC Rectangle',
 };
 
 const REFRESH_INTERVAL = 30000; // 30 seconds
+const CANVAS_MIN_WIDTH = 1200;
+const CANVAS_MIN_HEIGHT = 800;
+
+/* ─── Section zone boundaries for canvas view ─── */
+/* These define approximate zones on the canvas for each section */
+
+function getSectionZones(): Record<TableSection, { x: number; y: number; w: number; h: number }> {
+  return {
+    MAIN: { x: 0, y: 0, w: 600, h: 400 },
+    BAR: { x: 600, y: 0, w: 600, h: 400 },
+    PATIO: { x: 0, y: 400, w: 600, h: 400 },
+    VIP: { x: 600, y: 400, w: 600, h: 400 },
+  };
+}
 
 /* ─── Summary Bar ─── */
 
@@ -267,7 +300,7 @@ function StatusLegend() {
   );
 }
 
-/* ─── Table Card (Draggable) ─── */
+/* ─── Table Card (Grid view - Draggable for swap) ─── */
 
 function TableCard({
   table,
@@ -383,6 +416,362 @@ function TableCard({
         </div>
       </button>
     </motion.div>
+  );
+}
+
+/* ─── Canvas Table Card (Floor View) ─── */
+
+function CanvasTableCard({
+  table,
+  isSelected,
+  onClick,
+  onDragMove,
+  staff,
+  onCapacityChange,
+  onServerChange,
+}: {
+  table: RestaurantTable;
+  isSelected: boolean;
+  onClick: () => void;
+  onDragMove: (tableId: string, deltaX: number, deltaY: number) => void;
+  staff: StaffMember[];
+  onCapacityChange: (tableId: string, newCapacity: number) => void;
+  onServerChange: (tableId: string, serverId: string | null) => void;
+}) {
+  const t = useT();
+  const dragRef = useRef<{ startX: number; startY: number; isDragging: boolean }>({
+    startX: 0,
+    startY: 0,
+    isDragging: false,
+  });
+  const [hovered, setHovered] = useState(false);
+  const [serverPopoverOpen, setServerPopoverOpen] = useState(false);
+  const statusColor = TABLE_STATUS_COLORS[table.status] || '';
+  const hasActiveOrder = table.orders.length > 0;
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    // Don't start drag if clicking on buttons or interactive elements
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('[data-interactive]')) return;
+
+    e.preventDefault();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    dragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      isDragging: false,
+    };
+  }, []);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!dragRef.current) return;
+    const deltaX = e.clientX - dragRef.current.startX;
+    const deltaY = e.clientY - dragRef.current.startY;
+
+    // Only start dragging after a minimum movement threshold
+    if (!dragRef.current.isDragging && (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3)) {
+      dragRef.current.isDragging = true;
+    }
+
+    if (dragRef.current.isDragging) {
+      onDragMove(table.id, deltaX, deltaY);
+      dragRef.current.startX = e.clientX;
+      dragRef.current.startY = e.clientY;
+    }
+  }, [table.id, onDragMove]);
+
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    if (dragRef.current && !dragRef.current.isDragging) {
+      onClick();
+    }
+    dragRef.current = { startX: 0, startY: 0, isDragging: false };
+  }, [onClick]);
+
+  const eligibleStaff = staff.filter((s) => ['FOH', 'MANAGER', 'ADMIN'].includes(s.role));
+
+  return (
+    <div
+      className={cn(
+        'absolute group select-none',
+        table.shape === 'ROUND' ? '' : '',
+      )}
+      style={{
+        left: table.x,
+        top: table.y,
+        width: table.width || (table.shape === 'RECTANGLE' ? 140 : 110),
+        height: table.height || (table.shape === 'RECTANGLE' ? 70 : 110),
+        zIndex: isSelected ? 30 : hovered ? 20 : 10,
+      }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <div
+        className={cn(
+          'relative w-full h-full border-2 rounded-lg transition-shadow duration-200 cursor-grab active:cursor-grabbing overflow-hidden',
+          'focus:outline-none',
+          statusColor,
+          isSelected && 'ring-2 ring-emerald-400 ring-offset-1 ring-offset-zinc-950',
+          table.shape === 'ROUND' && 'rounded-full',
+          hovered && !isSelected && 'ring-1 ring-zinc-500',
+        )}
+      >
+        {/* Move icon on hover */}
+        <div className={cn(
+          'absolute top-1 right-1 transition-opacity duration-200',
+          hovered ? 'opacity-60' : 'opacity-0'
+        )}>
+          <Move className="size-3" />
+        </div>
+
+        {/* Status dot */}
+        <div className="absolute top-1 left-1">
+          <span className={cn('block size-2 rounded-full', STATUS_DOT_COLORS[table.status])} />
+        </div>
+
+        {/* Card content */}
+        <div className="flex flex-col items-center justify-center h-full p-1.5 text-center gap-0.5">
+          {/* Table name */}
+          <span className="text-[11px] font-semibold text-zinc-100 truncate max-w-full leading-tight">
+            {table.name}
+          </span>
+
+          {/* Capacity with +/- buttons (show on hover) */}
+          <div className="flex items-center gap-0.5">
+            {hovered && (
+              <button
+                data-interactive
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCapacityChange(table.id, Math.max(1, table.capacity - 1));
+                }}
+                className="size-4 flex items-center justify-center rounded bg-zinc-700/80 hover:bg-zinc-600 text-zinc-300 transition-colors"
+              >
+                <Minus className="size-2.5" />
+              </button>
+            )}
+            <span className="text-[10px] text-zinc-400 flex items-center gap-0.5">
+              <Users className="size-2.5" />
+              {table.capacity}
+            </span>
+            {hovered && (
+              <button
+                data-interactive
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCapacityChange(table.id, Math.min(20, table.capacity + 1));
+                }}
+                className="size-4 flex items-center justify-center rounded bg-zinc-700/80 hover:bg-zinc-600 text-zinc-300 transition-colors"
+              >
+                <Plus className="size-2.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Server - quick assign popover on hover */}
+          {hovered ? (
+            <Popover open={serverPopoverOpen} onOpenChange={setServerPopoverOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  data-interactive
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setServerPopoverOpen(true);
+                  }}
+                  className="text-[9px] px-1.5 py-0 rounded-full bg-zinc-700/80 hover:bg-zinc-600 text-zinc-300 flex items-center gap-0.5 transition-colors"
+                >
+                  <UserCheck className="size-2.5" />
+                  {table.server ? table.server.name.split(' ')[0] : t.floorPlan.quickAssignServer}
+                  <ChevronDown className="size-2" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                className="w-48 p-1 bg-zinc-800 border-zinc-700 rounded-lg"
+                align="start"
+                side="bottom"
+                onOpenAutoFocus={(e) => e.preventDefault()}
+              >
+                <div className="space-y-0.5">
+                  <button
+                    data-interactive
+                    className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-zinc-700 flex items-center gap-2 text-zinc-400 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onServerChange(table.id, null);
+                      setServerPopoverOpen(false);
+                    }}
+                  >
+                    <XCircle className="size-3 text-zinc-500" />
+                    {t.floorPlan.noServer}
+                  </button>
+                  {eligibleStaff.map((s) => (
+                    <button
+                      key={s.id}
+                      data-interactive
+                      className={cn(
+                        'w-full text-left px-2 py-1.5 text-xs rounded hover:bg-zinc-700 flex items-center gap-2 transition-colors',
+                        table.serverId === s.id ? 'text-emerald-400 bg-emerald-500/10' : 'text-zinc-200'
+                      )}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onServerChange(table.id, s.id);
+                        setServerPopoverOpen(false);
+                      }}
+                    >
+                      <UserCheck className="size-3 text-emerald-400" />
+                      {s.name}
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          ) : table.server ? (
+            <span className="text-[8px] bg-zinc-800/80 text-emerald-400 px-1 py-0 rounded-full border border-emerald-500/20 truncate max-w-full">
+              {table.server.name.split(' ').map(n => n[0]).join('')}
+            </span>
+          ) : null}
+
+          {/* Order indicator */}
+          {hasActiveOrder && (
+            <span className="absolute bottom-1 right-1">
+              <span className="block size-1.5 rounded-full bg-amber-400" />
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Floor View Canvas ─── */
+
+function FloorViewCanvas({
+  tables,
+  selectedTableId,
+  onSelectTable,
+  onTablePositionChange,
+  onCapacityChange,
+  onServerChange,
+  staff,
+}: {
+  tables: RestaurantTable[];
+  selectedTableId: string | null;
+  onSelectTable: (table: RestaurantTable) => void;
+  onTablePositionChange: (tableId: string, x: number, y: number) => void;
+  onCapacityChange: (tableId: string, newCapacity: number) => void;
+  onServerChange: (tableId: string, serverId: string | null) => void;
+  staff: StaffMember[];
+}) {
+  const t = useT();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const localPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
+  const saveTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>({});
+  const [localPositions, setLocalPositions] = useState<Record<string, { x: number; y: number }>>({});
+
+  // Sync local positions when tables data changes
+  useEffect(() => {
+    const newPos: Record<string, { x: number; y: number }> = {};
+    tables.forEach((tbl) => {
+      newPos[tbl.id] = { x: tbl.x, y: tbl.y };
+    });
+    localPositionsRef.current = newPos;
+    setLocalPositions(newPos);
+  }, [tables]);
+
+  const handleDragMove = useCallback((tableId: string, deltaX: number, deltaY: number) => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const current = localPositionsRef.current[tableId];
+    if (!current) return;
+
+    const newX = Math.max(0, Math.min(current.x + deltaX, CANVAS_MIN_WIDTH - 80));
+    const newY = Math.max(0, Math.min(current.y + deltaY, CANVAS_MIN_HEIGHT - 60));
+
+    localPositionsRef.current[tableId] = { x: newX, y: newY };
+
+    // Update the DOM position directly for smooth rendering
+    const el = container.querySelector(`[data-table-id="${tableId}"]`) as HTMLElement;
+    if (el) {
+      el.style.left = `${newX}px`;
+      el.style.top = `${newY}px`;
+    }
+
+    // Debounce save and state sync
+    if (saveTimeoutRef.current[tableId]) {
+      clearTimeout(saveTimeoutRef.current[tableId]);
+    }
+    saveTimeoutRef.current[tableId] = setTimeout(() => {
+      onTablePositionChange(tableId, newX, newY);
+      setLocalPositions((prev) => ({ ...prev, [tableId]: { x: newX, y: newY } }));
+    }, 300);
+  }, [onTablePositionChange]);
+
+  return (
+    <div className="relative rounded-xl border border-zinc-800 bg-zinc-950 overflow-auto">
+      <div
+        ref={containerRef}
+        className="relative"
+        style={{
+          minWidth: CANVAS_MIN_WIDTH,
+          minHeight: CANVAS_MIN_HEIGHT,
+          backgroundImage:
+            'radial-gradient(circle, rgba(113,113,122,0.15) 1px, transparent 1px)',
+          backgroundSize: '20px 20px',
+        }}
+      >
+        {/* Section zone labels */}
+        {ALL_SECTIONS.map((section) => {
+          const zone = getSectionZones()[section];
+          const sectionTables = tables.filter((tbl) => tbl.section === section);
+          if (sectionTables.length === 0) return null;
+          const Icon = SECTION_ICONS[section];
+          return (
+            <div
+              key={section}
+              className={cn('absolute border rounded-lg pointer-events-none', SECTION_BG_COLORS[section])}
+              style={{ left: zone.x, top: zone.y, width: zone.w, height: zone.h }}
+            >
+              <div className={cn('flex items-center gap-1.5 px-2 py-1 rounded-md border m-2 w-fit', SECTION_LABEL_BG[section])}>
+                <Icon className="size-3" />
+                <span className="text-[10px] font-semibold uppercase tracking-wider">{getSectionLabels(t)[section]}</span>
+                <Badge variant="outline" className="border-current/20 text-current text-[8px] px-1 py-0 h-3.5 ml-1">
+                  {sectionTables.length}
+                </Badge>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Table cards */}
+        {tables.map((table) => (
+          <div key={table.id} data-table-id={table.id}>
+            <CanvasTableCard
+              table={{
+                ...table,
+                x: localPositions[table.id]?.x ?? table.x,
+                y: localPositions[table.id]?.y ?? table.y,
+              }}
+              isSelected={selectedTableId === table.id}
+              onClick={() => onSelectTable(table)}
+              onDragMove={handleDragMove}
+              staff={staff}
+              onCapacityChange={onCapacityChange}
+              onServerChange={onServerChange}
+            />
+          </div>
+        ))}
+
+        {/* Drag hint */}
+        <div className="absolute bottom-3 right-3 flex items-center gap-1.5 text-zinc-600 text-[10px] pointer-events-none">
+          <Move className="size-3" />
+          {t.floorPlan.dragToMove}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -767,7 +1156,7 @@ function TableDetailSheet({
                             className="flex items-center justify-between text-xs py-0.5"
                           >
                             <div className="flex items-center gap-1.5 min-w-0">
-                              <span className="text-zinc-500 shrink-0">×{item.quantity}</span>
+                              <span className="text-zinc-500 shrink-0">&times;{item.quantity}</span>
                               <span className="text-zinc-300 truncate">{item.menuItem.name}</span>
                             </div>
                             <span className="text-zinc-400 shrink-0 ml-2">
@@ -966,6 +1355,7 @@ export function FloorPlan() {
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [refreshing, setRefreshing] = useState(false);
   const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [viewMode, setViewMode] = useState<ViewMode>('sections');
   const t = useT();
   const locale = useLocale();
   const { toast } = useToast();
@@ -1088,7 +1478,7 @@ export function FloorPlan() {
     });
   }
 
-  /* Drag-and-drop: swap positions of two tables */
+  /* Drag-and-drop: swap positions of two tables (section view) */
   async function handleTableMove(movedTableId: string, targetTableId: string) {
     const movedTable = tables.find((t) => t.id === movedTableId);
     const targetTable = tables.find((t) => t.id === targetTableId);
@@ -1121,6 +1511,112 @@ export function FloorPlan() {
     } catch {
       toast({ title: t.floorPlan.failedToUpdateTable, variant: 'destructive' });
       await fetchTables(false);
+    }
+  }
+
+  /* Floor view: position change handler */
+  async function handleTablePositionChange(tableId: string, x: number, y: number) {
+    try {
+      const res = await fetch('/api/tables', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: tableId, x, y }),
+      });
+      if (!res.ok) throw new Error('Failed to save position');
+
+      setTables((prev) =>
+        prev.map((tbl) => (tbl.id === tableId ? { ...tbl, x, y } : tbl))
+      );
+      setSelectedTable((prev) =>
+        prev && prev.id === tableId ? { ...prev, x, y } : prev
+      );
+      toast({ title: t.floorPlan.positionSaved });
+    } catch {
+      toast({ title: t.floorPlan.positionSaveFailed, variant: 'destructive' });
+    }
+  }
+
+  /* Floor view: quick capacity change handler */
+  async function handleCapacityChange(tableId: string, newCapacity: number) {
+    const table = tables.find((t) => t.id === tableId);
+    if (!table || table.capacity === newCapacity) return;
+
+    // Optimistic update
+    setTables((prev) =>
+      prev.map((tbl) => (tbl.id === tableId ? { ...tbl, capacity: newCapacity } : tbl))
+    );
+    setSelectedTable((prev) =>
+      prev && prev.id === tableId ? { ...prev, capacity: newCapacity } : prev
+    );
+
+    try {
+      const res = await fetch('/api/tables', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: tableId, capacity: newCapacity }),
+      });
+      if (!res.ok) throw new Error('Failed to update capacity');
+      toast({ title: t.floorPlan.tableUpdated });
+    } catch {
+      toast({ title: t.floorPlan.failedToUpdateTable, variant: 'destructive' });
+      // Revert optimistic update
+      setTables((prev) =>
+        prev.map((tbl) => (tbl.id === tableId ? { ...tbl, capacity: table.capacity } : tbl))
+      );
+      setSelectedTable((prev) =>
+        prev && prev.id === tableId ? { ...prev, capacity: table.capacity } : prev
+      );
+    }
+  }
+
+  /* Floor view: quick server change handler */
+  async function handleServerChange(tableId: string, serverId: string | null) {
+    const table = tables.find((t) => t.id === tableId);
+    if (!table) return;
+
+    const newServer = serverId ? staff.find(s => s.id === serverId) || null : null;
+
+    // Optimistic update
+    setTables((prev) =>
+      prev.map((tbl) =>
+        tbl.id === tableId ? { ...tbl, serverId, server: newServer } : tbl
+      )
+    );
+    setSelectedTable((prev) =>
+      prev && prev.id === tableId ? { ...prev, serverId, server: newServer } : prev
+    );
+
+    try {
+      const res = await fetch('/api/tables', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: tableId, serverId }),
+      });
+      if (!res.ok) throw new Error('Failed to update server');
+      const updated = await res.json();
+      // Use server data from API response if available
+      if (updated.server) {
+        setTables((prev) =>
+          prev.map((tbl) =>
+            tbl.id === tableId ? { ...tbl, server: updated.server } : tbl
+          )
+        );
+        setSelectedTable((prev) =>
+          prev && prev.id === tableId ? { ...prev, server: updated.server } : prev
+        );
+      }
+      toast({ title: t.floorPlan.tableUpdated });
+    } catch {
+      toast({ title: t.floorPlan.failedToUpdateTable, variant: 'destructive' });
+      // Revert optimistic update
+      setTables((prev) =>
+        prev.map((tbl) =>
+          tbl.id === tableId ? { ...tbl, serverId: table.serverId, server: table.server } : tbl
+        )
+      );
+      setSelectedTable((prev) =>
+        prev && prev.id === tableId ? { ...prev, serverId: table.serverId, server: table.server } : prev
+      );
     }
   }
 
@@ -1198,84 +1694,137 @@ export function FloorPlan() {
             )}
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => fetchTables(false)}
-          disabled={refreshing}
-          className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 gap-2 self-start"
-        >
-          <RefreshCw className={cn('size-4', refreshing && 'animate-spin')} />
-          {t.common.refresh}
-        </Button>
+        <div className="flex items-center gap-2 self-start">
+          {/* View Mode Toggle */}
+          <div className="flex items-center rounded-lg border border-zinc-800 bg-zinc-900 p-0.5">
+            <button
+              onClick={() => setViewMode('sections')}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
+                viewMode === 'sections'
+                  ? 'bg-zinc-800 text-zinc-100 shadow-sm'
+                  : 'text-zinc-500 hover:text-zinc-300'
+              )}
+            >
+              <LayoutGrid className="size-3.5" />
+              {t.floorPlan.sectionView}
+            </button>
+            <button
+              onClick={() => setViewMode('floor')}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
+                viewMode === 'floor'
+                  ? 'bg-zinc-800 text-zinc-100 shadow-sm'
+                  : 'text-zinc-500 hover:text-zinc-300'
+              )}
+            >
+              <Map className="size-3.5" />
+              {t.floorPlan.floorView}
+            </button>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fetchTables(false)}
+            disabled={refreshing}
+            className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 gap-2"
+          >
+            <RefreshCw className={cn('size-4', refreshing && 'animate-spin')} />
+            {t.common.refresh}
+          </Button>
+        </div>
       </div>
 
       {/* Summary Bar */}
       <SummaryBar tables={tables} />
 
-      {/* Section Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <Tabs
-          value={activeSection}
-          onValueChange={setActiveSection}
-          className="w-full sm:w-auto"
-        >
-          <TabsList className="bg-zinc-900 border border-zinc-800 h-9 p-0.5">
-            <TabsTrigger
-              value="ALL"
-              className="data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-100 text-zinc-400 px-3 h-8 text-xs"
-            >
-              {t.common.all}
-            </TabsTrigger>
-            {ALL_SECTIONS.map((sec) => {
-              const Icon = SECTION_ICONS[sec];
+      {/* Section Tabs (only in sections view) */}
+      {viewMode === 'sections' && (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <Tabs
+            value={activeSection}
+            onValueChange={setActiveSection}
+            className="w-full sm:w-auto"
+          >
+            <TabsList className="bg-zinc-900 border border-zinc-800 h-9 p-0.5">
+              <TabsTrigger
+                value="ALL"
+                className="data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-100 text-zinc-400 px-3 h-8 text-xs"
+              >
+                {t.common.all}
+              </TabsTrigger>
+              {ALL_SECTIONS.map((sec) => {
+                const Icon = SECTION_ICONS[sec];
+                return (
+                  <TabsTrigger
+                    key={sec}
+                    value={sec}
+                    className={cn(
+                      'data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-100 text-zinc-400 px-3 h-8 text-xs gap-1.5',
+                      activeSection === sec && SECTION_COLORS[sec]
+                    )}
+                  >
+                    <Icon className="size-3.5" />
+                    <span className="hidden sm:inline">{getSectionLabels(t)[sec]}</span>
+                    <span className="sm:hidden">{sec}</span>
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </Tabs>
+
+          {/* Status Legend */}
+          <StatusLegend />
+        </div>
+      )}
+
+      {/* Status Legend for floor view */}
+      {viewMode === 'floor' && (
+        <div className="flex items-center justify-between">
+          <StatusLegend />
+          <span className="text-[10px] text-zinc-600 hidden sm:inline">{t.floorPlan.dragToMove}</span>
+        </div>
+      )}
+
+      {/* Floor Content */}
+      {viewMode === 'sections' ? (
+        /* Section View (Grid) */
+        activeSection === 'ALL' ? (
+          <div className="space-y-6">
+            {ALL_SECTIONS.map((section) => {
+              const sectionTables = groupedTables[section];
+              if (sectionTables.length === 0) return null;
               return (
-                <TabsTrigger
-                  key={sec}
-                  value={sec}
-                  className={cn(
-                    'data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-100 text-zinc-400 px-3 h-8 text-xs gap-1.5',
-                    activeSection === sec && SECTION_COLORS[sec]
-                  )}
-                >
-                  <Icon className="size-3.5" />
-                  <span className="hidden sm:inline">{getSectionLabels(t)[sec]}</span>
-                  <span className="sm:hidden">{sec}</span>
-                </TabsTrigger>
+                <SectionGroup
+                  key={section}
+                  section={section}
+                  tables={sectionTables}
+                  selectedTableId={selectedTable?.id ?? null}
+                  onSelectTable={handleSelectTable}
+                  onTableMove={handleTableMove}
+                />
               );
             })}
-          </TabsList>
-        </Tabs>
-
-        {/* Status Legend */}
-        <StatusLegend />
-      </div>
-
-      {/* Floor Grid */}
-      {activeSection === 'ALL' ? (
-        <div className="space-y-6">
-          {ALL_SECTIONS.map((section) => {
-            const sectionTables = groupedTables[section];
-            if (sectionTables.length === 0) return null;
-            return (
-              <SectionGroup
-                key={section}
-                section={section}
-                tables={sectionTables}
-                selectedTableId={selectedTable?.id ?? null}
-                onSelectTable={handleSelectTable}
-                onTableMove={handleTableMove}
-              />
-            );
-          })}
-        </div>
+          </div>
+        ) : (
+          <SectionGroup
+            section={activeSection as TableSection}
+            tables={filteredTables}
+            selectedTableId={selectedTable?.id ?? null}
+            onSelectTable={handleSelectTable}
+            onTableMove={handleTableMove}
+          />
+        )
       ) : (
-        <SectionGroup
-          section={activeSection as TableSection}
-          tables={filteredTables}
+        /* Floor View (Canvas) */
+        <FloorViewCanvas
+          tables={viewMode === 'floor' ? tables : filteredTables}
           selectedTableId={selectedTable?.id ?? null}
           onSelectTable={handleSelectTable}
-          onTableMove={handleTableMove}
+          onTablePositionChange={handleTablePositionChange}
+          onCapacityChange={handleCapacityChange}
+          onServerChange={handleServerChange}
+          staff={staff}
         />
       )}
 

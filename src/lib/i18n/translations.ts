@@ -164,6 +164,16 @@ export interface Translations {
     dragToReorder: string;
     tableUpdated: string;
     failedToUpdateTable: string;
+    // Canvas view
+    sectionView: string;
+    floorView: string;
+    dragToMove: string;
+    positionSaved: string;
+    positionSaveFailed: string;
+    quickEditSeats: string;
+    quickAssignServer: string;
+    seatsShort: string;
+    maxSeats: string;
   };
 
   // ─── POS ───
@@ -524,6 +534,15 @@ export const enGB: Translations = {
     dragToReorder: 'Drag to reorder',
     tableUpdated: 'Table updated',
     failedToUpdateTable: 'Failed to update table',
+    sectionView: 'Sections',
+    floorView: 'Floor View',
+    dragToMove: 'Drag table to reposition',
+    positionSaved: 'Position saved',
+    positionSaveFailed: 'Failed to save position',
+    quickEditSeats: 'Seats',
+    quickAssignServer: 'Server',
+    seatsShort: 'seats',
+    maxSeats: 'Max 20 seats',
   },
   pos: {
     newOrder: 'New Order',
@@ -862,6 +881,15 @@ export const ptPT: Translations = {
     dragToReorder: 'Arraste para reordenar',
     tableUpdated: 'Mesa atualizada',
     failedToUpdateTable: 'Falha ao atualizar mesa',
+    sectionView: 'Secções',
+    floorView: 'Vista Planta',
+    dragToMove: 'Arraste a mesa para reposicionar',
+    positionSaved: 'Posição guardada',
+    positionSaveFailed: 'Falha ao guardar posição',
+    quickEditSeats: 'Lugares',
+    quickAssignServer: 'Empregado',
+    seatsShort: 'lug.',
+    maxSeats: 'Máx. 20 lugares',
   },
   pos: {
     newOrder: 'Novo Pedido',
@@ -1200,6 +1228,15 @@ export const frFR: Translations = {
     dragToReorder: 'Glisser pour réorganiser',
     tableUpdated: 'Table mise à jour',
     failedToUpdateTable: 'Échec de la mise à jour de la table',
+    sectionView: 'Sections',
+    floorView: 'Vue Plan',
+    dragToMove: 'Glissez la table pour la déplacer',
+    positionSaved: 'Position enregistrée',
+    positionSaveFailed: 'Échec de l\'enregistrement de la position',
+    quickEditSeats: 'Places',
+    quickAssignServer: 'Serveur',
+    seatsShort: 'pl.',
+    maxSeats: 'Max 20 places',
   },
   pos: {
     newOrder: 'Nouvelle Commande',
@@ -1538,6 +1575,15 @@ export const esES: Translations = {
     dragToReorder: 'Arrastra para reordenar',
     tableUpdated: 'Mesa actualizada',
     failedToUpdateTable: 'Error al actualizar mesa',
+    sectionView: 'Secciones',
+    floorView: 'Vista Plano',
+    dragToMove: 'Arrastra la mesa para reposicionar',
+    positionSaved: 'Posición guardada',
+    positionSaveFailed: 'Error al guardar posición',
+    quickEditSeats: 'Asientos',
+    quickAssignServer: 'Camarero',
+    seatsShort: 'as.',
+    maxSeats: 'Máx. 20 asientos',
   },
   pos: {
     newOrder: 'Nuevo Pedido',
