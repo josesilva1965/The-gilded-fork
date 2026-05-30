@@ -26,8 +26,8 @@ import {
   Check,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
-import { useAppStore } from '@/stores/app-store';
 import { useT, useLocale } from '@/stores/locale-store';
+import { useToast } from '@/hooks/use-toast';
 import { formatCurrencyByLocale, formatDateByLocale } from '@/lib/i18n/locales';
 import { cn } from '@/lib/utils';
 
@@ -497,6 +497,8 @@ function LogWastageDialog({
 }) {
   const user = useAuthStore((s) => s.user);
   const locale = useLocale();
+  const { toast } = useToast();
+  const t = useT();
   const fmtCur = useCallback((a: number) => formatCurrencyByLocale(a, locale), [locale]);
   const [selectedIngredient, setSelectedIngredient] = useState('');
   const [quantity, setQuantity] = useState('');
@@ -531,9 +533,13 @@ function LogWastageDialog({
         setNotes('');
         onSaved();
         onClose();
+        toast({ title: t.inventory.wastageLog, description: t.inventory.stockUpdated });
+      } else {
+        toast({ title: t.common.error, description: t.inventory.failedToUpdateStock, variant: 'destructive' });
       }
     } catch (err) {
       console.error('Failed to log wastage:', err);
+      toast({ title: t.common.error, description: t.inventory.failedToUpdateStock, variant: 'destructive' });
     }
     setSaving(false);
   };
@@ -691,7 +697,7 @@ function POCard({ po }: { po: PurchaseOrder }) {
 /* ─── Main Inventory Component ─── */
 export function Inventory() {
   const user = useAuthStore((s) => s.user);
-  const addNotification = useAppStore((s) => s.addNotification);
+  const { toast } = useToast();
   const queryClient = useQueryClient();
   const t = useT();
   const locale = useLocale();
@@ -707,6 +713,7 @@ export function Inventory() {
   const [editingIngredient, setEditingIngredient] = useState<Ingredient | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [wastageDialogOpen, setWastageDialogOpen] = useState(false);
+  const [generatingPOId, setGeneratingPOId] = useState<string | null>(null);
   const [lowStockPanelOpen, setLowStockPanelOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('stock');
 
@@ -782,18 +789,19 @@ export function Inventory() {
       });
       if (res.ok) {
         queryClient.invalidateQueries({ queryKey: ['inventory'] });
-        addNotification('Stock updated successfully', 'success');
+        toast({ title: t.inventory.stockUpdated });
       }
     } catch {
-      addNotification('Failed to update stock', 'error');
+      toast({ title: t.common.error, description: t.inventory.failedToUpdateStock, variant: 'destructive' });
     }
-  }, [queryClient, addNotification]);
+  }, [queryClient, toast, t]);
 
   const handleGeneratePO = useCallback(async (ingredient: Ingredient) => {
     if (!ingredient.vendorId) {
-      addNotification('No vendor assigned for this ingredient', 'error');
+      toast({ title: t.common.error, description: t.inventory.noVendorAssigned, variant: 'destructive' });
       return;
     }
+    setGeneratingPOId(ingredient.id);
     const reorderQty = ingredient.maxStock - ingredient.currentStock;
     const totalPrice = parseFloat((reorderQty * ingredient.costPerUnit).toFixed(2));
     try {
@@ -813,12 +821,18 @@ export function Inventory() {
       });
       if (res.ok) {
         queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
-        addNotification(`Draft PO created for ${ingredient.name}`, 'success');
+        queryClient.invalidateQueries({ queryKey: ['inventory'] });
+        toast({ title: t.inventory.draftPOCreated, description: `${ingredient.name} — ${reorderQty.toFixed(1)} ${ingredient.unit}` });
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast({ title: t.common.error, description: data.error || t.inventory.failedToCreatePO, variant: 'destructive' });
       }
     } catch {
-      addNotification('Failed to create purchase order', 'error');
+      toast({ title: t.common.error, description: t.inventory.failedToCreatePO, variant: 'destructive' });
+    } finally {
+      setGeneratingPOId(null);
     }
-  }, [queryClient, addNotification]);
+  }, [queryClient, toast, t]);
 
   const invalidateAll = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['inventory'] });
@@ -892,10 +906,14 @@ export function Inventory() {
                           variant="outline"
                           className="shrink-0 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 text-[11px] h-8"
                           onClick={() => handleGeneratePO(item)}
-                          disabled={!item.vendorId}
+                          disabled={!item.vendorId || generatingPOId === item.id}
                         >
-                          <FileText className="size-3 mr-1" />
-                          Generate PO
+                          {generatingPOId === item.id ? (
+                            <Loader2 className="size-3 mr-1 animate-spin" />
+                          ) : (
+                            <FileText className="size-3 mr-1" />
+                          )}
+                          {generatingPOId === item.id ? t.common.updating : t.inventory.generatePO}
                         </Button>
                       </div>
                     );
