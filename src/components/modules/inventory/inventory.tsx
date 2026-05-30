@@ -496,6 +496,8 @@ function LogWastageDialog({
   onSaved: () => void;
 }) {
   const user = useAuthStore((s) => s.user);
+  const locale = useLocale();
+  const fmtCur = useCallback((a: number) => formatCurrencyByLocale(a, locale), [locale]);
   const [selectedIngredient, setSelectedIngredient] = useState('');
   const [quantity, setQuantity] = useState('');
   const [reason, setReason] = useState('');
@@ -631,6 +633,8 @@ function LogWastageDialog({
 /* ─── PO Card ─── */
 function POCard({ po }: { po: PurchaseOrder }) {
   const [expanded, setExpanded] = useState(false);
+  const locale = useLocale();
+  const fmtCur = useCallback((a: number) => formatCurrencyByLocale(a, locale), [locale]);
 
   return (
     <Collapsible open={expanded} onOpenChange={setExpanded}>
