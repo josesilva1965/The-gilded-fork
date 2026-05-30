@@ -8,12 +8,14 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
-import { useAuthStore, ROLE_LABELS, ROLE_COLORS } from '@/stores/auth-store';
+import { useAuthStore, ROLE_COLORS } from '@/stores/auth-store';
 import { useAppStore } from '@/stores/app-store';
+import { useT, useLocale } from '@/stores/locale-store';
 import { NAV_ITEMS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { LanguageSwitcher } from '@/components/layout/language-switcher';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,10 +26,30 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 
-const VIEW_TITLES: Record<string, string> = {};
-NAV_ITEMS.forEach((item) => {
-  VIEW_TITLES[item.view] = item.label;
-});
+function getTranslatedRoleLabel(role: string, t: any): string {
+  const roleMap: Record<string, string> = {
+    ADMIN: t.roles.admin,
+    MANAGER: t.roles.manager,
+    KITCHEN: t.roles.kitchen,
+    BAR: t.roles.bar,
+    FOH: t.roles.foh,
+  };
+  return roleMap[role] || role;
+}
+
+function getNavLabel(view: string, t: any): string {
+  const labelMap: Record<string, string> = {
+    'dashboard': t.nav.dashboard,
+    'floor-plan': t.nav.floorPlan,
+    'pos': t.nav.pos,
+    'kds': t.nav.kds,
+    'reservations': t.nav.reservations,
+    'inventory': t.nav.inventory,
+    'staff': t.nav.staff,
+    'crm': t.nav.crm,
+  };
+  return labelMap[view] || view;
+}
 
 export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
   const user = useAuthStore((s) => s.user);
@@ -36,6 +58,8 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
   const sidebarOpen = useAppStore((s) => s.sidebarOpen);
   const toggleSidebar = useAppStore((s) => s.toggleSidebar);
   const notifications = useAppStore((s) => s.notifications);
+  const t = useT();
+  const locale = useLocale();
 
   const [time, setTime] = useState<string>('');
   const [date, setDate] = useState<string>('');
@@ -44,13 +68,13 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
     function updateClock() {
       const now = new Date();
       setTime(
-        now.toLocaleTimeString('en-US', {
+        now.toLocaleTimeString(locale, {
           hour: '2-digit',
           minute: '2-digit',
         })
       );
       setDate(
-        now.toLocaleDateString('en-US', {
+        now.toLocaleDateString(locale, {
           weekday: 'short',
           month: 'short',
           day: 'numeric',
@@ -60,9 +84,9 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
     updateClock();
     const interval = setInterval(updateClock, 60_000);
     return () => clearInterval(interval);
-  }, []);
+  }, [locale]);
 
-  const title = VIEW_TITLES[currentView] ?? 'Dashboard';
+  const title = getNavLabel(currentView, t);
 
   return (
     <header className="flex items-center justify-between h-14 px-4 bg-zinc-900 border-b border-zinc-800 shrink-0 gap-4">
@@ -101,7 +125,7 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
         </h2>
       </div>
 
-      {/* Right: Clock, Notifications, User */}
+      {/* Right: Clock, Language, Notifications, User */}
       <div className="flex items-center gap-3 shrink-0">
         {/* Clock */}
         <div className="hidden sm:flex items-center gap-2 text-xs text-zinc-500">
@@ -109,6 +133,11 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
           <Separator orientation="vertical" className="h-3.5 bg-zinc-700" />
           <span className="font-mono tabular-nums">{time}</span>
         </div>
+
+        <Separator orientation="vertical" className="h-6 bg-zinc-700 hidden sm:block" />
+
+        {/* Language Switcher */}
+        <LanguageSwitcher variant="compact" />
 
         <Separator orientation="vertical" className="h-6 bg-zinc-700 hidden sm:block" />
 
@@ -124,7 +153,7 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
               {notifications.length > 9 ? '9+' : notifications.length}
             </span>
           )}
-          <span className="sr-only">Notifications</span>
+          <span className="sr-only">{t.common.notes}</span>
         </Button>
 
         {/* User Menu */}
@@ -155,7 +184,7 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
                     {user.name}
                   </span>
                   <span className="text-[10px] text-zinc-500 leading-tight">
-                    {ROLE_LABELS[user.role]}
+                    {getTranslatedRoleLabel(user.role, t)}
                   </span>
                 </div>
               </Button>
@@ -173,7 +202,7 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
                     ROLE_COLORS[user.role]
                   )}
                 >
-                  {ROLE_LABELS[user.role]}
+                  {getTranslatedRoleLabel(user.role, t)}
                 </Badge>
               </div>
               <DropdownMenuSeparator className="bg-zinc-800" />
@@ -182,7 +211,7 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
                 className="text-red-400 focus:text-red-300 focus:bg-zinc-800 cursor-pointer"
               >
                 <LogOut className="size-3.5 mr-2" />
-                Sign Out
+                {t.auth.signOut}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

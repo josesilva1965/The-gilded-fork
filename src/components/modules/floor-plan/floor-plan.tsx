@@ -25,7 +25,9 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
-import { TABLE_STATUS_COLORS, TABLE_STATUS_LABELS, formatCurrency } from '@/lib/constants';
+import { useT, useLocale } from '@/stores/locale-store';
+import { formatCurrencyByLocale } from '@/lib/i18n/locales';
+import { TABLE_STATUS_COLORS } from '@/lib/constants';
 import { Card, CardContent } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
@@ -121,12 +123,14 @@ const SECTION_ICONS: Record<TableSection, React.ElementType> = {
   VIP: Crown,
 };
 
-const SECTION_LABELS: Record<TableSection, string> = {
-  MAIN: 'Main Dining',
-  BAR: 'Bar',
-  PATIO: 'Patio',
-  VIP: 'VIP',
-};
+function getSectionLabels(t: any): Record<TableSection, string> {
+  return {
+    MAIN: t.floorPlan.mainDining,
+    BAR: t.floorPlan.bar,
+    PATIO: t.floorPlan.patio,
+    VIP: t.floorPlan.vip,
+  };
+}
 
 const SECTION_COLORS: Record<TableSection, string> = {
   MAIN: 'text-emerald-400',
@@ -134,6 +138,22 @@ const SECTION_COLORS: Record<TableSection, string> = {
   PATIO: 'text-amber-400',
   VIP: 'text-yellow-400',
 };
+
+function getTableStatusLabel(status: string, t: any): string {
+  const keyMap: Record<string, string> = {
+    FREE: 'statusFree',
+    RESERVED: 'statusReserved',
+    SEATED: 'statusSeated',
+    ORDER_PLACED: 'statusOrderPlaced',
+    APPETIZER: 'statusAppetizer',
+    MAIN: 'statusMain',
+    DESSERT: 'statusDessert',
+    BILL_REQUESTED: 'statusBillRequested',
+    DIRTY: 'statusDirty',
+  };
+  const key = keyMap[status];
+  return key ? (t.floorPlan as any)[key] : status;
+}
 
 const STATUS_DOT_COLORS: Record<TableStatus, string> = {
   FREE: 'bg-emerald-500',
@@ -166,20 +186,21 @@ const REFRESH_INTERVAL = 30000; // 30 seconds
 /* ─── Summary Bar ─── */
 
 function SummaryBar({ tables }: { tables: RestaurantTable[] }) {
+  const t = useT();
   const total = tables.length;
-  const free = tables.filter((t) => t.status === 'FREE').length;
+  const free = tables.filter((tbl) => tbl.status === 'FREE').length;
   const occupied = tables.filter(
-    (t) => !['FREE', 'RESERVED', 'DIRTY'].includes(t.status)
+    (tbl) => !['FREE', 'RESERVED', 'DIRTY'].includes(tbl.status)
   ).length;
-  const reserved = tables.filter((t) => t.status === 'RESERVED').length;
-  const dirty = tables.filter((t) => t.status === 'DIRTY').length;
+  const reserved = tables.filter((tbl) => tbl.status === 'RESERVED').length;
+  const dirty = tables.filter((tbl) => tbl.status === 'DIRTY').length;
 
   const stats = [
-    { label: 'Total Tables', value: total, icon: Map, color: 'text-zinc-300' },
-    { label: 'Occupied', value: occupied, icon: UtensilsCrossed, color: 'text-amber-400' },
-    { label: 'Free', value: free, icon: CheckCircle2, color: 'text-emerald-400' },
-    { label: 'Reserved', value: reserved, icon: Clock, color: 'text-sky-400' },
-    { label: 'Needs Cleaning', value: dirty, icon: AlertCircle, color: 'text-zinc-400' },
+    { label: t.floorPlan.totalTables, value: total, icon: Map, color: 'text-zinc-300' },
+    { label: t.floorPlan.occupied, value: occupied, icon: UtensilsCrossed, color: 'text-amber-400' },
+    { label: t.floorPlan.free, value: free, icon: CheckCircle2, color: 'text-emerald-400' },
+    { label: t.floorPlan.reserved, value: reserved, icon: Clock, color: 'text-sky-400' },
+    { label: t.floorPlan.needsCleaning, value: dirty, icon: AlertCircle, color: 'text-zinc-400' },
   ];
 
   return (
@@ -204,12 +225,13 @@ function SummaryBar({ tables }: { tables: RestaurantTable[] }) {
 /* ─── Status Legend ─── */
 
 function StatusLegend() {
+  const t = useT();
   return (
     <div className="flex flex-wrap gap-x-4 gap-y-1.5">
       {ALL_STATUSES.map((status) => (
         <div key={status} className="flex items-center gap-1.5">
           <span className={cn('size-2.5 rounded-full shrink-0', STATUS_DOT_COLORS[status])} />
-          <span className="text-[11px] text-zinc-400">{TABLE_STATUS_LABELS[status]}</span>
+          <span className="text-[11px] text-zinc-400">{getTableStatusLabel(status, t)}</span>
         </div>
       ))}
     </div>
@@ -227,6 +249,8 @@ function TableCard({
   isSelected: boolean;
   onClick: () => void;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const statusColor = TABLE_STATUS_COLORS[table.status] || '';
   const hasActiveOrder = table.orders.length > 0;
   const orderTotal = hasActiveOrder
@@ -281,7 +305,7 @@ function TableCard({
         {/* Status label */}
         <div className="mb-1">
           <span className="text-[9px] font-medium uppercase tracking-wider opacity-80">
-            {TABLE_STATUS_LABELS[table.status]}
+            {getTableStatusLabel(table.status, t)}
           </span>
         </div>
 
@@ -289,7 +313,7 @@ function TableCard({
         {hasActiveOrder && (
           <div className="flex items-center gap-1 mt-1">
             <DollarSign className="size-3 opacity-60" />
-            <span className="text-[11px] font-bold">{formatCurrency(orderTotal)}</span>
+            <span className="text-[11px] font-bold">{formatCurrencyByLocale(orderTotal, locale)}</span>
           </div>
         )}
 
@@ -319,6 +343,8 @@ function TableDetailSheet({
   onStatusChange: (tableId: string, newStatus: TableStatus) => Promise<void>;
 }) {
   const [updating, setUpdating] = useState(false);
+  const t = useT();
+  const locale = useLocale();
   const setView = useAppStore((s) => s.setView);
   const selectTable = useAppStore((s) => s.selectTable);
 
@@ -375,7 +401,7 @@ function TableDetailSheet({
             <div>
               <SheetTitle className="text-lg text-zinc-100">{table.name}</SheetTitle>
               <SheetDescription className="text-xs text-zinc-500">
-                Table #{table.number} &middot; {SECTION_LABELS[table.section]}
+                Table #{table.number} &middot; {getSectionLabels(t)[table.section]}
               </SheetDescription>
             </div>
           </div>
@@ -386,25 +412,25 @@ function TableDetailSheet({
           <div className="flex flex-wrap gap-2">
             <Badge variant="outline" className="border-zinc-700 text-zinc-300 gap-1.5">
               <Users className="size-3" />
-              {table.capacity} seats
+              {table.capacity} {t.floorPlan.seats}
             </Badge>
             <Badge
               variant="outline"
               className={cn('gap-1.5', TABLE_STATUS_COLORS[table.status])}
             >
               <span className={cn('size-2 rounded-full', STATUS_DOT_COLORS[table.status])} />
-              {TABLE_STATUS_LABELS[table.status]}
+              {getTableStatusLabel(table.status, t)}
             </Badge>
             <Badge variant="outline" className={cn('gap-1.5 border-zinc-700', SECTION_COLORS[table.section])}>
               <SectionIcon className="size-3" />
-              {SECTION_LABELS[table.section]}
+              {getSectionLabels(t)[table.section]}
             </Badge>
           </div>
 
           {/* Change Status */}
           <div className="space-y-2">
             <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
-              Change Status
+              {t.floorPlan.changeStatus}
             </label>
             <div className="flex items-center gap-2">
               <Select
@@ -416,7 +442,7 @@ function TableDetailSheet({
                   {updating ? (
                     <div className="flex items-center gap-2">
                       <Loader2 className="size-4 animate-spin" />
-                      <span>Updating...</span>
+                      <span>{t.common.updating}</span>
                     </div>
                   ) : (
                     <SelectValue />
@@ -427,7 +453,7 @@ function TableDetailSheet({
                     <SelectItem key={s} value={s} className="text-zinc-200 focus:bg-zinc-700 focus:text-zinc-100">
                       <div className="flex items-center gap-2">
                         <span className={cn('size-2 rounded-full', STATUS_DOT_COLORS[s])} />
-                        {TABLE_STATUS_LABELS[s]}
+                        {getTableStatusLabel(s, t)}
                       </div>
                     </SelectItem>
                   ))}
@@ -444,7 +470,7 @@ function TableDetailSheet({
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-semibold text-zinc-200 flex items-center gap-2">
                   <ShoppingCart className="size-4 text-amber-400" />
-                  Current Order
+                  {t.floorPlan.currentOrder}
                 </h4>
                 <Badge variant="outline" className="border-emerald-700 text-emerald-400 text-[10px]">
                   {table.orders.length} order{table.orders.length > 1 ? 's' : ''}
@@ -456,10 +482,10 @@ function TableDetailSheet({
                   <CardContent className="p-3 space-y-2">
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-zinc-400">
-                        Server: {order.creator.name}
+                        {t.floorPlan.server}: {order.creator.name}
                       </span>
                       <span className="text-zinc-500">
-                        {order.guestCount} guest{order.guestCount > 1 ? 's' : ''}
+                        {order.guestCount} {order.guestCount > 1 ? t.floorPlan.guests : t.floorPlan.guest}
                       </span>
                     </div>
 
@@ -475,7 +501,7 @@ function TableDetailSheet({
                               <span className="text-zinc-300 truncate">{item.menuItem.name}</span>
                             </div>
                             <span className="text-zinc-400 shrink-0 ml-2">
-                              {formatCurrency(item.totalPrice)}
+                              {formatCurrencyByLocale(item.totalPrice, locale)}
                             </span>
                           </div>
                         ))}
@@ -485,9 +511,9 @@ function TableDetailSheet({
                     <Separator className="bg-zinc-700/50" />
 
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-zinc-400">Total</span>
+                      <span className="text-xs text-zinc-400">{t.common.total}</span>
                       <span className="text-sm font-bold text-zinc-100">
-                        {formatCurrency(order.totalAmount)}
+                        {formatCurrencyByLocale(order.totalAmount, locale)}
                       </span>
                     </div>
                   </CardContent>
@@ -495,8 +521,8 @@ function TableDetailSheet({
               ))}
 
               <div className="flex items-center justify-between text-sm font-semibold pt-1">
-                <span className="text-zinc-300">Order Total</span>
-                <span className="text-emerald-400">{formatCurrency(orderTotal)}</span>
+                <span className="text-zinc-300">{t.floorPlan.orderTotal}</span>
+                <span className="text-emerald-400">{formatCurrencyByLocale(orderTotal, locale)}</span>
               </div>
             </div>
           ) : (
@@ -504,8 +530,8 @@ function TableDetailSheet({
               <div className="w-12 h-12 rounded-xl bg-zinc-800 flex items-center justify-center mb-3">
                 <ShoppingCart className="size-5 text-zinc-600" />
               </div>
-              <p className="text-sm text-zinc-500">No active order</p>
-              <p className="text-[11px] text-zinc-600">Start an order to begin service</p>
+              <p className="text-sm text-zinc-500">{t.floorPlan.noActiveOrder}</p>
+              <p className="text-[11px] text-zinc-600">{t.floorPlan.startOrderToBegin}</p>
             </div>
           )}
 
@@ -516,7 +542,7 @@ function TableDetailSheet({
               <div className="space-y-2">
                 <h4 className="text-sm font-semibold text-zinc-200 flex items-center gap-2">
                   <Clock className="size-4 text-sky-400" />
-                  Upcoming Reservation
+                  {t.floorPlan.upcomingReservation}
                 </h4>
                 {table.reservations.map((res) => (
                   <Card key={res.id} className="bg-zinc-800/50 border-zinc-700/50">
@@ -530,7 +556,7 @@ function TableDetailSheet({
                       <div className="flex items-center gap-3 text-[11px] text-zinc-500">
                         <span className="flex items-center gap-1">
                           <Users className="size-3" />
-                          {res.partySize} guests
+                          {res.partySize} {t.floorPlan.guests}
                         </span>
                       </div>
                       {res.notes && (
@@ -604,14 +630,16 @@ function SectionGroup({
   selectedTableId: string | null;
   onSelectTable: (table: RestaurantTable) => void;
 }) {
+  const t = useT();
   const Icon = SECTION_ICONS[section];
+  const sectionLabels = getSectionLabels(t);
 
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <Icon className={cn('size-4', SECTION_COLORS[section])} />
         <h3 className={cn('text-sm font-semibold', SECTION_COLORS[section])}>
-          {SECTION_LABELS[section]}
+          {sectionLabels[section]}
         </h3>
         <Badge variant="outline" className="border-zinc-700 text-zinc-500 text-[10px] px-1.5 py-0">
           {tables.length} table{tables.length !== 1 ? 's' : ''}
@@ -652,6 +680,8 @@ export function FloorPlan() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [refreshing, setRefreshing] = useState(false);
+  const t = useT();
+  const locale = useLocale();
 
   const selectedTableId = useAppStore((s) => s.selectedTableId);
   const selectTable = useAppStore((s) => s.selectTable);
@@ -670,7 +700,7 @@ export function FloorPlan() {
 
       // Update selected table if it exists
       if (selectedTable) {
-        const updated = data.find((t: RestaurantTable) => t.id === selectedTable.id);
+        const updated = data.find((tbl: RestaurantTable) => tbl.id === selectedTable.id);
         if (updated) setSelectedTable(updated);
       }
     } catch (err) {
@@ -691,9 +721,9 @@ export function FloorPlan() {
   /* Handle table selection from store */
   useEffect(() => {
     if (selectedTableId) {
-      const t = tables.find((tbl) => tbl.id === selectedTableId);
-      if (t) {
-        setSelectedTable(t);
+      const tbl = tables.find((tb) => tb.id === selectedTableId);
+      if (tbl) {
+        setSelectedTable(tbl);
         setSheetOpen(true);
       }
     }
@@ -712,7 +742,7 @@ export function FloorPlan() {
 
       // Update local state optimistically
       setTables((prev) =>
-        prev.map((t) => (t.id === tableId ? { ...t, status: newStatus, updatedAt: updated.updatedAt } : t))
+        prev.map((tbl) => (tbl.id === tableId ? { ...tbl, status: newStatus, updatedAt: updated.updatedAt } : tbl))
       );
       setSelectedTable((prev) =>
         prev && prev.id === tableId ? { ...prev, status: newStatus } : prev
@@ -735,7 +765,7 @@ export function FloorPlan() {
   const filteredTables =
     activeSection === 'ALL'
       ? tables
-      : tables.filter((t) => t.section === activeSection);
+      : tables.filter((tbl) => tbl.section === activeSection);
 
   /* Group by section for ALL view */
   const groupedTables: Record<TableSection, RestaurantTable[]> = {
@@ -744,9 +774,9 @@ export function FloorPlan() {
     PATIO: [],
     VIP: [],
   };
-  filteredTables.forEach((t) => {
-    if (groupedTables[t.section]) {
-      groupedTables[t.section].push(t);
+  filteredTables.forEach((tbl) => {
+    if (groupedTables[tbl.section]) {
+      groupedTables[tbl.section].push(tbl);
     }
   });
 
@@ -755,7 +785,7 @@ export function FloorPlan() {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <Loader2 className="size-8 text-emerald-500 animate-spin mb-3" />
-        <p className="text-sm text-zinc-500">Loading floor plan...</p>
+        <p className="text-sm text-zinc-500">{t.floorPlan.loadingFloorPlan}</p>
       </div>
     );
   }
@@ -765,7 +795,7 @@ export function FloorPlan() {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <XCircle className="size-8 text-red-500 mb-3" />
-        <p className="text-sm text-zinc-400 mb-2">Failed to load floor plan</p>
+        <p className="text-sm text-zinc-400 mb-2">{t.floorPlan.failedToLoad}</p>
         <p className="text-xs text-zinc-600 mb-4">{error}</p>
         <Button
           variant="outline"
@@ -773,7 +803,7 @@ export function FloorPlan() {
           className="border-zinc-700 text-zinc-300 hover:bg-zinc-800"
         >
           <RefreshCw className="size-4 mr-2" />
-          Retry
+          {t.common.retry}
         </Button>
       </div>
     );
@@ -786,14 +816,14 @@ export function FloorPlan() {
         <div>
           <h2 className="text-xl font-bold text-zinc-100 flex items-center gap-2">
             <Map className="size-5 text-emerald-400" />
-            Floor Plan
+            {t.floorPlan.title}
           </h2>
           <p className="text-xs text-zinc-500 mt-0.5">
-            Last updated: {lastRefresh.toLocaleTimeString()}
+            {t.floorPlan.lastUpdated}: {lastRefresh.toLocaleTimeString(locale)}
             {refreshing && (
               <span className="ml-2 text-emerald-400 flex items-center gap-1 inline-flex">
                 <Loader2 className="size-3 animate-spin" />
-                Refreshing...
+                {t.floorPlan.refreshing}
               </span>
             )}
           </p>
@@ -839,7 +869,7 @@ export function FloorPlan() {
                   )}
                 >
                   <Icon className="size-3.5" />
-                  <span className="hidden sm:inline">{SECTION_LABELS[sec]}</span>
+                  <span className="hidden sm:inline">{getSectionLabels(t)[sec]}</span>
                   <span className="sm:hidden">{sec}</span>
                 </TabsTrigger>
               );

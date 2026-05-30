@@ -1,22 +1,23 @@
 import { UserRole } from '@/stores/auth-store';
 import { AppView } from '@/stores/app-store';
+import { type Locale, type LocaleConfig, LOCALE_CONFIGS, formatCurrencyByLocale, formatDateByLocale, formatTimeByLocale, getTaxRate, getTaxPercent } from '@/lib/i18n/locales';
 
 export interface NavItem {
   view: AppView;
-  label: string;
+  labelKey: string; // translation key like 'nav.dashboard'
   icon: string;
   roles: UserRole[];
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { view: 'dashboard', label: 'Dashboard', icon: 'LayoutDashboard', roles: ['ADMIN', 'MANAGER'] },
-  { view: 'floor-plan', label: 'Floor Plan', icon: 'Map', roles: ['ADMIN', 'MANAGER', 'FOH'] },
-  { view: 'pos', label: 'POS / Orders', icon: 'ShoppingCart', roles: ['ADMIN', 'MANAGER', 'FOH'] },
-  { view: 'kds', label: 'Kitchen / Bar', icon: 'ChefHat', roles: ['ADMIN', 'MANAGER', 'KITCHEN', 'BAR'] },
-  { view: 'reservations', label: 'Reservations', icon: 'CalendarDays', roles: ['ADMIN', 'MANAGER', 'FOH'] },
-  { view: 'inventory', label: 'Inventory', icon: 'Package', roles: ['ADMIN', 'MANAGER', 'KITCHEN', 'BAR'] },
-  { view: 'staff', label: 'Staff / Rota', icon: 'Users', roles: ['ADMIN', 'MANAGER'] },
-  { view: 'crm', label: 'CRM / Guests', icon: 'Heart', roles: ['ADMIN', 'MANAGER'] },
+  { view: 'dashboard', labelKey: 'nav.dashboard', icon: 'LayoutDashboard', roles: ['ADMIN', 'MANAGER'] },
+  { view: 'floor-plan', labelKey: 'nav.floorPlan', icon: 'Map', roles: ['ADMIN', 'MANAGER', 'FOH'] },
+  { view: 'pos', labelKey: 'nav.pos', icon: 'ShoppingCart', roles: ['ADMIN', 'MANAGER', 'FOH'] },
+  { view: 'kds', labelKey: 'nav.kds', icon: 'ChefHat', roles: ['ADMIN', 'MANAGER', 'KITCHEN', 'BAR'] },
+  { view: 'reservations', labelKey: 'nav.reservations', icon: 'CalendarDays', roles: ['ADMIN', 'MANAGER', 'FOH'] },
+  { view: 'inventory', labelKey: 'nav.inventory', icon: 'Package', roles: ['ADMIN', 'MANAGER', 'KITCHEN', 'BAR'] },
+  { view: 'staff', labelKey: 'nav.staff', icon: 'Users', roles: ['ADMIN', 'MANAGER'] },
+  { view: 'crm', labelKey: 'nav.crm', icon: 'Heart', roles: ['ADMIN', 'MANAGER'] },
 ];
 
 export const TABLE_STATUS_COLORS: Record<string, string> = {
@@ -31,6 +32,9 @@ export const TABLE_STATUS_COLORS: Record<string, string> = {
   DIRTY: 'bg-zinc-500/20 border-zinc-500 text-zinc-400',
 };
 
+/* ─── Table Status Labels are now locale-dependent ─── */
+/* Use getTableStatusLabel(locale, status) instead */
+
 export const TABLE_STATUS_LABELS: Record<string, string> = {
   FREE: 'Free',
   RESERVED: 'Reserved',
@@ -42,6 +46,28 @@ export const TABLE_STATUS_LABELS: Record<string, string> = {
   BILL_REQUESTED: 'Bill Requested',
   DIRTY: 'Needs Cleaning',
 };
+
+const TABLE_STATUS_KEYS: Record<string, string> = {
+  FREE: 'statusFree',
+  RESERVED: 'statusReserved',
+  SEATED: 'statusSeated',
+  ORDER_PLACED: 'statusOrderPlaced',
+  APPETIZER: 'statusAppetizer',
+  MAIN: 'statusMain',
+  DESSERT: 'statusDessert',
+  BILL_REQUESTED: 'statusBillRequested',
+  DIRTY: 'statusDirty',
+};
+
+import { TRANSLATIONS } from '@/lib/i18n/translations';
+
+export function getTableStatusLabel(locale: Locale, status: string): string {
+  const key = TABLE_STATUS_KEYS[status];
+  if (!key) return status;
+  const t = TRANSLATIONS[locale];
+  if (!t) return status;
+  return (t.floorPlan as any)[key] || status;
+}
 
 export const URGENCY_COLORS: Record<string, string> = {
   green: 'border-l-4 border-l-emerald-500 bg-emerald-950/30',
@@ -58,14 +84,18 @@ export function getUrgencyLevel(createdAt: string | Date): 'green' | 'amber' | '
   return 'red';
 }
 
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+/* ─── Currency / Date / Time formatting now uses locale ─── */
+
+export function formatCurrency(amount: number, locale?: Locale): string {
+  return formatCurrencyByLocale(amount, locale || 'en-GB');
 }
 
-export function formatTime(date: string | Date): string {
-  return new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit' }).format(new Date(date));
+export function formatTime(date: string | Date, locale?: Locale): string {
+  return formatTimeByLocale(date, locale || 'en-GB');
 }
 
-export function formatDate(date: string | Date): string {
-  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(date));
+export function formatDate(date: string | Date, locale?: Locale): string {
+  return formatDateByLocale(date, locale || 'en-GB');
 }
+
+export { getTaxRate, getTaxPercent, formatCurrencyByLocale, formatDateByLocale, formatTimeByLocale };

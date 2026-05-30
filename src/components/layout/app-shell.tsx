@@ -16,8 +16,10 @@ import {
   Users,
   Heart,
 } from 'lucide-react';
-import { useAuthStore, ROLE_LABELS, ROLE_COLORS, ROLE_ICONS, type UserRole } from '@/stores/auth-store';
+import { useAuthStore, ROLE_COLORS } from '@/stores/auth-store';
 import { useAppStore } from '@/stores/app-store';
+import { useT, useLocale } from '@/stores/locale-store';
+import { useLocaleConfig } from '@/stores/locale-store';
 import { Sidebar, MobileSidebar } from '@/components/layout/sidebar';
 import { TopBar } from '@/components/layout/top-bar';
 import { FloorPlan } from '@/components/modules/floor-plan/floor-plan';
@@ -33,7 +35,7 @@ import { Reservations } from '@/components/modules/reservations/reservations';
 import { StaffManagement } from '@/components/modules/staff/staff-management';
 
 /* ─── Mock user data ─── */
-const MOCK_USERS: Record<UserRole, { id: string; email: string; name: string; pin: string }> = {
+const MOCK_USERS: Record<string, { id: string; email: string; name: string; pin: string }> = {
   ADMIN: { id: 'cmpsacytk0004pj0wu32tub4c', email: 'admin@thebar.com', name: 'Marco Rossi', pin: '1001' },
   MANAGER: { id: 'cmpsacyto0009pj0wapz3cmnj', email: 'manager@thebar.com', name: 'Sarah Chen', pin: '2001' },
   KITCHEN: { id: 'cmpsacytg0000pj0wnvrdbwsf', email: 'chef@thebar.com', name: 'Antoine Dubois', pin: '3001' },
@@ -42,7 +44,7 @@ const MOCK_USERS: Record<UserRole, { id: string; email: string; name: string; pi
 };
 
 /* ─── Icon map for role selection ─── */
-const ROLE_ICON_COMPONENTS: Record<UserRole, React.ElementType> = {
+const ROLE_ICON_COMPONENTS: Record<string, React.ElementType> = {
   ADMIN: Shield,
   MANAGER: ClipboardList,
   KITCHEN: ChefHat,
@@ -50,8 +52,8 @@ const ROLE_ICON_COMPONENTS: Record<UserRole, React.ElementType> = {
   FOH: UtensilsCrossed,
 };
 
-/* ─── Role selection colors for the card buttons (lighter variant for better contrast) ─── */
-const ROLE_CARD_COLORS: Record<UserRole, { bg: string; hover: string; border: string; text: string; icon: string }> = {
+/* ─── Role selection colors for the card buttons ─── */
+const ROLE_CARD_COLORS: Record<string, { bg: string; hover: string; border: string; text: string; icon: string }> = {
   ADMIN: {
     bg: 'bg-amber-600/10',
     hover: 'hover:bg-amber-600/20',
@@ -89,24 +91,38 @@ const ROLE_CARD_COLORS: Record<UserRole, { bg: string; hover: string; border: st
   },
 };
 
+/* ─── Role label map ─── */
+function getRoleLabel(role: string, t: any): string {
+  const map: Record<string, string> = {
+    ADMIN: t.roles.admin,
+    MANAGER: t.roles.manager,
+    KITCHEN: t.roles.kitchen,
+    BAR: t.roles.bar,
+    FOH: t.roles.foh,
+  };
+  return map[role] || role;
+}
+
 /* ─── Role Selection Screen ─── */
 function RoleSelectionScreen() {
   const login = useAuthStore((s) => s.login);
-  const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
+  const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  const t = useT();
 
-  function handleRoleSelect(role: UserRole) {
+  function handleRoleSelect(role: string) {
     setSelectedRole(role);
     const mockUser = MOCK_USERS[role];
+    if (!mockUser) return;
     login({
       id: mockUser.id,
       email: mockUser.email,
       name: mockUser.name,
-      role,
+      role: role as any,
       pin: mockUser.pin,
     });
   }
 
-  const roles: UserRole[] = ['ADMIN', 'MANAGER', 'KITCHEN', 'BAR', 'FOH'];
+  const roles = ['ADMIN', 'MANAGER', 'KITCHEN', 'BAR', 'FOH'];
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-4">
@@ -130,15 +146,15 @@ function RoleSelectionScreen() {
               </div>
             </div>
             <CardTitle className="text-2xl font-bold text-zinc-100 tracking-tight">
-              The Gilded Fork
+              {t.auth.restaurantName}
             </CardTitle>
             <CardDescription className="text-zinc-500 text-sm">
-              Restaurant Management System
+              {t.auth.managementSystem}
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-4">
             <p className="text-center text-xs text-zinc-500 mb-6">
-              Select your role to continue
+              {t.auth.selectRole}
             </p>
             <div className="grid gap-3">
               {roles.map((role, idx) => {
@@ -179,17 +195,17 @@ function RoleSelectionScreen() {
                       </div>
                       <div className="text-left">
                         <p className={cn('text-sm font-semibold', colors.text)}>
-                          {ROLE_LABELS[role]}
+                          {getRoleLabel(role, t)}
                         </p>
                         <p className="text-[11px] text-zinc-500">
-                          {MOCK_USERS[role].email}
+                          {MOCK_USERS[role]?.email}
                         </p>
                       </div>
                       <div className="ml-auto">
                         <div
                           className={cn(
                             'w-2 h-2 rounded-full',
-                            ROLE_COLORS[role]
+                            ROLE_COLORS[role as keyof typeof ROLE_COLORS]
                           )}
                         />
                       </div>
@@ -200,7 +216,7 @@ function RoleSelectionScreen() {
             </div>
 
             <p className="text-center text-[10px] text-zinc-600 mt-6">
-              Demo mode — No password required. Click any role to enter.
+              {t.auth.demoMode}
             </p>
           </CardContent>
         </Card>
@@ -209,38 +225,12 @@ function RoleSelectionScreen() {
   );
 }
 
-/* ─── Placeholder View (for views not yet built) ─── */
-const VIEW_META: Record<string, { label: string; icon: React.ElementType; color: string }> = {
-  dashboard: { label: 'Dashboard', icon: LayoutDashboard, color: 'text-emerald-400' },
-  pos: { label: 'POS / Orders', icon: ShoppingCart, color: 'text-amber-400' },
-  kds: { label: 'Kitchen / Bar Display', icon: ChefHat, color: 'text-orange-400' },
-  reservations: { label: 'Reservations', icon: CalendarDays, color: 'text-sky-400' },
-  inventory: { label: 'Inventory', icon: Package, color: 'text-purple-400' },
-  staff: { label: 'Staff / Rota', icon: Users, color: 'text-pink-400' },
-  crm: { label: 'CRM / Guests', icon: Heart, color: 'text-red-400' },
-};
-
-function PlaceholderView({ view }: { view: string }) {
-  const meta = VIEW_META[view] || { label: view, icon: Utensils, color: 'text-zinc-400' };
-  const Icon = meta.icon;
-
-  return (
-    <div className="flex flex-col items-center justify-center py-20 text-center">
-      <div className="w-16 h-16 rounded-2xl bg-zinc-800 flex items-center justify-center mb-4">
-        <Icon className={cn('size-8', meta.color)} />
-      </div>
-      <h3 className="text-lg font-semibold text-zinc-300 mb-1">{meta.label}</h3>
-      <p className="text-sm text-zinc-600 max-w-sm">
-        This section is under construction. The view component will be loaded here.
-      </p>
-    </div>
-  );
-}
-
 /* ─── Main App Layout ─── */
 function MainLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const currentView = useAppStore((s) => s.currentView);
+  const t = useT();
+  const localeConfig = useLocaleConfig();
 
   return (
     <div className="min-h-screen flex flex-col bg-zinc-950">
@@ -292,9 +282,7 @@ function MainLayout() {
                     <CRMGuests />
                   ) : currentView === 'staff' ? (
                     <StaffManagement />
-                  ) : (
-                    <PlaceholderView view={currentView} />
-                  )}
+                  ) : null}
                 </motion.div>
               </AnimatePresence>
             </div>
@@ -303,8 +291,8 @@ function MainLayout() {
           {/* Footer */}
           <footer className="mt-auto border-t border-zinc-800 bg-zinc-900 px-4 py-3">
             <div className="flex items-center justify-between text-[10px] text-zinc-600">
-              <span>The Gilded Fork &copy; {new Date().getFullYear()}</span>
-              <span>Restaurant Management System v1.0</span>
+              <span>{t.footer.copyright} &copy; {new Date().getFullYear()}</span>
+              <span>{t.footer.version} · {localeConfig.taxShort} {Math.round(localeConfig.taxRate * 100)}%</span>
             </div>
           </footer>
         </div>

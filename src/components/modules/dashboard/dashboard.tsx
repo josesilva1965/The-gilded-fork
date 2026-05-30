@@ -45,7 +45,8 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { formatCurrency } from '@/lib/constants';
+import { useT, useLocale, useLocaleConfig } from '@/stores/locale-store';
+import { formatCurrencyByLocale, formatDateByLocale } from '@/lib/i18n/locales';
 import { cn } from '@/lib/utils';
 
 /* ─── Types ─── */
@@ -124,7 +125,7 @@ const ACTIVITY_COLORS: Record<string, string> = {
 
 /* ─── Custom Tooltip ─── */
 
-function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; name: string; color: string }>; label?: string }) {
+function CustomTooltip({ active, payload, label, locale, t }: { active?: boolean; payload?: Array<{ value: number; name: string; color: string }>; label?: string; locale: string; t: any }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 shadow-xl">
@@ -132,7 +133,7 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
       {payload.map((item, idx) => (
         <p key={idx} className="text-xs font-medium" style={{ color: item.color }}>
           {item.name}: {typeof item.value === 'number' && item.name.toLowerCase().includes('revenue')
-            ? formatCurrency(item.value)
+            ? formatCurrencyByLocale(item.value, locale as any)
             : item.value.toLocaleString()}
         </p>
       ))}
@@ -248,6 +249,11 @@ export function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
+  const locale = useLocale();
+  const localeConfig = useLocaleConfig();
+
+  const fmtCurrency = useCallback((amount: number) => formatCurrencyByLocale(amount, locale), [locale]);
 
   const fetchDashboard = useCallback(async (showLoader = false) => {
     if (showLoader) setLoading(true);
@@ -275,7 +281,7 @@ export function Dashboard() {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <Loader2 className="size-8 text-emerald-500 animate-spin mb-3" />
-        <p className="text-sm text-zinc-500">Loading dashboard...</p>
+        <p className="text-sm text-zinc-500">{t.dashboard.loadingDashboard}</p>
       </div>
     );
   }
@@ -285,7 +291,7 @@ export function Dashboard() {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <XCircle className="size-8 text-red-500 mb-3" />
-        <p className="text-sm text-zinc-400 mb-2">Failed to load dashboard</p>
+        <p className="text-sm text-zinc-400 mb-2">{t.dashboard.failedToLoad}</p>
         <p className="text-xs text-zinc-600 mb-4">{error}</p>
         <Button
           variant="outline"
@@ -293,7 +299,7 @@ export function Dashboard() {
           className="border-zinc-700 text-zinc-300 hover:bg-zinc-800"
         >
           <RefreshCw className="size-4 mr-2" />
-          Retry
+          {t.common.retry}
         </Button>
       </div>
     );
@@ -303,10 +309,7 @@ export function Dashboard() {
   const revenueChartData = [...data.weekSnapshots]
     .reverse()
     .map((s) => ({
-      date: new Date(s.date).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      }),
+      date: formatDateByLocale(s.date, locale, { month: 'short', day: 'numeric' }),
       revenue: Math.round(s.totalRevenue * 100) / 100,
     }));
 
@@ -328,9 +331,9 @@ export function Dashboard() {
   const otherPct = Math.max(0, 100 - laborCostPct - foodCostPct);
 
   const pieData = [
-    { name: 'Labor Cost', value: laborCostPct, color: '#f59e0b' },
-    { name: 'Food Cost', value: foodCostPct, color: '#10b981' },
-    { name: 'Other', value: otherPct, color: '#6366f1' },
+    { name: t.dashboard.laborCost, value: laborCostPct, color: '#f59e0b' },
+    { name: t.dashboard.foodCost, value: foodCostPct, color: '#10b981' },
+    { name: t.dashboard.other, value: otherPct, color: '#6366f1' },
   ];
 
   return (
@@ -340,11 +343,11 @@ export function Dashboard() {
         <div>
           <h2 className="text-xl font-bold text-zinc-100 flex items-center gap-2">
             <LayoutDashboard className="size-5 text-emerald-400" />
-            Dashboard
+            {t.dashboard.title}
           </h2>
           <p className="text-xs text-zinc-500 mt-0.5">
-            Real-time overview ·{' '}
-            {new Date().toLocaleDateString('en-US', {
+            {t.dashboard.realtimeOverview} ·{' '}
+            {new Date().toLocaleDateString(locale, {
               weekday: 'long',
               month: 'long',
               day: 'numeric',
@@ -358,23 +361,23 @@ export function Dashboard() {
           className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 gap-2"
         >
           <RefreshCw className="size-3.5" />
-          Refresh
+          {t.common.refresh}
         </Button>
       </div>
 
       {/* KPI Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <KPICard
-          title="Today's Revenue"
-          value={formatCurrency(data.todayRevenue)}
+          title={t.dashboard.todaysRevenue}
+          value={fmtCurrency(data.todayRevenue)}
           icon={DollarSign}
           iconColor="text-emerald-400"
           iconBg="bg-emerald-500/10"
           trend={data.revenueChange}
-          trendLabel="vs yesterday"
+          trendLabel={t.dashboard.vsYesterday}
         />
         <KPICard
-          title="Active Orders"
+          title={t.dashboard.activeOrders}
           value={data.activeOrders.toString()}
           icon={ShoppingCart}
           iconColor="text-amber-400"
@@ -393,18 +396,18 @@ export function Dashboard() {
                 <p className="text-2xl font-bold text-zinc-100">
                   {data.occupancyRate}%
                 </p>
-                <p className="text-[11px] text-zinc-500">Table Occupancy</p>
+                <p className="text-[11px] text-zinc-500">{t.dashboard.tableOccupancy}</p>
                 <p className="text-[10px] text-zinc-600">
-                  {data.occupiedTables} / {data.totalTables} tables
+                  {data.occupiedTables} / {data.totalTables} {t.dashboard.tables}
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
         <KPICard
-          title="Staff On Shift"
+          title={t.dashboard.staffOnShift}
           value={data.clockedIn.toString()}
-          subtitle={`${data.staffOnShift} scheduled today`}
+          subtitle={`${data.staffOnShift} ${t.dashboard.scheduledToday}`}
           icon={Users}
           iconColor="text-purple-400"
           iconBg="bg-purple-500/10"
@@ -418,7 +421,7 @@ export function Dashboard() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-zinc-300 flex items-center gap-2">
               <TrendingUp className="size-4 text-emerald-400" />
-              7-Day Revenue
+              {t.dashboard.sevenDayRevenue}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
@@ -442,13 +445,13 @@ export function Dashboard() {
                     tick={{ fill: '#71717a', fontSize: 11 }}
                     axisLine={{ stroke: '#27272a' }}
                     tickLine={{ stroke: '#27272a' }}
-                    tickFormatter={(val) => `$${(val / 1000).toFixed(1)}k`}
+                    tickFormatter={(val) => `${localeConfig.currencySymbol}${(val / 1000).toFixed(1)}k`}
                   />
-                  <Tooltip content={<CustomTooltip />} />
+                  <Tooltip content={<CustomTooltip locale={locale} t={t} />} />
                   <Area
                     type="monotone"
                     dataKey="revenue"
-                    name="Revenue"
+                    name={t.dashboard.revenue}
                     stroke={EMERALD}
                     strokeWidth={2}
                     fill="url(#revenueGradient)"
@@ -466,7 +469,7 @@ export function Dashboard() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-zinc-300 flex items-center gap-2">
               <ChefHat className="size-4 text-amber-400" />
-              Top Selling Items
+              {t.dashboard.topSellingItems}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
@@ -492,10 +495,10 @@ export function Dashboard() {
                     tickLine={{ stroke: '#27272a' }}
                     width={90}
                   />
-                  <Tooltip content={<CustomTooltip />} />
+                  <Tooltip content={<CustomTooltip locale={locale} t={t} />} />
                   <Bar
                     dataKey="quantity"
-                    name="Qty Sold"
+                    name={t.dashboard.qtySold}
                     radius={[0, 4, 4, 0]}
                     maxBarSize={20}
                   >
@@ -517,7 +520,7 @@ export function Dashboard() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-zinc-300 flex items-center gap-2">
               <Activity className="size-4 text-sky-400" />
-              Recent Activity
+              {t.dashboard.recentActivity}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
@@ -554,7 +557,7 @@ export function Dashboard() {
               ) : (
                 <div className="flex flex-col items-center justify-center py-8">
                   <Activity className="size-6 text-zinc-700 mb-2" />
-                  <p className="text-xs text-zinc-600">No recent activity</p>
+                  <p className="text-xs text-zinc-600">{t.dashboard.noRecentActivity}</p>
                 </div>
               )}
             </ScrollArea>
@@ -566,7 +569,7 @@ export function Dashboard() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-zinc-300 flex items-center gap-2">
               <DollarSign className="size-4 text-amber-400" />
-              Cost Breakdown
+              {t.dashboard.costBreakdown}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
@@ -623,7 +626,7 @@ export function Dashboard() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-zinc-300 flex items-center gap-2">
               <Package className="size-4 text-purple-400" />
-              Inventory Alerts
+              {t.dashboard.inventoryAlerts}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
@@ -635,7 +638,7 @@ export function Dashboard() {
                 <p className="text-2xl font-bold text-zinc-100">
                   {data.lowStockCount}
                 </p>
-                <p className="text-[11px] text-zinc-500">Low Stock Items</p>
+                <p className="text-[11px] text-zinc-500">{t.dashboard.lowStockItems}</p>
               </div>
             </div>
             <Separator className="bg-zinc-800 mb-3" />
@@ -662,7 +665,7 @@ export function Dashboard() {
                               : 'border-amber-800/50 text-amber-400'
                           )}
                         >
-                          {isCritical ? 'Critical' : 'Low'}
+                          {isCritical ? t.dashboard.critical : t.dashboard.low}
                         </Badge>
                       </div>
                       <div className="flex items-center gap-2">
@@ -686,7 +689,7 @@ export function Dashboard() {
             ) : (
               <div className="flex flex-col items-center justify-center py-6">
                 <Package className="size-6 text-zinc-700 mb-2" />
-                <p className="text-xs text-zinc-600">All stock levels OK</p>
+                <p className="text-xs text-zinc-600">{t.dashboard.allStockOk}</p>
               </div>
             )}
           </CardContent>

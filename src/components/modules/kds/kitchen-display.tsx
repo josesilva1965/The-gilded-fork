@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore, type UserRole } from '@/stores/auth-store';
 import { useAppStore } from '@/stores/app-store';
+import { useT, useLocale } from '@/stores/locale-store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +25,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import { getUrgencyLevel, formatTime } from '@/lib/constants';
+import { getUrgencyLevel } from '@/lib/constants';
+import { formatTimeByLocale } from '@/lib/i18n/locales';
 
 /* ─── Types ─── */
 
@@ -247,7 +249,7 @@ function StatsBar({ orders, role }: { orders: Order[]; role: UserRole }) {
       <div className="ml-auto flex items-center gap-2 text-xs text-zinc-600">
         <Users className="size-3.5" />
         <span>
-          {role === 'KITCHEN' ? 'Kitchen View' : role === 'BAR' ? 'Bar View' : 'All Stations'}
+          {role === 'KITCHEN' ? t.kds.kitchenDisplay : role === 'BAR' ? t.kds.barDisplay : t.kds.allStations}
         </span>
       </div>
     </div>
@@ -365,6 +367,8 @@ function OrderTicket({
   onBump: (orderId: string) => void;
   updatingItemId: string | null;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const urgency = getUrgencyLevel(order.createdAt);
   const [, setTick] = useState(0);
 
@@ -421,7 +425,7 @@ function OrderTicket({
             <div className="text-right">
               <div className="flex items-center gap-1 text-xs text-zinc-500">
                 <Clock className="size-3" />
-                {formatTime(order.createdAt)}
+                {formatTimeByLocale(order.createdAt, locale)}
               </div>
               <div
                 className={cn(
@@ -496,6 +500,8 @@ function OrderTicket({
 export function KitchenDisplay() {
   const user = useAuthStore((s) => s.user);
   const role = user?.role as UserRole;
+  const t = useT();
+  const locale = useLocale();
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -675,7 +681,7 @@ export function KitchenDisplay() {
             <TabsList className="bg-zinc-900 border border-zinc-800">
               <TabsTrigger value="kitchen" className="gap-1.5 data-[state=active]:bg-orange-600/20 data-[state=active]:text-orange-400">
                 <ChefHat className="size-4" />
-                Kitchen
+                {t.kds.kitchenDisplay}
                 {kitchenOrders.length > 0 && (
                   <Badge className="ml-1 bg-orange-600/20 text-orange-400 border-orange-500/30 text-[10px] h-4 px-1.5">
                     {kitchenOrders.length}
@@ -713,7 +719,7 @@ export function KitchenDisplay() {
               <div className="flex-1 flex flex-col min-w-0">
                 <div className="flex items-center gap-2 mb-3">
                   <ChefHat className="size-5 text-orange-400" />
-                  <h3 className="text-sm font-semibold text-orange-400">Kitchen Orders</h3>
+                  <h3 className="text-sm font-semibold text-orange-400">{t.kds.kitchenDisplay}</h3>
                   <Badge variant="outline" className="text-[10px] border-orange-500/30 text-orange-400">
                     {kitchenOrders.length}
                   </Badge>

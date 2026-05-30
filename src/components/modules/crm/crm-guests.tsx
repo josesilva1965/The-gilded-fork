@@ -64,7 +64,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useAppStore } from '@/stores/app-store';
-import { formatCurrency, formatDate } from '@/lib/constants';
+import { useT, useLocale } from '@/stores/locale-store';
+import { formatCurrencyByLocale, formatDateByLocale } from '@/lib/i18n/locales';
 import { cn } from '@/lib/utils';
 
 /* ─── Types ─── */
@@ -193,7 +194,7 @@ function SummaryCards({ customers }: { customers: Customer[] }) {
     },
     {
       label: 'Avg Lifetime Spend',
-      value: formatCurrency(avgSpend),
+      value: formatCurrencyByLocale(avgSpend),
       icon: TrendingUp,
       color: 'text-sky-400',
       bgColor: 'bg-sky-500/10',
@@ -277,7 +278,7 @@ function CustomerDetailSheet({
                 {customer.firstName} {customer.lastName}
               </SheetTitle>
               <SheetDescription className="text-xs text-zinc-500">
-                Member since {formatDate(customer.createdAt)}
+                Member since {formatDateByLocale(customer.createdAt)}
               </SheetDescription>
             </div>
           </div>
@@ -305,7 +306,7 @@ function CustomerDetailSheet({
               {customer.birthday && (
                 <div className="flex items-center gap-2 text-xs text-zinc-300">
                   <Cake className="size-3.5 text-zinc-500" />
-                  {formatDate(customer.birthday)}
+                  {formatDateByLocale(customer.birthday)}
                 </div>
               )}
             </div>
@@ -385,7 +386,7 @@ function CustomerDetailSheet({
                     <CardContent className="p-2.5 flex items-center justify-between">
                       <div>
                         <p className="text-xs text-zinc-300 font-medium">
-                          {formatDate(visit.visitDate)}
+                          {formatDateByLocale(visit.visitDate)}
                         </p>
                         <p className="text-[10px] text-zinc-500">
                           {visit.partySize} guest{visit.partySize !== 1 ? 's' : ''}
@@ -393,7 +394,7 @@ function CustomerDetailSheet({
                         </p>
                       </div>
                       <span className="text-sm font-semibold text-emerald-400">
-                        {formatCurrency(visit.totalSpend)}
+                        {formatCurrencyByLocale(visit.totalSpend)}
                       </span>
                     </CardContent>
                   </Card>
@@ -423,7 +424,7 @@ function CustomerDetailSheet({
                       <span className="text-xs text-zinc-300">{fav.menuItem.name}</span>
                     </div>
                     <span className="text-[11px] text-zinc-500">
-                      {formatCurrency(fav.menuItem.price)}
+                      {formatCurrencyByLocale(fav.menuItem.price)}
                     </span>
                   </div>
                 ))}
@@ -963,13 +964,13 @@ export function CRMGuests() {
                         {customer.visitCount}
                       </TableCell>
                       <TableCell className="text-right text-zinc-300">
-                        {formatCurrency(customer.lifetimeSpend)}
+                        {formatCurrencyByLocale(customer.lifetimeSpend)}
                       </TableCell>
                       <TableCell className="text-right text-zinc-300 hidden sm:table-cell">
                         {customer.loyaltyPoints.toLocaleString()}
                       </TableCell>
                       <TableCell className="text-right text-zinc-400 hidden md:table-cell">
-                        {customer.lastVisit ? formatDate(customer.lastVisit) : '—'}
+                        {customer.lastVisit ? formatDateByLocale(customer.lastVisit) : '—'}
                       </TableCell>
                     </motion.tr>
                   ))

@@ -13,13 +13,15 @@ import {
   ArrowLeftRight,
   type LucideIcon,
 } from 'lucide-react';
-import { useAuthStore, ROLE_LABELS, ROLE_COLORS } from '@/stores/auth-store';
+import { useAuthStore, ROLE_COLORS } from '@/stores/auth-store';
 import { useAppStore } from '@/stores/app-store';
+import { useT, useLocale } from '@/stores/locale-store';
 import { NAV_ITEMS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { LanguageSwitcher } from '@/components/layout/language-switcher';
 import { cn } from '@/lib/utils';
 
 const ICON_MAP: Record<string, LucideIcon> = {
@@ -37,12 +39,38 @@ function getIcon(name: string): LucideIcon {
   return ICON_MAP[name] ?? LayoutDashboard;
 }
 
+function getTranslatedRoleLabel(role: string, t: any): string {
+  const roleMap: Record<string, string> = {
+    ADMIN: t.roles.admin,
+    MANAGER: t.roles.manager,
+    KITCHEN: t.roles.kitchen,
+    BAR: t.roles.bar,
+    FOH: t.roles.foh,
+  };
+  return roleMap[role] || role;
+}
+
+function getNavLabel(view: string, t: any): string {
+  const labelMap: Record<string, string> = {
+    'dashboard': t.nav.dashboard,
+    'floor-plan': t.nav.floorPlan,
+    'pos': t.nav.pos,
+    'kds': t.nav.kds,
+    'reservations': t.nav.reservations,
+    'inventory': t.nav.inventory,
+    'staff': t.nav.staff,
+    'crm': t.nav.crm,
+  };
+  return labelMap[view] || view;
+}
+
 export function Sidebar() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const currentView = useAppStore((s) => s.currentView);
   const setView = useAppStore((s) => s.setView);
   const sidebarOpen = useAppStore((s) => s.sidebarOpen);
+  const t = useT();
 
   const filteredItems = useMemo(() => {
     if (!user) return [];
@@ -66,9 +94,9 @@ export function Sidebar() {
         {sidebarOpen && (
           <div className="overflow-hidden">
             <h1 className="text-sm font-semibold text-zinc-100 truncate">
-              The Gilded Fork
+              {t.auth.restaurantName}
             </h1>
-            <p className="text-[10px] text-zinc-500 truncate">Management System</p>
+            <p className="text-[10px] text-zinc-500 truncate">{t.auth.managementSystem}</p>
           </div>
         )}
       </div>
@@ -93,7 +121,7 @@ export function Sidebar() {
               >
                 <Icon className="size-4 shrink-0" />
                 {sidebarOpen && (
-                  <span className="truncate text-sm">{item.label}</span>
+                  <span className="truncate text-sm">{getNavLabel(item.view, t)}</span>
                 )}
                 {sidebarOpen && item.view === 'pos' && (
                   <Badge
@@ -119,6 +147,15 @@ export function Sidebar() {
 
       <Separator className="bg-zinc-800" />
 
+      {/* Language Switcher */}
+      {sidebarOpen && (
+        <div className="px-3 pt-3">
+          <LanguageSwitcher variant="full" />
+        </div>
+      )}
+
+      <Separator className="bg-zinc-800" />
+
       {/* User Info & Switch Role */}
       <div className="p-3 space-y-2 shrink-0">
         {sidebarOpen && (
@@ -132,7 +169,7 @@ export function Sidebar() {
             <div className="overflow-hidden">
               <p className="text-xs text-zinc-300 truncate">{user.name}</p>
               <p className="text-[10px] text-zinc-500 truncate">
-                {ROLE_LABELS[user.role]}
+                {getTranslatedRoleLabel(user.role, t)}
               </p>
             </div>
           </div>
@@ -147,7 +184,7 @@ export function Sidebar() {
           )}
         >
           <ArrowLeftRight className="size-3.5" />
-          {sidebarOpen && <span className="text-xs">Switch Role</span>}
+          {sidebarOpen && <span className="text-xs">{t.auth.switchRole}</span>}
         </Button>
       </div>
     </aside>
@@ -166,6 +203,7 @@ export function MobileSidebar({
   const logout = useAuthStore((s) => s.logout);
   const currentView = useAppStore((s) => s.currentView);
   const setView = useAppStore((s) => s.setView);
+  const t = useT();
 
   const filteredItems = useMemo(() => {
     if (!user) return [];
@@ -196,9 +234,9 @@ export function MobileSidebar({
         </div>
         <div className="overflow-hidden">
           <h1 className="text-sm font-semibold text-zinc-100 truncate">
-            The Gilded Fork
+            {t.auth.restaurantName}
           </h1>
-          <p className="text-[10px] text-zinc-500 truncate">Management System</p>
+          <p className="text-[10px] text-zinc-500 truncate">{t.auth.managementSystem}</p>
         </div>
       </div>
 
@@ -223,7 +261,7 @@ export function MobileSidebar({
                 )}
               >
                 <Icon className="size-4 shrink-0" />
-                <span className="truncate text-sm">{item.label}</span>
+                <span className="truncate text-sm">{getNavLabel(item.view, t)}</span>
                 {item.view === 'pos' && (
                   <Badge
                     variant="secondary"
@@ -248,6 +286,13 @@ export function MobileSidebar({
 
       <Separator className="bg-zinc-800" />
 
+      {/* Language Switcher */}
+      <div className="px-3 pt-3">
+        <LanguageSwitcher variant="full" />
+      </div>
+
+      <Separator className="bg-zinc-800" />
+
       {/* User & Switch Role */}
       <div className="p-3 space-y-2 shrink-0">
         <div className="flex items-center gap-2 px-2 py-1.5">
@@ -260,7 +305,7 @@ export function MobileSidebar({
           <div className="overflow-hidden">
             <p className="text-xs text-zinc-300 truncate">{user.name}</p>
             <p className="text-[10px] text-zinc-500 truncate">
-              {ROLE_LABELS[user.role]}
+              {getTranslatedRoleLabel(user.role, t)}
             </p>
           </div>
         </div>
@@ -274,7 +319,7 @@ export function MobileSidebar({
           className="w-full text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 gap-2"
         >
           <ArrowLeftRight className="size-3.5" />
-          <span className="text-xs">Switch Role</span>
+          <span className="text-xs">{t.auth.switchRole}</span>
         </Button>
       </div>
     </div>

@@ -44,7 +44,8 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/app-store';
-import { formatCurrency } from '@/lib/constants';
+import { useT, useLocale } from '@/stores/locale-store';
+import { formatCurrencyByLocale } from '@/lib/i18n/locales';
 
 /* ─── Types ─── */
 interface ClockLog {
@@ -220,6 +221,8 @@ function maskPin(pin: string): string {
 
 /* Summary Cards */
 function SummaryCards({ staff }: { staff: StaffUser[] }) {
+  const locale = useLocale();
+  const fmtCur = useCallback((a: number) => formatCurrencyByLocale(a, locale), [locale]);
   const clockedInStaff = staff.filter(isClockedIn);
   const today = new Date();
   const todayShifts = staff.filter((u) =>
@@ -273,7 +276,7 @@ function SummaryCards({ staff }: { staff: StaffUser[] }) {
     },
     {
       title: 'Weekly Labor Cost',
-      value: formatCurrency(weeklyCost),
+      value: fmtCur(weeklyCost),
       subtitle: `${Math.round(weeklyMinutes / 60)}h scheduled`,
       icon: DollarSign,
       color: 'text-purple-400',
@@ -583,7 +586,7 @@ function StaffDirectoryTab({ staff }: { staff: StaffUser[] }) {
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <span className="text-sm font-medium text-emerald-400">{formatCurrency(user.hourlyRate)}</span>
+                      <span className="text-sm font-medium text-emerald-400">{fmtCur(user.hourlyRate)}</span>
                       <span className="text-[10px] text-zinc-600">/hr</span>
                     </TableCell>
                     <TableCell className="text-center">
@@ -1039,7 +1042,7 @@ function TipsTab({ staff }: { staff: StaffUser[] }) {
                         {d.tipPoints.toFixed(1)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className="text-sm font-bold text-emerald-400">{formatCurrency(d.share)}</span>
+                        <span className="text-sm font-bold text-emerald-400">{fmtCur(d.share)}</span>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -1058,10 +1061,10 @@ function TipsTab({ staff }: { staff: StaffUser[] }) {
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <DollarSign className="size-4 text-emerald-400" />
-                  <span className="text-lg font-bold text-zinc-100">Total: {formatCurrency(totalDistributed)}</span>
+                  <span className="text-lg font-bold text-zinc-100">Total: {fmtCur(totalDistributed)}</span>
                 </div>
                 <p className="text-xs text-zinc-500">
-                  Pool: {formatCurrency(tipPoolAmount)} · Points: {totalTipPoints.toFixed(1)} · Per point: {totalTipPoints > 0 ? formatCurrency(tipPoolAmount / totalTipPoints) : '$0.00'}
+                  Pool: {fmtCur(tipPoolAmount)} · Points: {totalTipPoints.toFixed(1)} · Per point: {totalTipPoints > 0 ? fmtCur(tipPoolAmount / totalTipPoints) : fmtCur(0)}
                 </p>
               </div>
               <Button
@@ -1100,6 +1103,9 @@ export function StaffManagement() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('schedule');
   const addNotification = useAppStore((s) => s.addNotification);
+  const t = useT();
+  const locale = useLocale();
+  const fmtCur = useCallback((a: number) => formatCurrencyByLocale(a, locale), [locale]);
 
   const fetchStaff = useCallback(async () => {
     try {

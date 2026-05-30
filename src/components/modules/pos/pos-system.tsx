@@ -35,6 +35,8 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { useAppStore } from '@/stores/app-store';
+import { useT, useLocale, useLocaleConfig } from '@/stores/locale-store';
+import { formatCurrencyByLocale, getTaxRate } from '@/lib/i18n/locales';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -58,7 +60,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { formatCurrency, getUrgencyLevel } from '@/lib/constants';
+import { getUrgencyLevel } from '@/lib/constants';
 
 /* ─── Types ─── */
 
@@ -148,19 +150,19 @@ const CATEGORY_ICON_MAP: Record<string, React.ElementType> = {
 
 /* ─── Station Badge Colors ─── */
 
-function StationBadge({ station }: { station: string }) {
+function StationBadge({ station, t }: { station: string; t: any }) {
   if (station === 'BAR') {
     return (
       <Badge className="bg-purple-600/20 text-purple-400 border-purple-600/30 text-[10px] px-1.5 py-0 h-5 font-medium">
         <Wine className="size-3 mr-0.5" />
-        BAR
+        {t.pos.stationBar}
       </Badge>
     );
   }
   return (
     <Badge className="bg-orange-600/20 text-orange-400 border-orange-600/30 text-[10px] px-1.5 py-0 h-5 font-medium">
       <ChefHat className="size-3 mr-0.5" />
-      KITCHEN
+      {t.pos.stationKitchen}
     </Badge>
   );
 }
@@ -216,14 +218,14 @@ function TimeElapsed({ createdAt }: { createdAt: string }) {
 
 /* ─── Order Item Status Badge ─── */
 
-function ItemStatusBadge({ status }: { status: string }) {
+function ItemStatusBadge({ status, t }: { status: string; t: any }) {
   const map: Record<string, { label: string; className: string }> = {
-    PENDING: { label: 'Pending', className: 'bg-zinc-600/20 text-zinc-400 border-zinc-600/30' },
-    FIRED: { label: 'Fired', className: 'bg-orange-600/20 text-orange-400 border-orange-600/30' },
-    PREPARING: { label: 'Prep', className: 'bg-amber-600/20 text-amber-400 border-amber-600/30' },
-    READY: { label: 'Ready', className: 'bg-emerald-600/20 text-emerald-400 border-emerald-600/30' },
-    SERVED: { label: 'Served', className: 'bg-sky-600/20 text-sky-400 border-sky-600/30' },
-    CANCELLED: { label: 'Cancelled', className: 'bg-red-600/20 text-red-400 border-red-600/30' },
+    PENDING: { label: t.pos.pending, className: 'bg-zinc-600/20 text-zinc-400 border-zinc-600/30' },
+    FIRED: { label: t.pos.fired, className: 'bg-orange-600/20 text-orange-400 border-orange-600/30' },
+    PREPARING: { label: t.pos.preparing, className: 'bg-amber-600/20 text-amber-400 border-amber-600/30' },
+    READY: { label: t.pos.ready, className: 'bg-emerald-600/20 text-emerald-400 border-emerald-600/30' },
+    SERVED: { label: t.pos.served, className: 'bg-sky-600/20 text-sky-400 border-sky-600/30' },
+    CANCELLED: { label: t.common.cancelled, className: 'bg-red-600/20 text-red-400 border-red-600/30' },
   };
   const config = map[status] || map.PENDING;
   return (
@@ -235,13 +237,13 @@ function ItemStatusBadge({ status }: { status: string }) {
 
 /* ─── Order Status Badge ─── */
 
-function OrderStatusBadge({ status }: { status: string }) {
+function OrderStatusBadge({ status, t }: { status: string; t: any }) {
   const map: Record<string, { label: string; className: string }> = {
-    PENDING: { label: 'Pending', className: 'bg-zinc-600/20 text-zinc-400 border-zinc-600/30' },
-    IN_PROGRESS: { label: 'In Progress', className: 'bg-amber-600/20 text-amber-400 border-amber-600/30' },
-    READY: { label: 'Ready', className: 'bg-emerald-600/20 text-emerald-400 border-emerald-600/30' },
-    SERVED: { label: 'Served', className: 'bg-sky-600/20 text-sky-400 border-sky-600/30' },
-    CANCELLED: { label: 'Cancelled', className: 'bg-red-600/20 text-red-400 border-red-600/30' },
+    PENDING: { label: t.pos.pending, className: 'bg-zinc-600/20 text-zinc-400 border-zinc-600/30' },
+    IN_PROGRESS: { label: t.pos.inProgress, className: 'bg-amber-600/20 text-amber-400 border-amber-600/30' },
+    READY: { label: t.pos.ready, className: 'bg-emerald-600/20 text-emerald-400 border-emerald-600/30' },
+    SERVED: { label: t.pos.served, className: 'bg-sky-600/20 text-sky-400 border-sky-600/30' },
+    CANCELLED: { label: t.common.cancelled, className: 'bg-red-600/20 text-red-400 border-red-600/30' },
   };
   const config = map[status] || map.PENDING;
   return (
@@ -259,6 +261,12 @@ export function POSSystem() {
   const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const addNotification = useAppStore((s) => s.addNotification);
+  const t = useT();
+  const locale = useLocale();
+  const localeConfig = useLocaleConfig();
+
+  const fmtCurrency = useCallback((amount: number) => formatCurrencyByLocale(amount, locale), [locale]);
+  const taxRate = localeConfig.taxRate;
 
   /* ─── Data Fetching ─── */
   const { data: categories = [], isLoading: menuLoading } = useQuery<MenuCategoryData[]>({
@@ -322,7 +330,7 @@ export function POSSystem() {
     () => orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0),
     [orderItems]
   );
-  const taxAmount = Math.round(subtotal * 0.1 * 100) / 100;
+  const taxAmount = Math.round(subtotal * taxRate * 100) / 100;
   const totalAmount = Math.round((subtotal + taxAmount) * 100) / 100;
 
   /* ─── Order Item Actions ─── */
@@ -481,7 +489,7 @@ export function POSSystem() {
         const current = seatMap.get(i.seatNumber) ?? 0;
         seatMap.set(i.seatNumber, current + i.price * i.quantity);
       });
-      const seatTax = (seat: number) => Math.round((seat * 0.1) * 100) / 100;
+      const seatTax = (seat: number) => Math.round((seat * taxRate) * 100) / 100;
       const seats = Array.from(seatMap.entries()).sort(([a], [b]) => a - b);
       return seats.map(([seat, sub]) => ({
         label: `Seat ${seat}`,
@@ -491,7 +499,7 @@ export function POSSystem() {
     // By item
     return orderItems.map((i) => ({
       label: `${i.name} x${i.quantity}`,
-      amount: Math.round((i.price * i.quantity * 1.1) * 100) / 100,
+      amount: Math.round((i.price * i.quantity * (1 + taxRate)) * 100) / 100,
     }));
   }, [splitMethod, guestCount, totalAmount, orderItems]);
 
@@ -519,7 +527,7 @@ export function POSSystem() {
             <div className="absolute top-1.5 right-1.5 z-10">
               <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[9px] px-1.5 py-0 h-4">
                 <Star className="size-2.5 mr-0.5 fill-amber-400" />
-                Popular
+                {t.pos.popular}
               </Badge>
             </div>
           )}
@@ -529,7 +537,7 @@ export function POSSystem() {
                 {item.name}
               </h4>
               <span className="text-sm font-bold text-emerald-400 whitespace-nowrap">
-                {formatCurrency(item.price)}
+                {fmtCurrency(item.price)}
               </span>
             </div>
             {item.description && (
@@ -538,7 +546,7 @@ export function POSSystem() {
               </p>
             )}
             <div className="flex items-center gap-1.5 flex-wrap">
-              <StationBadge station={item.station} />
+              <StationBadge station={item.station} t={t} />
               <Badge
                 variant="outline"
                 className="text-[10px] px-1.5 py-0 h-5 text-zinc-400 border-zinc-700"
@@ -569,15 +577,13 @@ export function POSSystem() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-zinc-100 truncate">{item.name}</span>
-              <StationBadge station={item.station} />
+              <StationBadge station={item.station} t={t} />
             </div>
-            <span className="text-xs text-zinc-500">
-              {formatCurrency(item.price)} each
-            </span>
+            <span className="text-xs text-zinc-500">{fmtCurrency(item.price)} {t.pos.each}</span>
           </div>
           <div className="text-right shrink-0">
             <span className="text-sm font-bold text-emerald-400">
-              {formatCurrency(item.price * item.quantity)}
+              {fmtCurrency(item.price * item.quantity)}
             </span>
           </div>
         </div>
@@ -608,7 +614,7 @@ export function POSSystem() {
           {/* Seat selector */}
           <div className="flex items-center gap-1 text-[11px]">
             <Users className="size-3 text-zinc-500" />
-            <span className="text-zinc-500">Seat</span>
+            <span className="text-zinc-500">{t.pos.seat}</span>
             <div className="flex items-center gap-0.5">
               <Button
                 variant="ghost"
@@ -647,7 +653,7 @@ export function POSSystem() {
           <Input
             value={item.notes}
             onChange={(e) => updateItemNotes(item.tempId, e.target.value)}
-            placeholder="Special notes..."
+            placeholder={t.pos.specialNotes}
             className="h-7 text-xs bg-zinc-900 border-zinc-700 placeholder:text-zinc-600 focus:border-emerald-600/50"
             onClick={(e) => e.stopPropagation()}
           />
@@ -687,7 +693,7 @@ export function POSSystem() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <OrderStatusBadge status={order.status} />
+              <OrderStatusBadge status={order.status} t={t} />
               <Button
                 variant="ghost"
                 size="icon"
@@ -713,7 +719,7 @@ export function POSSystem() {
               <Users className="size-3" />
               {order.guestCount} guests
             </span>
-            <span className="font-bold text-emerald-400">{formatCurrency(order.totalAmount)}</span>
+            <span className="font-bold text-emerald-400">{fmtCurrency(order.totalAmount)}</span>
           </div>
 
           {/* Expanded details */}
@@ -741,10 +747,10 @@ export function POSSystem() {
                             S{item.seatNumber}
                           </Badge>
                         )}
-                        <StationBadge station={item.station} />
+                        <StationBadge station={item.station} t={t} />
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <ItemStatusBadge status={item.status} />
+                        <ItemStatusBadge status={item.status} t={t} />
                         {/* Quick status change buttons */}
                         {item.status === 'PENDING' && (
                           <Button
@@ -825,7 +831,7 @@ export function POSSystem() {
             className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-zinc-400"
           >
             <ShoppingBag className="size-4 mr-2" />
-            New Order
+            {t.pos.newOrder}
             {orderItems.length > 0 && (
               <Badge className="ml-2 bg-emerald-600/30 text-emerald-400 text-[10px] px-1.5 py-0 h-4">
                 {orderItems.length}
@@ -837,7 +843,7 @@ export function POSSystem() {
             className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-zinc-400"
           >
             <Clock className="size-4 mr-2" />
-            Active Orders
+            {t.pos.activeOrders}
             {activeOrders.length > 0 && (
               <Badge className="ml-2 bg-amber-600/30 text-amber-400 text-[10px] px-1.5 py-0 h-4">
                 {activeOrders.length}
@@ -857,7 +863,7 @@ export function POSSystem() {
                 <Input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search menu items..."
+                  placeholder={t.pos.searchMenu}
                   className="pl-9 bg-zinc-900 border-zinc-800 placeholder:text-zinc-600 focus:border-emerald-600/50 h-11"
                 />
                 {searchQuery && (
@@ -921,8 +927,8 @@ export function POSSystem() {
                 ) : filteredItems.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-20 text-center">
                     <Search className="size-8 text-zinc-700 mb-3" />
-                    <p className="text-sm text-zinc-500">No items found</p>
-                    <p className="text-xs text-zinc-600 mt-1">Try a different search or category</p>
+                    <p className="text-sm text-zinc-500">{t.pos.noItemsFound}</p>
+                    <p className="text-xs text-zinc-600 mt-1">{t.pos.tryDifferentSearch}</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 pb-4">
@@ -938,7 +944,7 @@ export function POSSystem() {
                 <CardHeader className="pb-3 shrink-0">
                   <CardTitle className="text-base font-semibold text-zinc-100 flex items-center gap-2">
                     <Receipt className="size-4 text-emerald-400" />
-                    {editingOrder ? 'Edit Order' : 'Current Order'}
+                    {editingOrder ? t.pos.editOrder : t.pos.currentOrder}
                     {editingOrder && (
                       <Badge className="bg-amber-600/20 text-amber-400 text-[10px]">
                         #{editingOrder.table.number}
@@ -949,20 +955,20 @@ export function POSSystem() {
                 <CardContent className="flex-1 flex flex-col min-h-0 px-4 pb-4 gap-3">
                   {/* Table Selector */}
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">Table</label>
+                    <label className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">{t.pos.table}</label>
                     <Select value={selectedTableId} onValueChange={setSelectedTableId}>
                       <SelectTrigger className="bg-zinc-800 border-zinc-700 h-11 text-zinc-200">
-                        <SelectValue placeholder="Select table..." />
+                        <SelectValue placeholder={t.pos.selectTable} />
                       </SelectTrigger>
                       <SelectContent className="bg-zinc-900 border-zinc-700">
-                        {occupiedTables.map((t) => (
-                          <SelectItem key={t.id} value={t.id} className="text-zinc-200 focus:bg-zinc-800 focus:text-zinc-100">
+                        {occupiedTables.map((tbl) => (
+                          <SelectItem key={tbl.id} value={tbl.id} className="text-zinc-200 focus:bg-zinc-800 focus:text-zinc-100">
                             <div className="flex items-center gap-2">
-                              <span className="font-medium">{t.name}</span>
-                              <span className="text-[10px] text-zinc-500">({t.capacity} seats)</span>
-                              {t.status !== 'FREE' && (
+                              <span className="font-medium">{tbl.name}</span>
+                              <span className="text-[10px] text-zinc-500">({tbl.capacity} {t.floorPlan.seats})</span>
+                              {tbl.status !== 'FREE' && (
                                 <Badge className="text-[9px] px-1 py-0 h-3.5 bg-amber-600/20 text-amber-400">
-                                  {t.status}
+                                  {tbl.status}
                                 </Badge>
                               )}
                             </div>
@@ -974,7 +980,7 @@ export function POSSystem() {
 
                   {/* Guest Count */}
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">Guests</label>
+                    <label className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">{t.pos.guests}</label>
                     <div className="flex items-center gap-2">
                       <Button
                         variant="outline"
@@ -1005,8 +1011,8 @@ export function POSSystem() {
                     {orderItems.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-10 text-center">
                         <ShoppingBag className="size-8 text-zinc-700 mb-3" />
-                        <p className="text-sm text-zinc-500">No items yet</p>
-                        <p className="text-xs text-zinc-600 mt-1">Click menu items to add</p>
+                        <p className="text-sm text-zinc-500">{t.pos.noItemsYet}</p>
+                        <p className="text-xs text-zinc-600 mt-1">{t.pos.clickMenuToAdd}</p>
                       </div>
                     ) : (
                       <div className="space-y-2 pr-1 pb-2">
@@ -1020,17 +1026,17 @@ export function POSSystem() {
                   {/* Totals */}
                   <div className="space-y-1.5 shrink-0">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-zinc-400">Subtotal</span>
-                      <span className="text-zinc-200">{formatCurrency(subtotal)}</span>
+                      <span className="text-zinc-400">{t.common.subtotal}</span>
+                      <span className="text-zinc-200">{fmtCurrency(subtotal)}</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-zinc-400">Tax (10%)</span>
-                      <span className="text-zinc-200">{formatCurrency(taxAmount)}</span>
+                      <span className="text-zinc-400">{localeConfig.taxShort} ({Math.round(taxRate * 100)}%)</span>
+                      <span className="text-zinc-200">{fmtCurrency(taxAmount)}</span>
                     </div>
                     <Separator className="bg-zinc-800" />
                     <div className="flex items-center justify-between text-base font-bold">
-                      <span className="text-zinc-100">Total</span>
-                      <span className="text-emerald-400">{formatCurrency(totalAmount)}</span>
+                      <span className="text-zinc-100">{t.common.totalAmount}</span>
+                      <span className="text-emerald-400">{fmtCurrency(totalAmount)}</span>
                     </div>
                   </div>
 
@@ -1158,14 +1164,14 @@ export function POSSystem() {
               {splitBillResults.map((result, idx) => (
                 <div key={idx} className="flex items-center justify-between py-2 px-3 bg-zinc-800/50 rounded-lg">
                   <span className="text-sm text-zinc-300">{result.label}</span>
-                  <span className="text-sm font-bold text-emerald-400">{formatCurrency(result.amount)}</span>
+                  <span className="text-sm font-bold text-emerald-400">{fmtCurrency(result.amount)}</span>
                 </div>
               ))}
             </div>
 
             <div className="flex items-center justify-between pt-2 border-t border-zinc-800">
               <span className="text-sm font-medium text-zinc-200">Total</span>
-              <span className="text-base font-bold text-emerald-400">{formatCurrency(totalAmount)}</span>
+              <span className="text-base font-bold text-emerald-400">{fmtCurrency(totalAmount)}</span>
             </div>
           </div>
           <DialogFooter>
@@ -1208,7 +1214,7 @@ export function POSSystem() {
             <Separator className="bg-zinc-800" />
             <div className="flex justify-between text-base font-bold">
               <span className="text-zinc-100">Total</span>
-              <span className="text-emerald-400">{formatCurrency(totalAmount)}</span>
+              <span className="text-emerald-400">{fmtCurrency(totalAmount)}</span>
             </div>
           </div>
           <DialogFooter className="gap-2">

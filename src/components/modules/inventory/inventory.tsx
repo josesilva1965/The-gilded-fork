@@ -27,7 +27,8 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { useAppStore } from '@/stores/app-store';
-import { formatCurrency, formatDate } from '@/lib/constants';
+import { useT, useLocale } from '@/stores/locale-store';
+import { formatCurrencyByLocale, formatDateByLocale } from '@/lib/i18n/locales';
 import { cn } from '@/lib/utils';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -127,21 +128,31 @@ const CATEGORIES = ['ALL', 'PRODUCE', 'MEAT', 'DAIRY', 'DRY', 'BEVERAGE', 'OTHER
 const STORAGE_LOCATIONS = ['ALL', 'FRIDGE', 'FREEZER', 'DRY_STORAGE', 'BAR'] as const;
 const WASTAGE_REASONS = ['SPOILED', 'SPILLED', 'COMPED', 'EXPIRED', 'DAMAGED', 'OTHER'] as const;
 
-const CATEGORY_LABELS: Record<string, string> = {
-  PRODUCE: 'Produce',
-  MEAT: 'Meat & Seafood',
-  DAIRY: 'Dairy',
-  DRY: 'Dry Goods',
-  BEVERAGE: 'Beverages',
-  OTHER: 'Other',
-};
+const CATEGORY_LABELS: Record<string, string> = {};
 
-const STORAGE_LABELS: Record<string, string> = {
-  FRIDGE: 'Fridge',
-  FREEZER: 'Freezer',
-  DRY_STORAGE: 'Dry Storage',
-  BAR: 'Bar',
-};
+function getCategoryLabel(cat: string, t: any): string {
+  const map: Record<string, string> = {
+    PRODUCE: t.inventory.produce,
+    MEAT: t.inventory.meat,
+    DAIRY: t.inventory.dairy,
+    DRY: t.inventory.dryGoods,
+    BEVERAGE: t.inventory.beverages,
+    OTHER: t.inventory.other,
+  };
+  return map[cat] || cat;
+}
+
+const STORAGE_LABELS: Record<string, string> = {};
+
+function getStorageLabel(loc: string, t: any): string {
+  const map: Record<string, string> = {
+    FRIDGE: t.inventory.fridge,
+    FREEZER: t.inventory.freezer,
+    DRY_STORAGE: t.inventory.dryStorage,
+    BAR: t.inventory.bar,
+  };
+  return map[loc] || loc;
+}
 
 const STORAGE_ICONS: Record<string, React.ElementType> = {
   FRIDGE: Refrigerator,
@@ -199,17 +210,20 @@ function SummaryCards({
   wastageValue: number;
   activePOCount: number;
 }) {
+  const t = useT();
+  const locale = useLocale();
+  const fmtCur = useCallback((a: number) => formatCurrencyByLocale(a, locale), [locale]);
   const cards = [
     {
-      label: 'Total Inventory Value',
-      value: formatCurrency(totalValue),
+      label: t.inventory.totalInventoryValue,
+      value: fmtCur(totalValue),
       icon: Package,
       color: 'text-emerald-400',
       bg: 'bg-emerald-500/10',
       border: 'border-emerald-500/20',
     },
     {
-      label: 'Low Stock Alerts',
+      label: t.inventory.lowStockAlerts,
       value: lowStockCount.toString(),
       icon: AlertTriangle,
       color: lowStockCount > 0 ? 'text-red-400' : 'text-zinc-400',
@@ -218,15 +232,15 @@ function SummaryCards({
       pulse: lowStockCount > 0,
     },
     {
-      label: 'Wastage This Week',
-      value: formatCurrency(wastageValue),
+      label: t.inventory.wastageThisWeek,
+      value: fmtCur(wastageValue),
       icon: TrendingDown,
       color: 'text-amber-400',
       bg: 'bg-amber-500/10',
       border: 'border-amber-500/20',
     },
     {
-      label: 'Active Purchase Orders',
+      label: t.inventory.activePurchaseOrders,
       value: activePOCount.toString(),
       icon: FileText,
       color: 'text-sky-400',
@@ -278,6 +292,8 @@ function IngredientRow({
   ingredient: Ingredient;
   onEditStock: (ing: Ingredient) => void;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const level = getStockLevel(ingredient.currentStock, ingredient.minStock, ingredient.maxStock);
   const percent = getStockPercent(ingredient.currentStock, ingredient.maxStock);
   const isLow = ingredient.currentStock <= ingredient.minStock;
@@ -302,7 +318,7 @@ function IngredientRow({
           <p className="text-sm font-medium text-zinc-200 truncate">{ingredient.name}</p>
           <div className="flex items-center gap-1.5 mt-0.5">
             <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-zinc-700 text-zinc-500">
-              {CATEGORY_LABELS[ingredient.category || 'OTHER'] || ingredient.category}
+              {getCategoryLabel(ingredient.category || 'OTHER', t)}
             </Badge>
           </div>
         </div>
@@ -326,7 +342,7 @@ function IngredientRow({
 
       {/* Unit + Cost - desktop only */}
       <div className="hidden md:block">
-        <p className="text-sm text-zinc-300">{formatCurrency(ingredient.costPerUnit)}</p>
+        <p className="text-sm text-zinc-300">{formatCurrencyByLocale(ingredient.costPerUnit, locale)}</p>
         <p className="text-[10px] text-zinc-600">per {ingredient.unit}</p>
       </div>
 
@@ -334,7 +350,7 @@ function IngredientRow({
       <div className="hidden md:flex items-center gap-1.5">
         <StorageIcon className="size-3.5 text-zinc-500" />
         <span className="text-xs text-zinc-400">
-          {STORAGE_LABELS[ingredient.storageLocation || ''] || ingredient.storageLocation}
+          {getStorageLabel(ingredient.storageLocation || '', t)}
         </span>
       </div>
 
@@ -581,7 +597,7 @@ function LogWastageDialog({
 
           <div className="flex items-center justify-between bg-zinc-800/50 rounded-lg p-3">
             <span className="text-sm text-zinc-400">Auto-calculated Value</span>
-            <span className="font-mono font-bold text-amber-400">{formatCurrency(parseFloat(autoValue))}</span>
+            <span className="font-mono font-bold text-amber-400">{fmtCur(parseFloat(autoValue))}</span>
           </div>
 
           <div className="space-y-2">
@@ -629,13 +645,13 @@ function POCard({ po }: { po: PurchaseOrder }) {
               <div className="min-w-0">
                 <p className="text-sm font-medium text-zinc-200 truncate">{po.vendor.name}</p>
                 <p className="text-[10px] text-zinc-600">
-                  {po.orderedAt ? formatDate(po.orderedAt) : 'Not ordered yet'}
+                  {po.orderedAt ? formatDateByLocale(po.orderedAt) : 'Not ordered yet'}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-sm font-mono font-bold text-zinc-300">
-                {formatCurrency(po.totalAmount)}
+                {fmtCur(po.totalAmount)}
               </span>
               <Badge variant="outline" className={cn('text-[10px] px-2', PO_STATUS_COLORS[po.status] || PO_STATUS_COLORS.DRAFT)}>
                 {po.status}
@@ -654,7 +670,7 @@ function POCard({ po }: { po: PurchaseOrder }) {
                     <span className="text-zinc-300">{item.ingredient.name}</span>
                     <span className="text-zinc-600">× {item.quantity} {item.ingredient.unit}</span>
                   </div>
-                  <span className="font-mono text-zinc-400">{formatCurrency(item.totalPrice)}</span>
+                  <span className="font-mono text-zinc-400">{fmtCur(item.totalPrice)}</span>
                 </div>
               ))}
             </div>
@@ -673,6 +689,11 @@ export function Inventory() {
   const user = useAuthStore((s) => s.user);
   const addNotification = useAppStore((s) => s.addNotification);
   const queryClient = useQueryClient();
+  const t = useT();
+  const locale = useLocale();
+  
+  const fmtCur = useCallback((amount: number) => formatCurrencyByLocale(amount, locale), [locale]);
+  const fmtDate = useCallback((date: string | Date) => formatDateByLocale(date, locale), [locale]);
 
   /* State */
   const [searchQuery, setSearchQuery] = useState('');
@@ -1009,7 +1030,7 @@ export function Inventory() {
             <div>
               <h3 className="text-sm font-medium text-zinc-300">Wastage Log</h3>
               <p className="text-[11px] text-zinc-600">
-                This week&apos;s wastage: <span className="text-amber-400 font-mono">{formatCurrency(weekWastageValue)}</span>
+                This week&apos;s wastage: <span className="text-amber-400 font-mono">{fmtCur(weekWastageValue)}</span>
               </p>
             </div>
             <Button
@@ -1059,9 +1080,9 @@ export function Inventory() {
                         </div>
                       </div>
                       <div className="text-right shrink-0 ml-3">
-                        <p className="text-sm font-mono text-amber-400">{formatCurrency(log.value)}</p>
+                        <p className="text-sm font-mono text-amber-400">{fmtCur(log.value)}</p>
                         <p className="text-[10px] text-zinc-600">
-                          {log.reporter.name} · {formatDate(log.createdAt)}
+                          {log.reporter.name} · {formatDateByLocale(log.createdAt)}
                         </p>
                       </div>
                     </div>

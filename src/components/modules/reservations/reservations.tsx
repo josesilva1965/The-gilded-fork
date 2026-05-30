@@ -58,7 +58,8 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/app-store';
-import { formatDate } from '@/lib/constants';
+import { useT, useLocale } from '@/stores/locale-store';
+import { formatDateByLocale } from '@/lib/i18n/locales';
 
 /* ─── Types ─── */
 type ReservationStatus = 'CONFIRMED' | 'CANCELLED' | 'NO_SHOW' | 'SEATED' | 'COMPLETED';
@@ -790,7 +791,7 @@ function NewReservationDialog({
                     className="bg-zinc-800 border-zinc-700 text-zinc-100 hover:bg-zinc-700 justify-start text-left font-normal"
                   >
                     <CalendarDays className="size-4 mr-2 text-zinc-500" />
-                    {formatDate(date)}
+                    {formatDateByLocale(date)}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 bg-zinc-900 border-zinc-800" align="start">
@@ -1288,7 +1289,7 @@ export function Reservations() {
                       className="bg-zinc-800 border-zinc-700 text-zinc-100 hover:bg-zinc-700 justify-start text-left font-normal"
                     >
                       <CalendarDays className="size-4 mr-2 text-zinc-500" />
-                      {formatDate(selectedDate)}
+                      {formatDateByLocale(selectedDate)}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0 bg-zinc-900 border-zinc-800" align="start">
@@ -1328,7 +1329,7 @@ export function Reservations() {
                   <div className="size-12 rounded-xl bg-zinc-800 flex items-center justify-center mb-3">
                     <CalendarDays className="size-6 text-zinc-600" />
                   </div>
-                  <p className="text-sm text-zinc-500">No reservations for {formatDate(selectedDate)}</p>
+                  <p className="text-sm text-zinc-500">No reservations for {formatDateByLocale(selectedDate)}</p>
                   <p className="text-xs text-zinc-600 mt-1">Try selecting a different date or changing the filter</p>
                 </div>
               ) : (
