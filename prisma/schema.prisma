@@ -71,10 +71,12 @@ model RestaurantTable {
   shape     String   @default("ROUND") // ROUND, SQUARE, RECTANGLE
   serverId  String?  // Assigned server/waiter
   server    User?    @relation("ServerTables", fields: [serverId], references: [id])
-  notes     String?
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  notes      String?
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   // Relations
   reservations Reservation[]
@@ -152,6 +154,7 @@ model MenuItem {
   favorites   CustomerFavorite[]
   wastageLogs WastageLog[]
   topSellingItems TopSellingItem[]
+  extras      MenuItemExtra[]
 }
 
 // ============================================================
@@ -294,6 +297,8 @@ model Order {
   paymentMethod String?  // CASH, CARD, MOBILE, SPLIT
   notes         String?
   closedAt      DateTime?
+  customerId    String?
+  customer      Customer? @relation(fields: [customerId], references: [id])
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -320,6 +325,7 @@ model OrderItem {
   servedAt    DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  extras      OrderItemExtra[]
 }
 
 model Payment {
@@ -393,6 +399,7 @@ model Customer {
   visitCount    Int      @default(0)
   lastVisit     DateTime?
   marketingOptIn Boolean @default(false)
+  allowedCredit  Boolean  @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -400,6 +407,8 @@ model Customer {
   reservations   Reservation[]
   favorites      CustomerFavorite[]
   visits         CustomerVisit[]
+  orders         Order[]
+  tables         RestaurantTable[]
 }
 
 model CustomerFavorite {
@@ -452,4 +461,29 @@ model TopSellingItem {
   quantity    Int      @default(0)
   revenue     Float    @default(0)
   createdAt   DateTime @default(now())
+}
+
+model MenuItemExtra {
+  id         String   @id @default(cuid())
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  name       String
+  price      Float
+  cost       Float    @default(0)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  orderItemExtras OrderItemExtra[]
+}
+
+model OrderItemExtra {
+  id              String        @id @default(cuid())
+  orderItemId     String
+  orderItem       OrderItem     @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  menuItemExtraId String?
+  menuItemExtra   MenuItemExtra? @relation(fields: [menuItemExtraId], references: [id], onDelete: SetNull)
+  name            String
+  price           Float
+  createdAt       DateTime      @default(now())
 }

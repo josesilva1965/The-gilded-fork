@@ -24,8 +24,16 @@ export async function GET() {
       orderBy: { name: 'asc' },
     });
 
-    // Calculate hours worked and tip points for each staff member
-    const distributions = [];
+    interface TipDistribution {
+      userId: string;
+      name: string;
+      role: string;
+      hoursWorked: number;
+      tipPointValue: number;
+      tipPoints: number;
+      share: number;
+    }
+    const distributions: TipDistribution[] = [];
 
     for (const user of staff) {
       if (user.clockLogs.length === 0) continue;
@@ -66,7 +74,23 @@ export async function GET() {
       });
     }
 
-    return NextResponse.json({ distributions });
+    // Calculate total tips collected today
+    const paymentsToday = await db.payment.findMany({
+      where: {
+        createdAt: {
+          gte: startOfDay,
+          lt: endOfDay,
+        },
+        status: 'COMPLETED',
+      },
+      select: {
+        tipAmount: true,
+      },
+    });
+
+    const totalTips = paymentsToday.reduce((sum, p) => sum + (p.tipAmount || 0), 0);
+
+    return NextResponse.json({ distributions, totalTips });
   } catch (error) {
     console.error('Error calculating tip distribution:', error);
     return NextResponse.json({ error: 'Failed to calculate tip distribution' }, { status: 500 });

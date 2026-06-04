@@ -8,7 +8,10 @@ export type AppView =
   | 'inventory'
   | 'staff'
   | 'crm'
-  | 'reservations';
+  | 'transactions'
+  | 'reservations'
+  | 'menu'
+  | 'settings';
 
 interface AppState {
   currentView: AppView;
@@ -30,7 +33,10 @@ export const useAppStore = create<AppState>((set) => ({
   selectedTableId: null,
   selectedOrderId: null,
   notifications: [],
-  setView: (view) => set({ currentView: view, selectedTableId: null, selectedOrderId: null }),
+  setView: (view) => set((s) => ({
+    currentView: view,
+    ...(view !== 'pos' && { selectedTableId: null, selectedOrderId: null }),
+  })),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   selectTable: (tableId) => set({ selectedTableId: tableId }),
   selectOrder: (orderId) => set({ selectedOrderId: orderId }),

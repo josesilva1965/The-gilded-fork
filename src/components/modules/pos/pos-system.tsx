@@ -32,11 +32,18 @@ import {
   Eye,
   AlertTriangle,
   Loader2,
+  X,
+  CreditCard,
+  Wallet,
+  DollarSign,
+  Check,
+  Pencil,
 } from 'lucide-react';
+import { getSocket } from '@/lib/socket';
 import { useAuthStore } from '@/stores/auth-store';
 import { useAppStore } from '@/stores/app-store';
 import { useT, useLocale, useLocaleConfig } from '@/stores/locale-store';
-import { formatCurrencyByLocale, getTaxRate } from '@/lib/i18n/locales';
+import { formatCurrencyByLocale, getTaxRate, LOCALE_CONFIGS } from '@/lib/i18n/locales';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -64,6 +71,14 @@ import { getUrgencyLevel } from '@/lib/constants';
 
 /* ─── Types ─── */
 
+interface MenuItemExtra {
+  id: string;
+  name: string;
+  price: number;
+}
+
+type SplitMethod = 'full' | 'equal' | 'seat' | 'item';
+
 interface MenuItemData {
   id: string;
   categoryId: string;
@@ -77,6 +92,8 @@ interface MenuItemData {
   isPopular: boolean;
   allergies: string | null;
   spiceLevel: number;
+  imageUrl?: string | null;
+  extras?: MenuItemExtra[];
 }
 
 interface MenuCategoryData {
@@ -106,6 +123,7 @@ interface OrderItemDraft {
   seatNumber: number;
   station: string;
   notes: string;
+  extras?: MenuItemExtra[];
 }
 
 interface ActiveOrderItem {
@@ -134,6 +152,9 @@ interface ActiveOrderData {
   table: { id: string; number: number; name: string };
   creator: { id: string; name: string; role: string };
   items: ActiveOrderItem[];
+  paymentStatus?: string;
+  paymentMethod?: string;
+  payments?: { id: string; amount: number; method: string; status: string; reference: string | null }[];
 }
 
 /* ─── Category Icon Map ─── */
@@ -253,6 +274,19 @@ function OrderStatusBadge({ status, t }: { status: string; t: any }) {
   );
 }
 
+function isDrinksCategory(cat: MenuCategoryData) {
+  const nameLower = cat.name.toLowerCase();
+  return (
+    nameLower.includes('cocktail') ||
+    nameLower.includes('beer') ||
+    nameLower.includes('wine') ||
+    nameLower.includes('drink') ||
+    nameLower.includes('beverage') ||
+    nameLower.includes('non-alcoholic') ||
+    cat.items.some(item => item.type === 'DRINK' || item.station === 'BAR')
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════════
    MAIN POS SYSTEM COMPONENT
    ═══════════════════════════════════════════════════════════════ */
@@ -261,6 +295,10 @@ export function POSSystem() {
   const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const addNotification = useAppStore((s) => s.addNotification);
+  const selectedOrderId = useAppStore((s) => s.selectedOrderId);
+  const selectedTableIdFromStore = useAppStore((s) => s.selectedTableId);
+  const selectOrderStore = useAppStore((s) => s.selectOrder);
+  const selectTableStore = useAppStore((s) => s.selectTable);
   const t = useT();
   const locale = useLocale();
   const localeConfig = useLocaleConfig();
@@ -279,6 +317,10 @@ export function POSSystem() {
     queryFn: () => fetch('/api/tables').then((r) => r.json()),
   });
 
+  const quickBarTableId = useMemo(() => {
+    return tables.find((t) => t.number === 99 || t.name === 'Quick Bar')?.id || 'quick-bar';
+  }, [tables]);
+
   const { data: activeOrders = [], isLoading: ordersLoading } = useQuery<ActiveOrderData[]>({
     queryKey: ['active-orders'],
     queryFn: () => fetch('/api/orders').then((r) => r.json()),
@@ -294,12 +336,28 @@ export function POSSystem() {
   const [orderItems, setOrderItems] = useState<OrderItemDraft[]>([]);
   const [orderNotes, setOrderNotes] = useState('');
   const [splitBillOpen, setSplitBillOpen] = useState(false);
-  const [splitMethod, setSplitMethod] = useState<'seat' | 'item' | 'equal'>('equal');
+  const [splitMethod, setSplitMethod] = useState<SplitMethod>('full');
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fireConfirmOpen, setFireConfirmOpen] = useState(false);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<ActiveOrderData | null>(null);
+
+  const [activePayShare, setActivePayShare] = useState<{ reference: string; amount: number } | null>(null);
+  const [splitPaymentMethod, setSplitPaymentMethod] = useState<'CASH' | 'CARD' | 'CREDIT'>('CASH');
+  const [splitCashAmount, setSplitCashAmount] = useState('');
+  const [splitTipAmount, setSplitTipAmount] = useState('');
+  const [splitCardStep, setSplitCardStep] = useState<number>(0);
+  const [splitSelectedCustId, setSplitSelectedCustId] = useState<string>('');
+  const [isProcessingSplitPay, setIsProcessingSplitPay] = useState(false);
+
+  const [customizingItem, setCustomizingItem] = useState<MenuItemData | null>(null);
+  const [selectedExtras, setSelectedExtras] = useState<MenuItemExtra[]>([]);
+
+  const { data: customers = [] } = useQuery<any[]>({
+    queryKey: ['customers'],
+    queryFn: () => fetch('/api/customers').then((r) => r.json()),
+  });
 
   /* ─── Derived State ─── */
   const occupiedTables = useMemo(
@@ -323,23 +381,41 @@ export function POSSystem() {
           (i.description && i.description.toLowerCase().includes(q))
       );
     }
+    if (user?.role === 'BAR') {
+      return [...items].sort((a, b) => {
+        const aIsDrink = a.type === 'DRINK' || a.station === 'BAR';
+        const bIsDrink = b.type === 'DRINK' || b.station === 'BAR';
+        if (aIsDrink && !bIsDrink) return -1;
+        if (!aIsDrink && bIsDrink) return 1;
+        return 0;
+      });
+    }
     return items;
-  }, [categories, selectedCategoryId, searchQuery]);
+  }, [categories, selectedCategoryId, searchQuery, user?.role]);
 
   const subtotal = useMemo(
-    () => orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0),
+    () => orderItems.reduce((sum, i) => {
+      const extrasCost = (i.extras || []).reduce((s, ext) => s + ext.price, 0);
+      return sum + (i.price + extrasCost) * i.quantity;
+    }, 0),
     [orderItems]
   );
   const taxAmount = Math.round(subtotal * taxRate * 100) / 100;
   const totalAmount = Math.round((subtotal + taxAmount) * 100) / 100;
 
+  const allDrinksInOrder = useMemo(() => {
+    return orderItems.length > 0 && orderItems.every((item) => item.station === 'BAR');
+  }, [orderItems]);
+
+  const canFireWithoutTable = user?.role === 'BAR' || allDrinksInOrder;
+
   /* ─── Order Item Actions ─── */
   const addItemToOrder = useCallback(
-    (menuItem: MenuItemData) => {
+    (menuItem: MenuItemData, extras: MenuItemExtra[] = []) => {
       setOrderItems((prev) => {
-        const existing = prev.find(
-          (i) => i.menuItemId === menuItem.id && i.seatNumber === 1 && i.notes === ''
-        );
+        const existing = extras.length === 0 ? prev.find(
+          (i) => i.menuItemId === menuItem.id && i.seatNumber === 1 && i.notes === '' && (!i.extras || i.extras.length === 0)
+        ) : undefined;
         if (existing) {
           return prev.map((i) =>
             i.tempId === existing.tempId ? { ...i, quantity: i.quantity + 1 } : i
@@ -356,6 +432,7 @@ export function POSSystem() {
             seatNumber: 1,
             station: menuItem.station === 'BOTH' ? 'KITCHEN' : menuItem.station,
             notes: '',
+            extras,
           },
         ];
       });
@@ -397,34 +474,60 @@ export function POSSystem() {
 
   /* ─── Submit Order ─── */
   const handleSubmitOrder = useCallback(async () => {
-    if (!selectedTableId || orderItems.length === 0 || !user) return;
+    const targetTableId = selectedTableId || quickBarTableId;
+    if (!targetTableId || orderItems.length === 0 || !user) return;
     setIsSubmitting(true);
+    const isEditing = !!editingOrder;
     try {
       const body = {
-        tableId: selectedTableId,
+        tableId: targetTableId,
         createdBy: user.id,
         items: orderItems.map((i) => ({
+          id: editingOrder?.items.some((oi) => oi.id === i.tempId) ? i.tempId : undefined,
           menuItemId: i.menuItemId,
           quantity: i.quantity,
           unitPrice: i.price,
           seatNumber: i.seatNumber,
           station: i.station,
           notes: i.notes || null,
+          extras: i.extras || [],
         })),
         type: 'DINE_IN',
         guestCount,
         notes: orderNotes || null,
       };
       const res = await fetch('/api/orders', {
-        method: 'POST',
+        method: isEditing ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify(isEditing ? { ...body, id: editingOrder.id } : body),
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || 'Failed to create order');
+        throw new Error(err.error || `Failed to ${isEditing ? 'update' : 'create'} order`);
       }
-      addNotification(`Order fired for Table ${tables.find(t => t.id === selectedTableId)?.number ?? ''}`, 'success');
+      
+      // Emit socket updates
+      const socket = getSocket();
+      if (socket?.connected) {
+        if (isEditing) {
+          socket.emit('order:status-change', {
+            orderId: editingOrder.id,
+            status: 'IN_PROGRESS',
+          });
+        } else {
+          socket.emit('order:created', {
+            tableId: targetTableId,
+            createdBy: user.name,
+          });
+        }
+      }
+
+      addNotification(
+        isEditing
+          ? `Order updated for ${tables.find(t => t.id === targetTableId)?.name ?? (targetTableId === quickBarTableId ? 'Quick Bar' : '')}`
+          : `Order fired for ${tables.find(t => t.id === targetTableId)?.name ?? (targetTableId === quickBarTableId ? 'Quick Bar' : '')}`,
+        'success'
+      );
       clearOrder();
       queryClient.invalidateQueries({ queryKey: ['active-orders'] });
       queryClient.invalidateQueries({ queryKey: ['tables'] });
@@ -434,7 +537,88 @@ export function POSSystem() {
       setIsSubmitting(false);
       setFireConfirmOpen(false);
     }
-  }, [selectedTableId, orderItems, user, guestCount, orderNotes, tables, addNotification, clearOrder, queryClient]);
+  }, [selectedTableId, orderItems, user, guestCount, orderNotes, tables, addNotification, clearOrder, queryClient, quickBarTableId]);
+
+  /* ─── Confirm Split Payment ─── */
+  const handleConfirmSplitPayment = useCallback(async () => {
+    if (!editingOrder || !activePayShare) return;
+    setIsProcessingSplitPay(true);
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingOrder.id,
+          action: 'PAY_SPLIT',
+          amount: activePayShare.amount,
+          tipAmount: splitTipAmount ? parseFloat(splitTipAmount) : 0,
+          paymentMethod: splitPaymentMethod,
+          reference: activePayShare.reference,
+          customerId: splitPaymentMethod === 'CREDIT' ? splitSelectedCustId : undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to process payment');
+      }
+
+      const updatedOrder = await res.json();
+
+      // Check if order is fully paid
+      const totalPaid = updatedOrder.payments?.reduce((sum: number, p: any) => sum + p.amount, 0) || 0;
+      const isFullyPaid = totalPaid >= (updatedOrder.totalAmount - 0.05);
+
+      addNotification(
+        isFullyPaid
+          ? `Order fully settled. Table ${updatedOrder.table.number} is now free.`
+          : `Processed payment of ${fmtCurrency(activePayShare.amount)} for ${activePayShare.reference}`,
+        'success'
+      );
+
+      // Invalidate queries to refresh POS lists and floor plan
+      queryClient.invalidateQueries({ queryKey: ['active-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['tables'] });
+
+      // Socket emits for real-time synchronization
+      const socket = getSocket();
+      if (socket?.connected) {
+        socket.emit('order:status-change', {
+          orderId: editingOrder.id,
+          status: isFullyPaid ? 'SERVED' : updatedOrder.status,
+        });
+        if (isFullyPaid) {
+          socket.emit('table:status-change', {
+            tableId: editingOrder.tableId,
+            status: 'FREE',
+            updatedBy: user?.name || 'System',
+          });
+        }
+      }
+
+      if (isFullyPaid) {
+        setSplitBillOpen(false);
+        clearOrder();
+      } else {
+        // Update local editingOrder with the newly fetched database state
+        setActivePayShare(null);
+        setSplitCashAmount('');
+        setSplitTipAmount('');
+        setSplitCardStep(0);
+      }
+    } catch (err: any) {
+      addNotification(err.message || 'Payment failed', 'error');
+    } finally {
+      setIsProcessingSplitPay(false);
+    }
+  }, [editingOrder, activePayShare, splitPaymentMethod,    splitSelectedCustId,
+    splitTipAmount,
+    user,
+    addNotification,
+    clearOrder,
+    queryClient,
+    fmtCurrency
+  ]);
 
   /* ─── Update Order Item Status ─── */
   const handleUpdateItemStatus = useCallback(
@@ -460,7 +644,7 @@ export function POSSystem() {
     setSelectedTableId(order.tableId);
     setGuestCount(order.guestCount);
     setOrderItems(
-      order.items.map((i) => ({
+      order.items.map((i: any) => ({
         tempId: i.id,
         menuItemId: i.menuItemId,
         name: i.menuItem.name,
@@ -469,18 +653,72 @@ export function POSSystem() {
         seatNumber: i.seatNumber ?? 1,
         station: i.station,
         notes: i.notes ?? '',
+        extras: i.extras?.map((e: any) => ({ id: e.menuItemExtraId, name: e.name, price: e.price })) || [],
       }))
     );
     setActiveTab('new-order');
   }, []);
 
-  /* ─── Split Bill Calculations ─── */
+  /* ─── Checkout an existing order directly ─── */
+  const handleCheckoutDirectly = useCallback((order: ActiveOrderData) => {
+    setEditingOrder(order);
+    setSelectedTableId(order.tableId);
+    setGuestCount(order.guestCount);
+    setOrderItems(
+      order.items.map((i: any) => ({
+        tempId: i.id,
+        menuItemId: i.menuItemId,
+        name: i.menuItem.name,
+        price: i.unitPrice,
+        quantity: i.quantity,
+        seatNumber: i.seatNumber ?? 1,
+        station: i.station,
+        notes: i.notes ?? '',
+        extras: i.extras?.map((e: any) => ({ id: e.menuItemExtraId, name: e.name, price: e.price })) || [],
+      }))
+    );
+    const totalPaid = order.payments?.reduce((s: number, p: any) => s + p.amount, 0) || 0;
+    const remainingAmount = Math.max(0, order.totalAmount - totalPaid);
+    setSplitMethod('full');
+    setActivePayShare({ reference: 'Full Bill', amount: remainingAmount });
+    setSplitBillOpen(true);
+  }, []);
+
+  /* ─── Handle Store Selection (Floor Plan integration) ─── */
+  useEffect(() => {
+    if (selectedOrderId && activeOrders.length > 0) {
+      const orderToEdit = activeOrders.find(o => o.id === selectedOrderId);
+      if (orderToEdit && (!editingOrder || editingOrder.id !== selectedOrderId)) {
+        handleEditOrder(orderToEdit);
+        selectOrderStore(null); // Clear after loading
+      }
+    } else if (selectedTableIdFromStore && !editingOrder) {
+      setSelectedTableId(selectedTableIdFromStore);
+      selectTableStore(null); // Clear after loading
+      setActiveTab('new-order');
+    }
+  }, [selectedOrderId, selectedTableIdFromStore, activeOrders, editingOrder, handleEditOrder, selectOrderStore, selectTableStore]);
+
+  /* ─── Split Bill Logic ─── */
   const splitBillResults = useMemo(() => {
+    const totalPaid = editingOrder?.payments?.reduce((s: number, p: any) => s + p.amount, 0) || 0;
+    const remainingAmount = Math.max(0, totalAmount - totalPaid);
+
+    if (splitMethod === 'full') {
+      return [
+        {
+          label: 'Full Remaining Balance',
+          amount: remainingAmount,
+          reference: 'Full Bill',
+        },
+      ];
+    }
     if (splitMethod === 'equal') {
-      const perGuest = Math.round((totalAmount / guestCount) * 100) / 100;
+      const perGuest = Math.round((remainingAmount / guestCount) * 100) / 100;
       return Array.from({ length: guestCount }, (_, i) => ({
         label: `Guest ${i + 1}`,
         amount: perGuest,
+        reference: `Guest ${i + 1}`,
       }));
     }
     if (splitMethod === 'seat') {
@@ -494,20 +732,49 @@ export function POSSystem() {
       return seats.map(([seat, sub]) => ({
         label: `Seat ${seat}`,
         amount: Math.round((sub + seatTax(sub)) * 100) / 100,
+        reference: `Seat ${seat}`,
       }));
     }
     // By item
-    return orderItems.map((i) => ({
-      label: `${i.name} x${i.quantity}`,
-      amount: Math.round((i.price * i.quantity * (1 + taxRate)) * 100) / 100,
-    }));
-  }, [splitMethod, guestCount, totalAmount, orderItems]);
+    return orderItems.map((i) => {
+      const extrasCost = (i.extras || []).reduce((s, e) => s + e.price, 0);
+      return {
+        label: `${i.name} x${i.quantity}`,
+        amount: Math.round(((i.price + extrasCost) * i.quantity * (1 + taxRate)) * 100) / 100,
+        reference: `Item: ${i.tempId}`,
+      };
+    });
+  }, [splitMethod, guestCount, totalAmount, orderItems, taxRate, editingOrder]);
 
   /* ─── Category tab labels in order ─── */
-  const sortedCategories = useMemo(
-    () => [...categories].sort((a, b) => a.sortOrder - b.sortOrder),
-    [categories]
-  );
+  const sortedCategories = useMemo(() => {
+    const list = [...categories].sort((a, b) => a.sortOrder - b.sortOrder);
+    if (user?.role === 'BAR') {
+      return [...list].sort((a, b) => {
+        const aIsDrink = isDrinksCategory(a);
+        const bIsDrink = isDrinksCategory(b);
+        if (aIsDrink && !bIsDrink) return -1;
+        if (!aIsDrink && bIsDrink) return 1;
+        return a.sortOrder - b.sortOrder;
+      });
+    }
+    return list;
+  }, [categories, user?.role]);
+
+  // Bartender default state initialization
+  const [hasInitializedBartender, setHasInitializedBartender] = useState(false);
+  useEffect(() => {
+    if (user?.role === 'BAR' && categories.length > 0 && !hasInitializedBartender && quickBarTableId) {
+      setSelectedTableId(quickBarTableId);
+      const firstDrinksCat = sortedCategories.find(isDrinksCategory);
+      if (firstDrinksCat) {
+        setSelectedCategoryId(firstDrinksCat.id);
+      }
+      setHasInitializedBartender(true);
+    } else if (user?.role !== 'BAR' && hasInitializedBartender) {
+      setHasInitializedBartender(false);
+    }
+  }, [user?.role, categories, sortedCategories, hasInitializedBartender, quickBarTableId]);
 
   /* ─── Render: Menu Item Card ─── */
   function renderMenuItem(item: MenuItemData) {
@@ -520,43 +787,53 @@ export function POSSystem() {
       >
         <Card
           className="bg-zinc-900 border-zinc-800 hover:border-emerald-600/40 transition-colors cursor-pointer group relative overflow-hidden"
-          onClick={() => addItemToOrder(item)}
+          onClick={() => {
+            if (item.extras && item.extras.length > 0) {
+              setCustomizingItem(item);
+              setSelectedExtras([]);
+            } else {
+              addItemToOrder(item);
+            }
+          }}
         >
           {/* Popular badge */}
           {item.isPopular && (
             <div className="absolute top-1.5 right-1.5 z-10">
-              <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[9px] px-1.5 py-0 h-4">
+              <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[9px] px-1.5 py-0 h-4 backdrop-blur-md">
                 <Star className="size-2.5 mr-0.5 fill-amber-400" />
                 {t.pos.popular}
               </Badge>
             </div>
           )}
-          <CardContent className="p-3">
-            <div className="flex items-start justify-between gap-2 mb-1">
-              <h4 className="text-sm font-medium text-zinc-100 leading-tight line-clamp-1 group-hover:text-emerald-400 transition-colors">
+          {item.imageUrl && (
+            <div className="aspect-[4/3] w-full overflow-hidden bg-zinc-950 relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" />
+              <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-transparent opacity-60"></div>
+            </div>
+          )}
+          <CardContent className="p-2">
+            <div className="flex flex-col gap-0.5 mb-1">
+              <h4 className="text-[13px] font-bold text-zinc-100 leading-tight line-clamp-1 group-hover:text-emerald-400 transition-colors">
                 {item.name}
               </h4>
-              <span className="text-sm font-bold text-emerald-400 whitespace-nowrap">
+              <span className="text-[13px] font-bold text-emerald-400 whitespace-nowrap">
                 {fmtCurrency(item.price)}
               </span>
             </div>
-            {item.description && (
-              <p className="text-[11px] text-zinc-500 line-clamp-2 mb-2">
+            {!item.imageUrl && item.description && (
+              <p className="text-[10px] text-zinc-500 line-clamp-2 mb-2">
                 {item.description}
               </p>
             )}
-            <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="flex items-center gap-1 flex-wrap mt-1.5">
               <StationBadge station={item.station} t={t} />
-              <Badge
-                variant="outline"
-                className="text-[10px] px-1.5 py-0 h-5 text-zinc-400 border-zinc-700"
-              >
-                <Clock className="size-2.5 mr-0.5" />
+              <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 text-zinc-400 border-zinc-700">
+                <Clock className="size-2 mr-0.5" />
                 {item.prepTime}m
               </Badge>
-              <SpiceLevel level={item.spiceLevel} />
+              {item.spiceLevel > 0 && <SpiceLevel level={item.spiceLevel} />}
             </div>
-            <AllergyTags allergies={item.allergies} />
             {/* Add button overlay on hover */}
             <div className="absolute inset-0 flex items-center justify-center bg-zinc-950/60 opacity-0 group-hover:opacity-100 transition-opacity">
               <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-600/30">
@@ -579,11 +856,22 @@ export function POSSystem() {
               <span className="text-sm font-medium text-zinc-100 truncate">{item.name}</span>
               <StationBadge station={item.station} t={t} />
             </div>
-            <span className="text-xs text-zinc-500">{fmtCurrency(item.price)} {t.pos.each}</span>
+            <span className="text-xs text-zinc-500">
+              {fmtCurrency(item.price + (item.extras?.reduce((s, e) => s + e.price, 0) || 0))} {t.pos.each}
+            </span>
+            {item.extras && item.extras.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {item.extras.map((ext, idx) => (
+                  <Badge key={idx} variant="outline" className="text-[9px] px-1 py-0 h-4 bg-zinc-800 text-zinc-400 border-zinc-700">
+                    + {ext.name}
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
           <div className="text-right shrink-0">
             <span className="text-sm font-bold text-emerald-400">
-              {fmtCurrency(item.price * item.quantity)}
+              {fmtCurrency((item.price + (item.extras?.reduce((s, e) => s + e.price, 0) || 0)) * item.quantity)}
             </span>
           </div>
         </div>
@@ -808,6 +1096,14 @@ export function POSSystem() {
                     <Eye className="size-3 mr-1" />
                     Edit Order
                   </Button>
+                  <Button
+                    size="sm"
+                    className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                    onClick={() => handleCheckoutDirectly(order)}
+                  >
+                    <CreditCard className="size-3" />
+                    Checkout / Get Bill
+                  </Button>
                 </div>
               </motion.div>
             )}
@@ -931,7 +1227,7 @@ export function POSSystem() {
                     <p className="text-xs text-zinc-600 mt-1">{t.pos.tryDifferentSearch}</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 pb-4">
+                  <div className="grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 pb-4">
                     {filteredItems.map(renderMenuItem)}
                   </div>
                 )}
@@ -940,7 +1236,7 @@ export function POSSystem() {
 
             {/* ─── RIGHT PANEL: Current Order ─── */}
             <div className="w-full md:w-[380px] lg:w-[420px] shrink-0 flex flex-col min-h-0">
-              <Card className="bg-zinc-900 border-zinc-800 flex-1 flex flex-col min-h-0">
+              <Card className="bg-zinc-900 border-zinc-800 h-fit max-h-full flex flex-col min-h-0">
                 <CardHeader className="pb-3 shrink-0">
                   <CardTitle className="text-base font-semibold text-zinc-100 flex items-center gap-2">
                     <Receipt className="size-4 text-emerald-400" />
@@ -952,7 +1248,7 @@ export function POSSystem() {
                     )}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="flex-1 flex flex-col min-h-0 px-4 pb-4 gap-3">
+                <CardContent className="flex flex-col min-h-0 px-4 pb-4 gap-3">
                   {/* Table Selector */}
                   <div className="space-y-1.5">
                     <label className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">{t.pos.table}</label>
@@ -961,19 +1257,24 @@ export function POSSystem() {
                         <SelectValue placeholder={t.pos.selectTable} />
                       </SelectTrigger>
                       <SelectContent className="bg-zinc-900 border-zinc-700">
-                        {occupiedTables.map((tbl) => (
-                          <SelectItem key={tbl.id} value={tbl.id} className="text-zinc-200 focus:bg-zinc-800 focus:text-zinc-100">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">{tbl.name}</span>
-                              <span className="text-[10px] text-zinc-500">({tbl.capacity} {t.floorPlan.seats})</span>
-                              {tbl.status !== 'FREE' && (
-                                <Badge className="text-[9px] px-1 py-0 h-3.5 bg-amber-600/20 text-amber-400">
-                                  {tbl.status}
-                                </Badge>
-                              )}
-                            </div>
-                          </SelectItem>
-                        ))}
+                        <SelectItem value={quickBarTableId} className="text-zinc-200 focus:bg-zinc-850 focus:text-emerald-400 font-semibold text-emerald-500">
+                          ⚡ Quick Bar Order (No Table)
+                        </SelectItem>
+                        {occupiedTables
+                          .filter((tbl) => tbl.id !== quickBarTableId && tbl.number !== 99 && tbl.name !== 'Quick Bar')
+                          .map((tbl) => (
+                            <SelectItem key={tbl.id} value={tbl.id} className="text-zinc-200 focus:bg-zinc-800 focus:text-zinc-100">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{tbl.name}</span>
+                                <span className="text-[10px] text-zinc-500">({tbl.capacity} {t.floorPlan.seats})</span>
+                                {tbl.status !== 'FREE' && (
+                                  <Badge className="text-[9px] px-1 py-0 h-3.5 bg-amber-600/20 text-amber-400">
+                                    {tbl.status}
+                                  </Badge>
+                                )}
+                              </div>
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -1007,7 +1308,7 @@ export function POSSystem() {
                   <Separator className="bg-zinc-800" />
 
                   {/* Order Items List */}
-                  <ScrollArea className="flex-1 min-h-0">
+                  <ScrollArea className="flex-shrink min-h-0">
                     {orderItems.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-10 text-center">
                         <ShoppingBag className="size-8 text-zinc-700 mb-3" />
@@ -1041,7 +1342,24 @@ export function POSSystem() {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="space-y-2 shrink-0">
+                  <div className="space-y-2 shrink-0 mt-2">
+                    {editingOrder ? (
+                      <Button
+                        className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-lg shadow-emerald-600/20 font-bold text-base transition-all"
+                        onClick={() => {
+                          const totalPaid = editingOrder.payments?.reduce((s: number, p: any) => s + p.amount, 0) || 0;
+                          const remainingAmount = Math.max(0, totalAmount - totalPaid);
+                          setSplitMethod('full');
+                          setActivePayShare({ reference: 'Full Bill', amount: remainingAmount });
+                          setSplitBillOpen(true);
+                        }}
+                        disabled={orderItems.length === 0}
+                      >
+                        <CreditCard className="size-5" />
+                        Pay / Checkout
+                      </Button>
+                    ) : null}
+                    
                     <div className="grid grid-cols-2 gap-2">
                       <Button
                         variant="outline"
@@ -1075,8 +1393,13 @@ export function POSSystem() {
                         Cancel
                       </Button>
                       <Button
-                        className="h-11 bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-lg shadow-emerald-600/20 font-semibold"
-                        disabled={orderItems.length === 0 || !selectedTableId || isSubmitting}
+                        className={cn(
+                          "h-11 text-white gap-2 shadow-lg font-semibold transition-all",
+                          editingOrder 
+                            ? "bg-zinc-700 hover:bg-zinc-600 shadow-zinc-900/20" 
+                            : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20"
+                        )}
+                        disabled={orderItems.length === 0 || isSubmitting || (!selectedTableId && !canFireWithoutTable)}
                         onClick={() => setFireConfirmOpen(true)}
                       >
                         {isSubmitting ? (
@@ -1084,14 +1407,21 @@ export function POSSystem() {
                         ) : (
                           <Flame className="size-4" />
                         )}
-                        Fire Order
+                        {editingOrder ? 'Update Order' : 'Fire Order'}
                       </Button>
                     </div>
                     {!selectedTableId && orderItems.length > 0 && (
-                      <p className="text-[11px] text-amber-400 flex items-center gap-1">
-                        <AlertTriangle className="size-3" />
-                        Select a table to fire the order
-                      </p>
+                      canFireWithoutTable ? (
+                        <p className="text-[11px] text-emerald-400 flex items-center gap-1">
+                          <Check className="size-3" />
+                          Quick Bar Order (Will be filed under Bar Tab)
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-amber-400 flex items-center gap-1">
+                          <AlertTriangle className="size-3" />
+                          Select a table to fire the order
+                        </p>
+                      )
                     )}
                   </div>
                 </CardContent>
@@ -1120,22 +1450,91 @@ export function POSSystem() {
         </TabsContent>
       </Tabs>
 
-      {/* ─── Split Bill Dialog ─── */}
-      <Dialog open={splitBillOpen} onOpenChange={setSplitBillOpen}>
-        <DialogContent className="bg-zinc-900 border-zinc-800 max-w-md">
+      {/* ─── Customize Item Dialog ─── */}
+      <Dialog open={!!customizingItem} onOpenChange={(open) => !open && setCustomizingItem(null)}>
+        <DialogContent className="bg-zinc-950 border-zinc-800 max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-zinc-100 flex items-center gap-2">
-              <Split className="size-5 text-emerald-400" />
-              Split Bill
+            <DialogTitle className="text-zinc-100">{customizingItem?.name}</DialogTitle>
+            <DialogDescription className="text-zinc-400">Select optional additions</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-4">
+            {customizingItem?.extras?.map((ext) => {
+              const isSelected = selectedExtras.some(e => e.id === ext.id);
+              return (
+                <Button
+                  key={ext.id}
+                  variant="outline"
+                  onClick={() => {
+                    if (isSelected) {
+                      setSelectedExtras(prev => prev.filter(e => e.id !== ext.id));
+                    } else {
+                      setSelectedExtras(prev => [...prev, ext]);
+                    }
+                  }}
+                  className={cn(
+                    "w-full justify-between h-12 border-zinc-800 text-zinc-300 hover:text-zinc-100 hover:bg-zinc-900 transition-colors",
+                    isSelected && "border-emerald-500/50 bg-emerald-950/20 text-emerald-400"
+                  )}
+                >
+                  <span className="flex items-center gap-2">
+                    {isSelected ? <Check className="size-4 text-emerald-400" /> : <Plus className="size-4 text-zinc-500" />}
+                    {ext.name}
+                  </span>
+                  <span>+{fmtCurrency(ext.price)}</span>
+                </Button>
+              );
+            })}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setCustomizingItem(null)} className="text-zinc-400">Cancel</Button>
+            <Button 
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={() => {
+                if (customizingItem) {
+                  addItemToOrder(customizingItem, selectedExtras);
+                  setCustomizingItem(null);
+                }
+              }}
+            >
+              Add to Order
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Split Bill Dialog ─── */}
+      <Dialog open={splitBillOpen} onOpenChange={(open) => {
+        setSplitBillOpen(open);
+        if (!open) {
+          setActivePayShare(null);
+          setSplitTipAmount('');
+        }
+      }}>
+        <DialogContent className={cn("bg-zinc-950 border-zinc-800 transition-all duration-300 w-full", activePayShare ? "sm:max-w-4xl" : "sm:max-w-2xl")}>
+          <DialogHeader>
+            <DialogTitle className="text-zinc-100 flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <Split className="size-5 text-emerald-400" />
+                Split Bill {editingOrder ? `— Table ${editingOrder.table.number}` : ''}
+              </span>
+              {editingOrder && (
+                <Badge variant="outline" className="text-zinc-400 border-zinc-800">
+                  Total: {fmtCurrency(editingOrder.totalAmount)}
+                </Badge>
+              )}
             </DialogTitle>
             <DialogDescription className="text-zinc-400">
-              Choose how to split the bill for this order
+              {editingOrder 
+                ? "Settle individual shares by seat, equal guest split, or by item. The table remains occupied until the bill is fully paid."
+                : "Choose how to split the bill for this order. (Fire the order to process payments)"}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+
+          <div className="space-y-4 my-2">
             {/* Split Method Selector */}
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-4 gap-2">
               {[
+                { value: 'full' as const, label: 'Full Bill', icon: CreditCard },
                 { value: 'equal' as const, label: 'Equal Split', icon: Users },
                 { value: 'seat' as const, label: 'By Seat', icon: UtensilsCrossed },
                 { value: 'item' as const, label: 'By Item', icon: Receipt },
@@ -1143,12 +1542,15 @@ export function POSSystem() {
                 <Button
                   key={opt.value}
                   variant={splitMethod === opt.value ? 'default' : 'outline'}
-                  onClick={() => setSplitMethod(opt.value)}
+                  onClick={() => {
+                    setSplitMethod(opt.value);
+                    setActivePayShare(null);
+                  }}
                   className={cn(
-                    'h-auto py-3 flex-col gap-1.5 text-xs',
+                    'h-auto py-2.5 flex-col gap-1.5 text-xs rounded-xl transition-all duration-200',
                     splitMethod === opt.value
-                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                      : 'border-zinc-700 text-zinc-400 hover:text-zinc-200 bg-zinc-800'
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20'
+                      : 'border-zinc-800 text-zinc-400 hover:text-zinc-200 bg-zinc-900/50 hover:bg-zinc-900'
                   )}
                 >
                   <opt.icon className="size-4" />
@@ -1157,28 +1559,378 @@ export function POSSystem() {
               ))}
             </div>
 
-            <Separator className="bg-zinc-800" />
+            <Separator className="bg-zinc-800/60" />
 
-            {/* Results */}
-            <div className="space-y-2">
-              {splitBillResults.map((result, idx) => (
-                <div key={idx} className="flex items-center justify-between py-2 px-3 bg-zinc-800/50 rounded-lg">
-                  <span className="text-sm text-zinc-300">{result.label}</span>
-                  <span className="text-sm font-bold text-emerald-400">{fmtCurrency(result.amount)}</span>
+            <div className={cn("grid gap-6", activePayShare ? "grid-cols-1 md:grid-cols-5" : "grid-cols-1")}>
+              {/* Left Column: List of splits */}
+              <div className={cn("space-y-3", activePayShare ? "col-span-1 md:col-span-3" : "w-full")}>
+                <ScrollArea className="max-h-[380px] pr-3">
+                  <div className="space-y-2.5">
+                    {splitBillResults.map((result, idx) => {
+                      const shareRef = result.reference;
+                      const isPaid = editingOrder?.payments?.some(p => p.reference === shareRef) ?? false;
+                      const isSelected = activePayShare?.reference === shareRef;
+
+                      // For Seat or Item, display items detail if possible
+                      let itemsDetail: string[] = [];
+                      if (splitMethod === 'seat') {
+                        // parse seat number from label, e.g. "Seat 3" -> 3
+                        const seatNum = parseInt(shareRef.replace('Seat ', ''));
+                        itemsDetail = orderItems
+                          .filter(i => i.seatNumber === seatNum)
+                          .map(i => `${i.name} x${i.quantity}`);
+                      }
+
+                      return (
+                        <div 
+                          key={idx} 
+                          className={cn(
+                            "flex flex-col p-4 rounded-xl border transition-all duration-200",
+                            isPaid 
+                              ? "bg-emerald-950/10 border-emerald-900/30 opacity-75"
+                              : isSelected
+                                ? "bg-zinc-800/80 border-emerald-500/50 shadow-md shadow-emerald-500/5"
+                                : "bg-zinc-900/40 border-zinc-800/80 hover:border-zinc-700/80"
+                          )}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="space-y-1">
+                              <span className="text-sm font-semibold text-zinc-100">{result.label}</span>
+                              {itemsDetail.length > 0 && (
+                                <p className="text-[11px] text-zinc-500 flex flex-wrap gap-1">
+                                  {itemsDetail.join(', ')}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="text-sm font-bold text-emerald-400">{fmtCurrency(result.amount)}</span>
+                              
+                              {isPaid ? (
+                                <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 gap-1 px-2.5 py-1">
+                                  <Check className="size-3" />
+                                  PAID
+                                </Badge>
+                              ) : !editingOrder ? (
+                                <Badge variant="outline" className="text-zinc-650 border-zinc-800 text-[10px]">
+                                  Unfired
+                                </Badge>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant={isSelected ? "secondary" : "outline"}
+                                  onClick={() => {
+                                    setActivePayShare({ reference: shareRef, amount: result.amount });
+                                    setSplitPaymentMethod('CASH');
+                                    setSplitCashAmount('');
+                                    setSplitCardStep(0);
+                                    setSplitSelectedCustId('');
+                                  }}
+                                  className={cn(
+                                    "h-8 text-xs font-medium px-3.5 rounded-lg transition-all",
+                                    isSelected 
+                                      ? "bg-emerald-600 text-white hover:bg-emerald-500 border-none"
+                                      : "border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
+                                  )}
+                                >
+                                  {isSelected ? "Paying..." : "Pay Share"}
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              </div>
+
+              {/* Right Column: Checkout Panel */}
+              {activePayShare && (
+                <div className="col-span-1 md:col-span-2 bg-zinc-900/60 border border-zinc-800/80 p-5 rounded-xl flex flex-col justify-between min-h-[380px] animate-in fade-in slide-in-from-right-4 duration-200">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-bold text-zinc-200 flex items-center gap-1.5">
+                        <CreditCard className="size-4 text-emerald-400" />
+                        Settle {activePayShare.reference}
+                      </h4>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-zinc-400 hover:text-white"
+                        onClick={() => {
+                          setActivePayShare(null);
+                          setSplitTipAmount('');
+                        }}
+                      >
+                        <X className="size-4" />
+                      </Button>
+                    </div>
+
+                    <div className="bg-zinc-950 rounded-lg border border-zinc-800/50 overflow-hidden">
+                      <div className="p-4 border-b border-zinc-800/50 flex items-center justify-between">
+                        <span className="text-sm text-zinc-400 font-medium">Subtotal</span>
+                        <span className="text-lg font-bold text-zinc-200">{fmtCurrency(activePayShare.amount)}</span>
+                      </div>
+                      
+                      <div className="p-4 border-b border-zinc-800/50 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-zinc-400 font-medium">Add Tip</span>
+                          <div className="relative w-40">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">{localeConfig.currencySymbol}</span>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={splitTipAmount}
+                              onChange={(e) => setSplitTipAmount(e.target.value)}
+                              placeholder="0.00"
+                              className="pl-7 bg-zinc-900 border-zinc-700 text-zinc-100 text-right h-9 text-sm focus:border-emerald-600/50"
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-4 gap-2">
+                          {[10, 15, 20, 25].map(pct => (
+                            <Button
+                              key={pct}
+                              variant="outline"
+                              size="sm"
+                              className="h-8 bg-zinc-900 border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                              onClick={() => setSplitTipAmount((activePayShare.amount * (pct / 100)).toFixed(2))}
+                            >
+                              {pct}%
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="p-4 flex items-center justify-between bg-zinc-900/50">
+                        <span className="text-sm font-bold uppercase tracking-wider text-zinc-300">Total Due</span>
+                        <span className="text-3xl font-black text-emerald-400">
+                          {fmtCurrency(activePayShare.amount + (parseFloat(splitTipAmount) || 0))}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Method Selector Tabs */}
+                    <div className="grid grid-cols-3 gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-800/50">
+                      {[
+                        { value: 'CASH' as const, icon: Wallet, label: 'Cash' },
+                        { value: 'CARD' as const, icon: CreditCard, label: 'Card' },
+                        { value: 'CREDIT' as const, icon: Users, label: 'Credit' }
+                      ].map(m => (
+                        <button
+                          key={m.value}
+                          onClick={() => setSplitPaymentMethod(m.value)}
+                          className={cn(
+                            "flex flex-col items-center justify-center py-2 px-1 rounded-md text-[10px] font-medium transition-all gap-1",
+                            splitPaymentMethod === m.value 
+                              ? "bg-zinc-800 text-zinc-100 shadow" 
+                              : "text-zinc-500 hover:text-zinc-300"
+                          )}
+                        >
+                          <m.icon className="size-4" />
+                          {m.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Cash Form */}
+                    {splitPaymentMethod === 'CASH' && (
+                      <div className="space-y-3 animate-in fade-in duration-150">
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-zinc-500 uppercase font-semibold">Cash Tendered</label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">{localeConfig.currencySymbol}</span>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={splitCashAmount}
+                              onChange={(e) => setSplitCashAmount(e.target.value)}
+                              placeholder="0.00"
+                              className="pl-7 bg-zinc-950 border-zinc-800 text-zinc-100 focus:border-emerald-600/50"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Presets */}
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            { label: 'Exact', val: activePayShare.amount + (parseFloat(splitTipAmount) || 0) },
+                            { label: `${localeConfig.currencySymbol}10`, val: 10 },
+                            { label: `${localeConfig.currencySymbol}20`, val: 20 },
+                            { label: `${localeConfig.currencySymbol}50`, val: 50 },
+                            { label: `${localeConfig.currencySymbol}100`, val: 100 }
+                          ].map((p, idx) => {
+                            if (p.val < (activePayShare.amount + (parseFloat(splitTipAmount) || 0)) && p.label !== 'Exact') return null;
+                            const presetVal = p.label === 'Exact' ? p.val : p.val;
+                            return (
+                              <button
+                                key={idx}
+                                onClick={() => setSplitCashAmount(presetVal.toFixed(2))}
+                                className="text-[10px] font-semibold bg-zinc-800 hover:bg-zinc-700 border border-zinc-800 text-zinc-300 py-1 px-2.5 rounded-md transition-colors"
+                              >
+                                {p.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Change calculation */}
+                        {parseFloat(splitCashAmount) >= (activePayShare.amount + (parseFloat(splitTipAmount) || 0)) && (
+                          <div className="bg-emerald-950/10 border border-emerald-900/30 rounded-lg p-2.5 text-center flex items-center justify-between">
+                            <span className="text-xs text-zinc-400">Change Back:</span>
+                            <span className="text-sm font-bold text-emerald-400">
+                              {fmtCurrency(parseFloat(splitCashAmount) - (activePayShare.amount + (parseFloat(splitTipAmount) || 0)))}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Card Form */}
+                    {splitPaymentMethod === 'CARD' && (
+                      <div className="space-y-3 animate-in fade-in duration-150 py-2">
+                        {splitCardStep === 0 && (
+                          <Button
+                            onClick={() => {
+                              setSplitCardStep(1);
+                              setTimeout(() => {
+                                setSplitCardStep(2);
+                              }, 1500);
+                            }}
+                            className="w-full h-10 bg-emerald-600 hover:bg-emerald-705 text-white font-medium gap-2 rounded-xl transition-all"
+                          >
+                            <CreditCard className="size-4 animate-pulse" />
+                            Simulate Terminal Tap
+                          </Button>
+                        )}
+                        {splitCardStep === 1 && (
+                          <div className="flex flex-col items-center justify-center py-4 bg-zinc-950 border border-zinc-800 rounded-xl space-y-2">
+                            <Loader2 className="size-6 text-emerald-400 animate-spin" />
+                            <span className="text-xs text-zinc-400 font-medium">Please Tap / Insert Card...</span>
+                          </div>
+                        )}
+                        {splitCardStep === 2 && (
+                          <div className="flex flex-col items-center justify-center py-4 bg-emerald-950/10 border border-emerald-900/30 rounded-xl space-y-1">
+                            <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                              <Check className="size-5" />
+                            </div>
+                            <span className="text-xs text-emerald-400 font-bold mt-1">Payment Authorized!</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Store Credit Form */}
+                    {splitPaymentMethod === 'CREDIT' && (
+                      <div className="space-y-3 animate-in fade-in duration-150">
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-zinc-500 uppercase font-semibold">Select Customer</label>
+                          <Select
+                            value={splitSelectedCustId}
+                            onValueChange={setSplitSelectedCustId}
+                          >
+                            <SelectTrigger className="bg-zinc-950 border-zinc-800 text-zinc-100">
+                              <SelectValue placeholder="Choose account..." />
+                            </SelectTrigger>
+                            <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-100">
+                              {customers.map((c: any) => (
+                                <SelectItem key={c.id} value={c.id}>
+                                  {c.firstName} {c.lastName} ({c.loyaltyTier})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Customer status validation */}
+                        {splitSelectedCustId && (() => {
+                          const customer = customers.find(c => c.id === splitSelectedCustId);
+                          if (!customer) return null;
+                          if (customer.allowedCredit) {
+                            return (
+                              <div className="bg-emerald-950/15 border border-emerald-900/30 rounded-lg p-3 space-y-1">
+                                <div className="flex items-center justify-between text-xs">
+                                  <span className="text-zinc-400">Account Approved:</span>
+                                  <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[9px] px-1.5 py-0 h-4.5">
+                                    Approved
+                                  </Badge>
+                                </div>
+                                <div className="flex items-center justify-between text-[11px] text-zinc-500">
+                                  <span>Current loyalty tier:</span>
+                                  <span>{customer.loyaltyTier}</span>
+                                </div>
+                              </div>
+                            );
+                          } else {
+                            return (
+                              <div className="bg-red-950/15 border border-red-900/30 rounded-lg p-3 space-y-1">
+                                <div className="flex items-center justify-between text-xs">
+                                  <span className="text-zinc-400">Account Approved:</span>
+                                  <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[9px] px-1.5 py-0 h-4.5">
+                                    Denied
+                                  </Badge>
+                                </div>
+                                <p className="text-[10px] text-red-400 leading-tight">
+                                  This customer is not authorized for store credit charges.
+                                </p>
+                              </div>
+                            );
+                          }
+                        })()}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="pt-4 border-t border-zinc-800/80">
+                    <Button
+                      onClick={handleConfirmSplitPayment}
+                      disabled={
+                        isProcessingSplitPay ||
+                        (splitPaymentMethod === 'CASH' && (!splitCashAmount || parseFloat(splitCashAmount) < (activePayShare.amount + (parseFloat(splitTipAmount) || 0)))) ||
+                        (splitPaymentMethod === 'CARD' && splitCardStep !== 2) ||
+                        (splitPaymentMethod === 'CREDIT' && (!splitSelectedCustId || !customers.find(c => c.id === splitSelectedCustId)?.allowedCredit))
+                      }
+                      className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:opacity-50 text-white font-semibold gap-2 rounded-xl transition-all shadow-lg shadow-emerald-600/10"
+                    >
+                      {isProcessingSplitPay ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Check className="size-4" />
+                      )}
+                      {isProcessingSplitPay ? 'Processing...' : 'Confirm Payment'}
+                    </Button>
+                  </div>
                 </div>
-              ))}
+              )}
             </div>
 
-            <div className="flex items-center justify-between pt-2 border-t border-zinc-800">
-              <span className="text-sm font-medium text-zinc-200">Total</span>
-              <span className="text-base font-bold text-emerald-400">{fmtCurrency(totalAmount)}</span>
+            <div className="flex items-center justify-between pt-3 border-t border-zinc-800/60">
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-medium text-zinc-400">Status:</span>
+                {editingOrder ? (
+                  (() => {
+                    const totalPaid = editingOrder.payments?.reduce((s, p) => s + p.amount, 0) || 0;
+                    return (
+                      <span className="text-xs text-zinc-300 font-semibold bg-zinc-800 px-2 py-0.5 rounded">
+                        Paid: {fmtCurrency(totalPaid)} / {fmtCurrency(editingOrder.totalAmount)}
+                      </span>
+                    );
+                  })()
+                ) : (
+                  <span className="text-xs text-zinc-500 font-medium italic">Unfired local order draft</span>
+                )}
+              </div>
+              <span className="text-base font-black text-emerald-400">{fmtCurrency(editingOrder ? editingOrder.totalAmount : totalAmount)}</span>
             </div>
           </div>
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setSplitBillOpen(false)}
-              className="border-zinc-700 text-zinc-300"
+              onClick={() => {
+                setSplitBillOpen(false);
+                setActivePayShare(null);
+              }}
+              className="border-zinc-800 text-zinc-400 hover:text-zinc-200 bg-zinc-900 hover:bg-zinc-850"
             >
               Close
             </Button>
@@ -1201,7 +1953,7 @@ export function POSSystem() {
           <div className="space-y-2 py-2">
             <div className="flex justify-between text-sm">
               <span className="text-zinc-400">Table</span>
-              <span className="text-zinc-200">{tables.find((t) => t.id === selectedTableId)?.name ?? '—'}</span>
+              <span className="text-zinc-200">{tables.find((t) => t.id === selectedTableId)?.name ?? (selectedTableId === quickBarTableId || !selectedTableId ? 'Quick Bar' : '—')}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-zinc-400">Items</span>

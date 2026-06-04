@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield,
@@ -15,6 +15,10 @@ import {
   Package,
   Users,
   Heart,
+  CheckCircle2,
+  XCircle,
+  Info,
+  X,
 } from 'lucide-react';
 import { useAuthStore, ROLE_COLORS } from '@/stores/auth-store';
 import { useAppStore } from '@/stores/app-store';
@@ -33,14 +37,19 @@ import { POSSystem } from '@/components/modules/pos/pos-system';
 import { Inventory } from '@/components/modules/inventory/inventory';
 import { Reservations } from '@/components/modules/reservations/reservations';
 import { StaffManagement } from '@/components/modules/staff/staff-management';
+import { TransactionsLedger } from '@/components/modules/transactions/transactions-ledger';
+import { MenuManagement } from '@/components/modules/menu/menu-management';
+import { Settings } from '@/components/modules/admin/settings';
+import { useSocketSync } from '@/hooks/use-socket-sync';
 
+// Force hot reload
 /* ─── Mock user data ─── */
 const MOCK_USERS: Record<string, { id: string; email: string; name: string; pin: string }> = {
-  ADMIN: { id: 'cmpsacytk0004pj0wu32tub4c', email: 'admin@thebar.com', name: 'Marco Rossi', pin: '1001' },
-  MANAGER: { id: 'cmpsacyto0009pj0wapz3cmnj', email: 'manager@thebar.com', name: 'Sarah Chen', pin: '2001' },
-  KITCHEN: { id: 'cmpsacytg0000pj0wnvrdbwsf', email: 'chef@thebar.com', name: 'Antoine Dubois', pin: '3001' },
-  BAR: { id: 'cmpsacyth0001pj0wvxye3k1m', email: 'bartender@thebar.com', name: 'Jake Morrison', pin: '4001' },
-  FOH: { id: 'cmpsacytl0005pj0wh9ew50jx', email: 'server1@thebar.com', name: 'Emma Wilson', pin: '5001' },
+  ADMIN: { id: 'cmpwrzrqc0000j7hw4g7fhh34', email: 'admin@thebar.com', name: 'Marco Rossi', pin: '1001' },
+  MANAGER: { id: 'cmpwrzrqe0002j7hwnykw2ts2', email: 'manager@thebar.com', name: 'Sarah Chen', pin: '2001' },
+  KITCHEN: { id: 'cmpwrzrqe0001j7hwp1uvn8nq', email: 'chef@thebar.com', name: 'Antoine Dubois', pin: '3001' },
+  BAR: { id: 'cmpwrzrqh0006j7hwdh9y6x9x', email: 'bartender@thebar.com', name: 'Jake Morrison', pin: '4001' },
+  FOH: { id: 'cmpwrzrqg0004j7hw0pxtsaip', email: 'server1@thebar.com', name: 'Emma Wilson', pin: '5001' },
 };
 
 /* ─── Icon map for role selection ─── */
@@ -225,8 +234,63 @@ function RoleSelectionScreen() {
   );
 }
 
+/* ─── Toast Notification System ─── */
+function ToastNotifications() {
+  const notifications = useAppStore((s) => s.notifications);
+  const removeNotification = useAppStore((s) => s.removeNotification);
+
+  useEffect(() => {
+    const timers: NodeJS.Timeout[] = [];
+    for (const n of notifications) {
+      const t = setTimeout(() => removeNotification(n.id), 4000);
+      timers.push(t);
+    }
+    return () => timers.forEach(clearTimeout);
+  }, [notifications, removeNotification]);
+
+  const toastConfig: Record<string, { icon: React.ElementType; bg: string; border: string; text: string; iconColor: string }> = {
+    success: { icon: CheckCircle2, bg: 'bg-emerald-950/90', border: 'border-emerald-600/40', text: 'text-emerald-200', iconColor: 'text-emerald-400' },
+    error: { icon: XCircle, bg: 'bg-red-950/90', border: 'border-red-600/40', text: 'text-red-200', iconColor: 'text-red-400' },
+    info: { icon: Info, bg: 'bg-sky-950/90', border: 'border-sky-600/40', text: 'text-sky-200', iconColor: 'text-sky-400' },
+  };
+
+  return (
+    <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-2.5 pointer-events-none max-w-sm w-full">
+      <AnimatePresence>
+        {notifications.map((n) => {
+          const config = toastConfig[n.type] || toastConfig.info;
+          const IconComp = config.icon;
+          return (
+            <motion.div
+              key={n.id}
+              initial={{ opacity: 0, x: 80, scale: 0.95 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 80, scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+              className={cn(
+                'pointer-events-auto flex items-start gap-3 p-3.5 rounded-xl border backdrop-blur-lg shadow-2xl shadow-black/40',
+                config.bg, config.border
+              )}
+            >
+              <IconComp className={cn('size-5 shrink-0 mt-0.5', config.iconColor)} />
+              <p className={cn('text-sm font-medium flex-1', config.text)}>{n.message}</p>
+              <button
+                onClick={() => removeNotification(n.id)}
+                className="shrink-0 text-zinc-500 hover:text-zinc-300 transition-colors mt-0.5"
+              >
+                <X className="size-3.5" />
+              </button>
+            </motion.div>
+          );
+        })}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 /* ─── Main App Layout ─── */
 function MainLayout() {
+  useSocketSync();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const currentView = useAppStore((s) => s.currentView);
   const t = useT();
@@ -251,7 +315,8 @@ function MainLayout() {
 
           {/* Content Area */}
           <main className={cn(
-            'flex-1 overflow-y-auto',
+            'flex-1',
+            currentView === 'kds' || currentView === 'pos' ? 'overflow-hidden' : 'overflow-y-auto',
             currentView === 'kds' ? 'p-2 md:p-3' : currentView === 'pos' ? 'p-3 md:p-4' : 'p-4 md:p-6'
           )}>
             <div className={cn(
@@ -282,6 +347,12 @@ function MainLayout() {
                     <CRMGuests />
                   ) : currentView === 'staff' ? (
                     <StaffManagement />
+                  ) : currentView === 'transactions' ? (
+                    <TransactionsLedger />
+                  ) : currentView === 'menu' ? (
+                    <MenuManagement />
+                  ) : currentView === 'settings' ? (
+                    <Settings />
                   ) : null}
                 </motion.div>
               </AnimatePresence>
@@ -297,6 +368,9 @@ function MainLayout() {
           </footer>
         </div>
       </div>
+
+      {/* Toast Notifications */}
+      <ToastNotifications />
     </div>
   );
 }

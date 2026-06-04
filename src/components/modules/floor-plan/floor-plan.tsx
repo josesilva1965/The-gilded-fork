@@ -3,6 +3,18 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+  type DragStartEvent,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import { SortableContext, useSortable, rectSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
   Users,
   Clock,
   UtensilsCrossed,
@@ -25,15 +37,19 @@ import {
   GripVertical,
   Pencil,
   Save,
+  User,
   UserCheck,
   Plus,
   Minus,
   Move,
   LayoutGrid,
   ChevronDown,
+  Bell,
 } from 'lucide-react';
 import { useT, useLocale } from '@/stores/locale-store';
 import { useAppStore } from '@/stores/app-store';
+import { useAuthStore } from '@/stores/auth-store';
+import { getSocket } from '@/lib/socket';
 import { formatCurrencyByLocale } from '@/lib/i18n/locales';
 import { TABLE_STATUS_COLORS } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
@@ -300,122 +316,162 @@ function StatusLegend() {
   );
 }
 
-/* ─── Table Card (Grid view - Draggable for swap) ─── */
+/* ─── Table Card (Grid view - Sortable via @dnd-kit) ─── */
 
-function TableCard({
+function TableCardContent({
   table,
   isSelected,
-  onClick,
-  onDragStart,
-  onDragOver,
-  onDrop,
-  isDragOver,
+  statusColor,
+  isDragging,
 }: {
   table: RestaurantTable;
   isSelected: boolean;
-  onClick: () => void;
-  onDragStart?: (e: React.DragEvent, table: RestaurantTable) => void;
-  onDragOver?: (e: React.DragEvent) => void;
-  onDrop?: (e: React.DragEvent, table: RestaurantTable) => void;
-  isDragOver?: boolean;
+  statusColor: string;
+  isDragging?: boolean;
 }) {
   const t = useT();
   const locale = useLocale();
-  const statusColor = TABLE_STATUS_COLORS[table.status] || '';
   const hasActiveOrder = table.orders.length > 0;
+  const hasReadyItems = table.orders?.some(o => 
+    o.items?.some(i => i.status === 'READY')
+  );
   const orderTotal = hasActiveOrder
     ? table.orders.reduce((sum, o) => sum + o.totalAmount, 0)
     : 0;
   const isRound = table.shape === 'ROUND';
-
   const ShapeIcon = table.shape === 'ROUND' ? Circle : table.shape === 'SQUARE' ? Square : RectangleHorizontal;
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
-      transition={{ duration: 0.2 }}
-      draggable
-      onDragStart={(e) => onDragStart?.(e as unknown as React.DragEvent, table)}
-      onDragOver={(e) => onDragOver?.(e as unknown as React.DragEvent)}
-      onDrop={(e) => onDrop?.(e as unknown as React.DragEvent, table)}
+    <div
       className={cn(
-        'relative',
-        isDragOver && 'ring-2 ring-emerald-400 rounded-xl'
+        'relative w-full text-left border-2 rounded-xl p-3 transition-all duration-200 cursor-grab active:cursor-grabbing',
+        'focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950',
+        statusColor,
+        isSelected && 'ring-2 ring-emerald-400 ring-offset-2 ring-offset-zinc-950',
+        isRound && 'rounded-full aspect-square flex flex-col items-center justify-center',
+        !isRound && table.shape === 'RECTANGLE' && 'aspect-[2/1]',
+        hasActiveOrder && 'shadow-lg',
+        isDragging && 'opacity-60 scale-105 shadow-xl shadow-black/40 ring-2 ring-emerald-400/50',
+        hasReadyItems && 'ring-2 ring-emerald-500 animate-pulse shadow-[0_0_15px_rgba(16,185,129,0.35)] border-emerald-500',
       )}
     >
-      <button
-        onClick={onClick}
-        className={cn(
-          'relative w-full text-left border-2 rounded-xl p-3 transition-all duration-200 cursor-grab active:cursor-grabbing',
-          'focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950',
-          statusColor,
-          isSelected && 'ring-2 ring-emerald-400 ring-offset-2 ring-offset-zinc-950',
-          isRound && 'rounded-full aspect-square flex flex-col items-center justify-center',
-          !isRound && table.shape === 'RECTANGLE' && 'aspect-[2/1]',
-          hasActiveOrder && 'shadow-lg',
-          isDragOver && 'opacity-50 scale-105'
-        )}
-      >
-        {/* Drag handle */}
-        <div className="absolute top-1 left-1 opacity-30 hover:opacity-70 transition-opacity">
-          <GripVertical className="size-3" />
-        </div>
+      {/* Drag handle */}
+      <div className="absolute top-1 left-1 opacity-30 hover:opacity-70 transition-opacity">
+        <GripVertical className="size-3" />
+      </div>
 
-        {/* Status dot */}
-        <div className="absolute top-2 right-2">
-          <span className={cn('block size-2 rounded-full', STATUS_DOT_COLORS[table.status])} />
-        </div>
-
-        {/* Server indicator */}
-        {table.server && (
-          <div className="absolute bottom-1.5 right-1.5">
-            <span className="text-[8px] bg-zinc-800/80 text-emerald-400 px-1 py-0.5 rounded-full border border-emerald-500/20">
-              {table.server.name.split(' ').map(n => n[0]).join('')}
+      {/* Status dot / Ready alert */}
+      <div className="absolute top-2 right-2 flex items-center gap-1.5 z-20">
+        {hasReadyItems && (
+          <span className="flex h-2.5 w-2.5 relative">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 flex items-center justify-center">
+              <Bell className="size-1.5 text-white fill-white shrink-0" />
             </span>
+          </span>
+        )}
+        <span className={cn('block size-2 rounded-full', STATUS_DOT_COLORS[table.status])} />
+      </div>
+
+      {/* Server indicator */}
+      {table.server && (
+        <div className="absolute bottom-1.5 right-1.5 z-20">
+          <span className="text-[8px] bg-zinc-800/80 text-emerald-400 px-1 py-0.5 rounded-full border border-emerald-500/20">
+            {table.server.name.split(' ').map(n => n[0]).join('')}
+          </span>
+        </div>
+      )}
+
+      {/* Customer indicator */}
+      {(table as any).customer && (
+        <div className="absolute bottom-1.5 left-1.5 z-20">
+          <span className="text-[8px] bg-purple-500/10 text-purple-400 px-1 py-0.5 rounded border border-purple-500/20 max-w-16 truncate block" title={`${(table as any).customer.firstName} ${(table as any).customer.lastName}`}>
+            👤 {(table as any).customer.firstName}
+          </span>
+        </div>
+      )}
+
+      <div className={cn('relative z-10', isRound ? 'text-center' : '')}>
+        {/* Table name */}
+        <div className="flex items-center gap-1.5 mb-1">
+          <ShapeIcon className="size-3 opacity-60 shrink-0" />
+          <span className="text-xs font-semibold truncate">{table.name}</span>
+        </div>
+
+        {/* Capacity */}
+        <div className="flex items-center gap-1 mb-1.5">
+          <Users className="size-3 opacity-60" />
+          <span className="text-[10px] opacity-70">{table.capacity}</span>
+        </div>
+
+        {/* Status label */}
+        <div className="mb-1">
+          <span className="text-[9px] font-medium uppercase tracking-wider opacity-80">
+            {getTableStatusLabel(table.status, t)}
+          </span>
+        </div>
+
+        {/* Order total */}
+        {hasActiveOrder && (
+          <div className="flex items-center gap-1 mt-1">
+            <DollarSign className="size-3 opacity-60" />
+            <span className="text-[11px] font-bold">{formatCurrencyByLocale(orderTotal, locale)}</span>
           </div>
         )}
 
-        <div className={cn('relative z-10', isRound ? 'text-center' : '')}>
-          {/* Table name */}
-          <div className="flex items-center gap-1.5 mb-1">
-            <ShapeIcon className="size-3 opacity-60 shrink-0" />
-            <span className="text-xs font-semibold truncate">{table.name}</span>
+        {/* Reservation indicator */}
+        {table.reservations.length > 0 && table.status === 'RESERVED' && (
+          <div className="flex items-center gap-1 mt-1">
+            <Clock className="size-3 opacity-60" />
+            <span className="text-[10px] opacity-70">{table.reservations[0].reservationTime}</span>
           </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
-          {/* Capacity */}
-          <div className="flex items-center gap-1 mb-1.5">
-            <Users className="size-3 opacity-60" />
-            <span className="text-[10px] opacity-70">{table.capacity}</span>
-          </div>
+function SortableTableCard({
+  table,
+  isSelected,
+  onClick,
+}: {
+  table: RestaurantTable;
+  isSelected: boolean;
+  onClick: () => void;
+}) {
+  const statusColor = TABLE_STATUS_COLORS[table.status] || '';
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: table.id });
 
-          {/* Status label */}
-          <div className="mb-1">
-            <span className="text-[9px] font-medium uppercase tracking-wider opacity-80">
-              {getTableStatusLabel(table.status, t)}
-            </span>
-          </div>
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : undefined,
+    opacity: isDragging ? 0.4 : undefined,
+  };
 
-          {/* Order total */}
-          {hasActiveOrder && (
-            <div className="flex items-center gap-1 mt-1">
-              <DollarSign className="size-3 opacity-60" />
-              <span className="text-[11px] font-bold">{formatCurrencyByLocale(orderTotal, locale)}</span>
-            </div>
-          )}
-
-          {/* Reservation indicator */}
-          {table.reservations.length > 0 && table.status === 'RESERVED' && (
-            <div className="flex items-center gap-1 mt-1">
-              <Clock className="size-3 opacity-60" />
-              <span className="text-[10px] opacity-70">{table.reservations[0].reservationTime}</span>
-            </div>
-          )}
-        </div>
-      </button>
-    </motion.div>
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      onClick={onClick}
+      className="relative"
+    >
+      <TableCardContent
+        table={table}
+        isSelected={isSelected}
+        statusColor={statusColor}
+      />
+    </div>
   );
 }
 
@@ -430,6 +486,7 @@ function CanvasTableCard({
   staff,
   onCapacityChange,
   onServerChange,
+  isLayoutEditable,
 }: {
   table: RestaurantTable;
   isSelected: boolean;
@@ -439,6 +496,7 @@ function CanvasTableCard({
   staff: StaffMember[];
   onCapacityChange: (tableId: string, newCapacity: number) => void;
   onServerChange: (tableId: string, serverId: string | null) => void;
+  isLayoutEditable: boolean;
 }) {
   const t = useT();
   const elementRef = useRef<HTMLDivElement>(null);
@@ -447,6 +505,9 @@ function CanvasTableCard({
   const [isDragging, setIsDragging] = useState(false);
   const statusColor = TABLE_STATUS_COLORS[table.status] || '';
   const hasActiveOrder = table.orders.length > 0;
+  const hasReadyItems = table.orders?.some(o => 
+    o.items?.some(i => i.status === 'READY')
+  );
 
   // Use refs for callbacks to avoid stale closures in document event listeners
   const onDragMoveRef = useRef(onDragMove);
@@ -461,7 +522,7 @@ function CanvasTableCard({
   // Document-level drag handling for robust pointer tracking
   useEffect(() => {
     const el = elementRef.current;
-    if (!el) return;
+    if (!el || !isLayoutEditable) return;
 
     let dragState: { isDragging: boolean; lastX: number; lastY: number } | null = null;
 
@@ -532,7 +593,7 @@ function CanvasTableCard({
       document.removeEventListener('pointerup', handlePointerUp);
       document.removeEventListener('pointercancel', handlePointerUp);
     };
-  }, [table.id]);
+  }, [table.id, isLayoutEditable]);
 
   const eligibleStaff = staff.filter((s) => ['FOH', 'MANAGER', 'ADMIN'].includes(s.role));
 
@@ -546,36 +607,54 @@ function CanvasTableCard({
       style={{
         left: table.x,
         top: table.y,
-        width: table.width || (table.shape === 'RECTANGLE' ? 140 : 110),
-        height: table.height || (table.shape === 'RECTANGLE' ? 70 : 110),
+        width: table.width,
+        height: table.height,
         zIndex: isDragging ? 50 : isSelected ? 30 : hovered ? 20 : 10,
         touchAction: 'none',
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onClick={!isLayoutEditable ? onClick : undefined}
     >
       <div
         className={cn(
-          'relative w-full h-full border-2 rounded-lg transition-shadow duration-200 cursor-grab active:cursor-grabbing overflow-hidden',
+          'relative w-full h-full border-2 rounded-lg transition-shadow duration-200 overflow-hidden',
+          isLayoutEditable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
           'focus:outline-none',
           statusColor,
           isSelected && !isDragging && 'ring-2 ring-emerald-400 ring-offset-1 ring-offset-zinc-950',
           table.shape === 'ROUND' && 'rounded-full',
           hovered && !isSelected && !isDragging && 'ring-1 ring-zinc-500',
           isDragging && 'shadow-xl shadow-black/40 ring-2 ring-emerald-400/50',
+          hasReadyItems && 'ring-2 ring-emerald-500 animate-pulse shadow-[0_0_12px_rgba(16,185,129,0.4)] border-emerald-500',
         )}
       >
         {/* Move icon on hover */}
-        <div className={cn(
-          'absolute top-1 right-1 transition-opacity duration-200',
-          (hovered || isDragging) ? 'opacity-60' : 'opacity-0'
-        )}>
-          <Move className="size-3" />
-        </div>
+        {isLayoutEditable && (
+          <div className={cn(
+            'absolute top-1 right-1 transition-opacity duration-200',
+            (hovered || isDragging) ? 'opacity-60' : 'opacity-0'
+          )}>
+            <Move className="size-3" />
+          </div>
+        )}
 
-        {/* Status dot */}
-        <div className="absolute top-1 left-1">
+        {/* Ready item notification bell */}
+        {hasReadyItems && !isLayoutEditable && (
+          <div className="absolute top-1 right-1 z-25 text-emerald-400 animate-bounce">
+            <Bell className="size-3 fill-emerald-400/20" />
+          </div>
+        )}
+
+        {/* Status dot / Alert dot */}
+        <div className="absolute top-1 left-1 flex items-center gap-1 z-20">
           <span className={cn('block size-2 rounded-full', STATUS_DOT_COLORS[table.status])} />
+          {hasReadyItems && (
+            <span className="flex h-2 w-2 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+          )}
         </div>
 
         {/* Card content */}
@@ -684,6 +763,34 @@ function CanvasTableCard({
   );
 }
 
+/* ─── Layout Scaling Helper for Grid Coordinate Translation ─── */
+
+function getInitialPixelPos(table: RestaurantTable): { x: number; y: number } {
+  // If coordinates are already absolute pixels (e.g., > 10), keep them as is
+  if (table.x > 10 || table.y > 10) {
+    return { x: table.x, y: table.y };
+  }
+
+  const zone = getSectionZones()[table.section];
+  
+  // Custom cell positioning designed to fill the 600x400 section zone beautifully
+  const colWidth = 135;
+  const rowHeight = 110;
+  const paddingX = 40;
+  const paddingY = 90;
+
+  let posX = zone.x + paddingX + (table.x * colWidth);
+  let posY = zone.y + paddingY + (table.y * rowHeight);
+
+  // Bound within the section zone to avoid initial overlaps or clipping
+  const width = table.shape === 'RECTANGLE' ? 140 : 110;
+  const height = table.shape === 'RECTANGLE' ? 70 : 110;
+  posX = Math.round(Math.min(posX, zone.x + zone.w - width - 20));
+  posY = Math.round(Math.min(posY, zone.y + zone.h - height - 20));
+
+  return { x: posX, y: posY };
+}
+
 /* ─── Floor View Canvas ─── */
 
 function FloorViewCanvas({
@@ -694,6 +801,7 @@ function FloorViewCanvas({
   onCapacityChange,
   onServerChange,
   staff,
+  isLayoutEditable,
 }: {
   tables: RestaurantTable[];
   selectedTableId: string | null;
@@ -702,6 +810,7 @@ function FloorViewCanvas({
   onCapacityChange: (tableId: string, newCapacity: number) => void;
   onServerChange: (tableId: string, serverId: string | null) => void;
   staff: StaffMember[];
+  isLayoutEditable: boolean;
 }) {
   const t = useT();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -729,7 +838,7 @@ function FloorViewCanvas({
           newPos[tbl.id] = prev[tbl.id];
         } else {
           // Otherwise use the data from props (server data)
-          newPos[tbl.id] = { x: tbl.x, y: tbl.y };
+          newPos[tbl.id] = getInitialPixelPos(tbl);
         }
       });
       localPositionsRef.current = newPos;
@@ -743,8 +852,8 @@ function FloorViewCanvas({
     const current = localPositionsRef.current[tableId];
     if (!current) return;
 
-    const newX = Math.max(0, Math.min(current.x + deltaX, CANVAS_MIN_WIDTH - 80));
-    const newY = Math.max(0, Math.min(current.y + deltaY, CANVAS_MIN_HEIGHT - 60));
+    const newX = Math.round(Math.max(0, Math.min(current.x + deltaX, CANVAS_MIN_WIDTH - 80)));
+    const newY = Math.round(Math.max(0, Math.min(current.y + deltaY, CANVAS_MIN_HEIGHT - 60)));
 
     // Mark this table as being actively dragged
     draggingTableIdRef.current = tableId;
@@ -760,9 +869,17 @@ function FloorViewCanvas({
   const handleDragEnd = useCallback((tableId: string) => {
     const finalPos = localPositionsRef.current[tableId];
     if (finalPos) {
+      // Snapping to nearest 20px matching background grid size
+      const snappedX = Math.round(finalPos.x / 20) * 20;
+      const snappedY = Math.round(finalPos.y / 20) * 20;
+
+      // Update ref and state immediately to show snapping visually
+      localPositionsRef.current[tableId] = { x: snappedX, y: snappedY };
+      setLocalPositions((prev) => ({ ...prev, [tableId]: { x: snappedX, y: snappedY } }));
+
       // Save to API - the parent will update tables state, which triggers the sync useEffect
       // The sync useEffect will see draggingTableIdRef is still set, so it preserves the local position
-      onTablePositionChangeRef.current(tableId, finalPos.x, finalPos.y);
+      onTablePositionChangeRef.current(tableId, snappedX, snappedY);
 
       // Clear the dragging flag after enough time for:
       // 1. API call to complete and update setTables
@@ -814,14 +931,18 @@ function FloorViewCanvas({
         })}
 
         {/* Table cards */}
-        {tables.map((table) => (
-          initialized && (
+        {tables.map((table) => {
+          if (!initialized) return null;
+          const pixelPos = localPositions[table.id] || getInitialPixelPos(table);
+          return (
             <CanvasTableCard
               key={table.id}
               table={{
                 ...table,
-                x: localPositions[table.id]?.x ?? table.x,
-                y: localPositions[table.id]?.y ?? table.y,
+                x: pixelPos.x,
+                y: pixelPos.y,
+                width: (!table.width || table.width <= 10) ? (table.shape === 'RECTANGLE' ? 140 : 110) : table.width,
+                height: (!table.height || table.height <= 10) ? (table.shape === 'RECTANGLE' ? 70 : 110) : table.height,
               }}
               isSelected={selectedTableId === table.id}
               onClick={() => onSelectTable(table)}
@@ -830,14 +951,24 @@ function FloorViewCanvas({
               staff={staff}
               onCapacityChange={onCapacityChange}
               onServerChange={onServerChange}
+              isLayoutEditable={isLayoutEditable}
             />
-          )
-        ))}
+          );
+        })}
 
-        {/* Drag hint */}
+        {/* Drag / Edit layout hint */}
         <div className="absolute bottom-3 right-3 flex items-center gap-1.5 text-zinc-600 text-[10px] pointer-events-none">
-          <Move className="size-3" />
-          {t.floorPlan.dragToMove}
+          {isLayoutEditable ? (
+            <>
+              <Move className="size-3 text-emerald-400 animate-pulse" />
+              <span className="text-emerald-400 font-medium">{t.floorPlan.dragToMove}</span>
+            </>
+          ) : (
+            <>
+              <Pencil className="size-3 text-zinc-500" />
+              <span>{t.floorPlan.clickEditLayoutToMove}</span>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -853,6 +984,7 @@ function TableDetailSheet({
   onStatusChange,
   onTableUpdate,
   staff,
+  customers,
 }: {
   table: RestaurantTable | null;
   open: boolean;
@@ -860,6 +992,7 @@ function TableDetailSheet({
   onStatusChange: (tableId: string, newStatus: TableStatus) => Promise<void>;
   onTableUpdate: (tableId: string, updates: Record<string, unknown>) => Promise<void>;
   staff: StaffMember[];
+  customers: any[];
 }) {
   const [updating, setUpdating] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -868,6 +1001,7 @@ function TableDetailSheet({
   const [editSection, setEditSection] = useState<TableSection>('MAIN');
   const [editShape, setEditShape] = useState<TableShape>('ROUND');
   const [editServerId, setEditServerId] = useState<string>('NONE');
+  const [editCustomerId, setEditCustomerId] = useState<string>('NONE');
   const t = useT();
   const locale = useLocale();
   const { toast } = useToast();
@@ -880,6 +1014,7 @@ function TableDetailSheet({
       setEditSection(table.section);
       setEditShape(table.shape);
       setEditServerId(table.serverId || 'NONE');
+      setEditCustomerId((table as any).customerId || 'NONE');
     }
   }, [table]);
 
@@ -892,6 +1027,7 @@ function TableDetailSheet({
   const SectionIcon = SECTION_ICONS[table.section];
 
   async function handleStatusChange(newStatus: string) {
+    if (!table) return;
     setUpdating(true);
     try {
       await onStatusChange(table.id, newStatus as TableStatus);
@@ -901,6 +1037,7 @@ function TableDetailSheet({
   }
 
   async function handleSaveEdit() {
+    if (!table) return;
     setUpdating(true);
     try {
       const updates: Record<string, unknown> = {
@@ -909,6 +1046,7 @@ function TableDetailSheet({
         section: editSection,
         shape: editShape,
         serverId: editServerId === 'NONE' ? null : editServerId,
+        customerId: editCustomerId === 'NONE' ? null : editCustomerId,
       };
       await onTableUpdate(table.id, updates);
       setEditing(false);
@@ -921,9 +1059,14 @@ function TableDetailSheet({
   }
 
   function handleStartOrder() {
+    if (!table) return;
     useAppStore.getState().selectTable(table.id);
+    if (table.orders && table.orders.length > 0) {
+      useAppStore.getState().selectOrder(table.orders[0].id);
+    } else {
+      useAppStore.getState().selectOrder(null);
+    }
     useAppStore.getState().setView('pos');
-    onClose();
   }
 
   function handleAddReservation() {
@@ -998,6 +1141,12 @@ function TableDetailSheet({
                 {table.server.name}
               </Badge>
             )}
+            {(table as any).customer && (
+              <Badge variant="outline" className="border-purple-700 text-purple-400 gap-1.5 bg-purple-500/5">
+                <User className="size-3 text-purple-400" />
+                👤 {(table as any).customer.firstName} {(table as any).customer.lastName}
+              </Badge>
+            )}
           </div>
 
           {/* Edit Panel */}
@@ -1069,6 +1218,32 @@ function TableDetailSheet({
                           </span>
                         </SelectItem>
                       ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Customer Assignment */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-zinc-400">{t.pos.customerGuest || 'Customer / Guest'}</Label>
+                <Select value={editCustomerId} onValueChange={setEditCustomerId}>
+                  <SelectTrigger className="bg-zinc-900 border-zinc-700 text-zinc-200">
+                    <SelectValue placeholder={t.pos.noCustomerAssigned || 'Walk-in / No Customer'} />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-850 border-zinc-700 max-h-60">
+                    <SelectItem value="NONE" className="text-zinc-400 focus:bg-zinc-700 focus:text-zinc-100">
+                      <span className="flex items-center gap-2">
+                        <XCircle className="size-3 text-zinc-500" />
+                        {t.pos.noCustomerAssigned || 'Walk-in / No Customer'}
+                      </span>
+                    </SelectItem>
+                    {customers.map((c: any) => (
+                      <SelectItem key={c.id} value={c.id} className="text-zinc-200 focus:bg-zinc-700 focus:text-zinc-100">
+                        <span className="flex items-center gap-2">
+                          <User className="size-3 text-purple-400" />
+                          <span>{c.firstName} {c.lastName}</span>
+                        </span>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -1345,7 +1520,7 @@ function TableDetailSheet({
   );
 }
 
-/* ─── Section Group (with drag-and-drop reorder) ─── */
+/* ─── Section Group (with drag-and-drop reorder via @dnd-kit) ─── */
 
 function SectionGroup({
   section,
@@ -1363,8 +1538,32 @@ function SectionGroup({
   const t = useT();
   const Icon = SECTION_ICONS[section];
   const sectionLabels = getSectionLabels(t);
-  const [dragOverId, setDragOverId] = useState<string | null>(null);
-  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    })
+  );
+
+  const tableIds = tables.map((tbl) => tbl.id);
+  const activeTable = activeId ? tables.find((tbl) => tbl.id === activeId) : null;
+
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(String(event.active.id));
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    setActiveId(null);
+    if (over && active.id !== over.id) {
+      onTableMove(String(active.id), String(over.id));
+    }
+  }
+
+  function handleDragCancel() {
+    setActiveId(null);
+  }
 
   return (
     <div className="space-y-3">
@@ -1378,36 +1577,38 @@ function SectionGroup({
         </Badge>
         <span className="text-[10px] text-zinc-600 ml-1">{t.floorPlan.dragToReorder}</span>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-        <AnimatePresence mode="popLayout">
-          {tables.map((table) => (
-            <TableCard
-              key={table.id}
-              table={table}
-              isSelected={selectedTableId === table.id}
-              onClick={() => onSelectTable(table)}
-              isDragOver={dragOverId === table.id}
-              onDragStart={(e, tbl) => {
-                setDraggedId(tbl.id);
-                e.dataTransfer.effectAllowed = 'move';
-              }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-                setDragOverId(table.id);
-              }}
-              onDrop={(e, targetTable) => {
-                e.preventDefault();
-                setDragOverId(null);
-                if (draggedId && draggedId !== targetTable.id) {
-                  onTableMove(draggedId, targetTable.id);
-                }
-                setDraggedId(null);
-              }}
-            />
-          ))}
-        </AnimatePresence>
-      </div>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+      >
+        <SortableContext items={tableIds} strategy={rectSortingStrategy}>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            {tables.map((table) => (
+              <SortableTableCard
+                key={table.id}
+                table={table}
+                isSelected={selectedTableId === table.id}
+                onClick={() => onSelectTable(table)}
+              />
+            ))}
+          </div>
+        </SortableContext>
+        <DragOverlay dropAnimation={null}>
+          {activeTable ? (
+            <div className="pointer-events-none">
+              <TableCardContent
+                table={activeTable}
+                isSelected={false}
+                statusColor={TABLE_STATUS_COLORS[activeTable.status] || ''}
+                isDragging
+              />
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
     </div>
   );
 }
@@ -1415,6 +1616,7 @@ function SectionGroup({
 /* ─── Main Floor Plan Component ─── */
 
 export function FloorPlan() {
+  const user = useAuthStore((s) => s.user);
   const [tables, setTables] = useState<RestaurantTable[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1424,7 +1626,9 @@ export function FloorPlan() {
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [refreshing, setRefreshing] = useState(false);
   const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('sections');
+  const [isLayoutEditable, setIsLayoutEditable] = useState(false);
   const t = useT();
   const locale = useLocale();
   const { toast } = useToast();
@@ -1470,12 +1674,58 @@ export function FloorPlan() {
     fetchStaff();
   }, []);
 
+  /* Fetch customers for assignment */
+  useEffect(() => {
+    async function fetchCustomers() {
+      try {
+        const res = await fetch('/api/customers');
+        if (res.ok) {
+          const data = await res.json();
+          setCustomers(data);
+        }
+      } catch {
+        // Silently fail
+      }
+    }
+    fetchCustomers();
+  }, []);
+
   /* Initial fetch + auto-refresh */
   useEffect(() => {
     fetchTables(true);
     const interval = setInterval(() => fetchTables(false), REFRESH_INTERVAL);
     return () => clearInterval(interval);
   }, []);
+
+  /* Real-time socket sync for floor plan tables */
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+
+    const handleUpdate = () => {
+      fetchTables(false);
+    };
+
+    socket.on('table:status-updated', handleUpdate);
+    socket.on('order:updated', handleUpdate);
+    socket.on('kitchen:new-ticket', handleUpdate);
+    socket.on('bar:new-ticket', handleUpdate);
+    socket.on('order:item-updated', handleUpdate);
+    socket.on('kitchen:item-updated', handleUpdate);
+    socket.on('bar:item-updated', handleUpdate);
+    socket.on('reservation:updated', handleUpdate);
+
+    return () => {
+      socket.off('table:status-updated', handleUpdate);
+      socket.off('order:updated', handleUpdate);
+      socket.off('kitchen:new-ticket', handleUpdate);
+      socket.off('bar:new-ticket', handleUpdate);
+      socket.off('order:item-updated', handleUpdate);
+      socket.off('kitchen:item-updated', handleUpdate);
+      socket.off('bar:item-updated', handleUpdate);
+      socket.off('reservation:updated', handleUpdate);
+    };
+  }, [fetchTables]);
 
   const selectedTableId = useAppStore((s) => s.selectedTableId);
   const selectTable = useAppStore((s) => s.selectTable);
@@ -1508,6 +1758,16 @@ export function FloorPlan() {
       setSelectedTable((prev) =>
         prev && prev.id === tableId ? { ...prev, status: newStatus } : prev
       );
+
+      // Emit socket status-change
+      const socket = getSocket();
+      if (socket?.connected) {
+        socket.emit('table:status-change', {
+          tableId,
+          status: newStatus,
+          updatedBy: user?.name || 'Staff Member',
+        });
+      }
     } catch (err) {
       console.error('Status change error:', err);
       await fetchTables(false);
@@ -1545,6 +1805,16 @@ export function FloorPlan() {
         server: updated.server || (updates.serverId ? staff.find(s => s.id === updates.serverId) || null : null),
       };
     });
+
+    // Emit socket status-change
+    const socket = getSocket();
+    if (socket?.connected) {
+      socket.emit('table:status-change', {
+        tableId,
+        status: updated.status || tables.find(t => t.id === tableId)?.status || 'FREE',
+        updatedBy: user?.name || 'Staff Member',
+      });
+    }
   }
 
   /* Drag-and-drop: swap positions of two tables (section view) */
@@ -1577,6 +1847,21 @@ export function FloorPlan() {
         })
       );
       toast({ title: t.floorPlan.tableUpdated });
+
+      // Emit socket status-change for both tables
+      const socket = getSocket();
+      if (socket?.connected) {
+        socket.emit('table:status-change', {
+          tableId: movedTableId,
+          status: movedTable.status,
+          updatedBy: user?.name || 'Staff Member',
+        });
+        socket.emit('table:status-change', {
+          tableId: targetTableId,
+          status: targetTable.status,
+          updatedBy: user?.name || 'Staff Member',
+        });
+      }
     } catch {
       toast({ title: t.floorPlan.failedToUpdateTable, variant: 'destructive' });
       await fetchTables(false);
@@ -1585,23 +1870,40 @@ export function FloorPlan() {
 
   /* Floor view: position change handler */
   async function handleTablePositionChange(tableId: string, x: number, y: number) {
+    const roundedX = Math.round(x);
+    const roundedY = Math.round(y);
+
+    // Optimistic update
+    setTables((prev) =>
+      prev.map((tbl) => (tbl.id === tableId ? { ...tbl, x: roundedX, y: roundedY } : tbl))
+    );
+    setSelectedTable((prev) =>
+      prev && prev.id === tableId ? { ...prev, x: roundedX, y: roundedY } : prev
+    );
+
     try {
       const res = await fetch('/api/tables', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: tableId, x, y }),
+        body: JSON.stringify({ id: tableId, x: roundedX, y: roundedY }),
       });
       if (!res.ok) throw new Error('Failed to save position');
 
-      setTables((prev) =>
-        prev.map((tbl) => (tbl.id === tableId ? { ...tbl, x, y } : tbl))
-      );
-      setSelectedTable((prev) =>
-        prev && prev.id === tableId ? { ...prev, x, y } : prev
-      );
+      // Emit socket status-change
+      const socket = getSocket();
+      if (socket?.connected) {
+        const tableStatus = tables.find(t => t.id === tableId)?.status || 'FREE';
+        socket.emit('table:status-change', {
+          tableId,
+          status: tableStatus,
+          updatedBy: user?.name || 'Staff Member',
+        });
+      }
       // Silent success - no toast for position saves (fires frequently during drag)
     } catch {
       toast({ title: t.floorPlan.positionSaveFailed, variant: 'destructive' });
+      // Revert if saving fails
+      await fetchTables(false);
     }
   }
 
@@ -1626,6 +1928,16 @@ export function FloorPlan() {
       });
       if (!res.ok) throw new Error('Failed to update capacity');
       toast({ title: t.floorPlan.tableUpdated });
+
+      // Emit socket status-change
+      const socket = getSocket();
+      if (socket?.connected) {
+        socket.emit('table:status-change', {
+          tableId,
+          status: table.status,
+          updatedBy: user?.name || 'Staff Member',
+        });
+      }
     } catch {
       toast({ title: t.floorPlan.failedToUpdateTable, variant: 'destructive' });
       // Revert optimistic update
@@ -1675,6 +1987,16 @@ export function FloorPlan() {
         );
       }
       toast({ title: t.floorPlan.tableUpdated });
+
+      // Emit socket status-change
+      const socket = getSocket();
+      if (socket?.connected) {
+        socket.emit('table:status-change', {
+          tableId,
+          status: table.status,
+          updatedBy: user?.name || 'Staff Member',
+        });
+      }
     } catch {
       toast({ title: t.floorPlan.failedToUpdateTable, variant: 'destructive' });
       // Revert optimistic update
@@ -1694,6 +2016,59 @@ export function FloorPlan() {
     selectTable(table.id);
     setSelectedTable(table);
     setSheetOpen(true);
+
+    // Stop visual alerts by serving all dishes that are currently READY
+    const readyItems = table.orders?.flatMap(o => 
+      o.items?.filter(i => i.status === 'READY')
+    ) || [];
+
+    if (readyItems.length > 0) {
+      // Optimistic update
+      setTables((prevTables) =>
+        prevTables.map((t) => {
+          if (t.id !== table.id) return t;
+          return {
+            ...t,
+            orders: t.orders.map((o) => ({
+              ...o,
+              items: o.items.map((item) =>
+                item.status === 'READY' ? { ...item, status: 'SERVED' } : item
+              ),
+            })),
+          };
+        })
+      );
+
+      // Perform updates on items
+      Promise.all(
+        readyItems.map((item) =>
+          fetch('/api/orders/items', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ itemId: item.id, status: 'SERVED' }),
+          }).then((res) => {
+            if (!res.ok) throw new Error();
+            return res.json();
+          })
+        )
+      )
+        .then(() => {
+          toast({
+            title: `Served ${readyItems.length} ready ${readyItems.length === 1 ? 'dish' : 'dishes'}!`,
+            description: `Visual alarm stopped for ${table.name}.`,
+          });
+        })
+        .catch(() => {
+          toast({
+            title: 'Failed to clear visual alarm',
+            variant: 'destructive',
+          });
+          // Revert / Reload
+          fetch('/api/tables')
+            .then(res => res.json())
+            .then(data => setTables(data));
+        });
+    }
   }
 
   /* Filter tables by section */
@@ -1763,7 +2138,7 @@ export function FloorPlan() {
             )}
           </p>
         </div>
-        <div className="flex items-center gap-2 self-start">
+        <div className="flex items-center gap-2 self-start flex-wrap">
           {/* View Mode Toggle */}
           <div className="flex items-center rounded-lg border border-zinc-800 bg-zinc-900 p-0.5">
             <button
@@ -1791,6 +2166,34 @@ export function FloorPlan() {
               {t.floorPlan.floorView}
             </button>
           </div>
+
+          {/* Edit Layout Button (Only visible in Floor View) */}
+          {viewMode === 'floor' && (
+            <Button
+              variant={isLayoutEditable ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setIsLayoutEditable(!isLayoutEditable)}
+              className={cn(
+                'gap-2 transition-all duration-200',
+                isLayoutEditable 
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
+                  : 'border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100'
+              )}
+            >
+              {isLayoutEditable ? (
+                <>
+                  <CheckCircle2 className="size-4 text-white" />
+                  <span>{t.floorPlan.doneEditing}</span>
+                </>
+              ) : (
+                <>
+                  <Pencil className="size-4 text-amber-400 animate-pulse" />
+                  <span>{t.floorPlan.editLayout}</span>
+                </>
+              )}
+            </Button>
+          )}
+
           <Button
             variant="outline"
             size="sm"
@@ -1849,9 +2252,11 @@ export function FloorPlan() {
 
       {/* Status Legend for floor view */}
       {viewMode === 'floor' && (
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <StatusLegend />
-          <span className="text-[10px] text-zinc-600 hidden sm:inline">{t.floorPlan.dragToMove}</span>
+          <span className={cn("text-[10px] transition-colors duration-200 hidden sm:inline", isLayoutEditable ? "text-emerald-400 font-medium" : "text-zinc-600")}>
+            {isLayoutEditable ? t.floorPlan.dragToMove : t.floorPlan.clickEditLayoutToMove}
+          </span>
         </div>
       )}
 
@@ -1894,6 +2299,7 @@ export function FloorPlan() {
           onCapacityChange={handleCapacityChange}
           onServerChange={handleServerChange}
           staff={staff}
+          isLayoutEditable={isLayoutEditable}
         />
       )}
 
@@ -1908,6 +2314,7 @@ export function FloorPlan() {
         onStatusChange={handleStatusChange}
         onTableUpdate={handleTableUpdate}
         staff={staff}
+        customers={customers}
       />
     </div>
   );

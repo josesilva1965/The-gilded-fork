@@ -22,7 +22,10 @@ export async function GET() {
 
     // Active orders count
     const activeOrders = await db.order.count({
-      where: { status: { in: ['PENDING', 'IN_PROGRESS'] } },
+      where: {
+        status: { not: 'CANCELLED' },
+        paymentStatus: { in: ['PENDING', 'PARTIAL'] },
+      },
     });
 
     // Today's revenue (from active/completed orders)
@@ -168,6 +171,24 @@ export async function GET() {
     // Sort activity by most recent (approximate using string)
     recentActivity.sort((a, b) => a.time.localeCompare(b.time));
 
+    // Fetch all orders created today (for Live Order Monitor)
+    const dailyOrders = await db.order.findMany({
+      where: {
+        createdAt: { gte: today },
+      },
+      include: {
+        items: {
+          include: { menuItem: true },
+          orderBy: { createdAt: 'asc' },
+        },
+        table: true,
+        creator: {
+          select: { id: true, name: true, role: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
     return NextResponse.json({
       todaySnapshot,
       weekSnapshots,
@@ -184,6 +205,7 @@ export async function GET() {
       todayShifts,
       clockedIn: clockedInUsers.length,
       recentActivity,
+      dailyOrders,
     });
   } catch (error) {
     console.error('Error fetching dashboard:', error);

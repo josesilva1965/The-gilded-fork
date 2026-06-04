@@ -7,8 +7,11 @@ export async function GET() {
       orderBy: { number: 'asc' },
       include: {
         orders: {
-          where: { status: { in: ['PENDING', 'IN_PROGRESS'] } },
-          include: { items: { include: { menuItem: true } }, creator: true },
+          where: {
+            status: { not: 'CANCELLED' },
+            paymentStatus: { in: ['PENDING', 'PARTIAL'] },
+          },
+          include: { items: { include: { menuItem: true } }, creator: true, customer: true },
           orderBy: { createdAt: 'desc' },
         },
         reservations: {
@@ -19,6 +22,7 @@ export async function GET() {
         server: {
           select: { id: true, name: true, role: true },
         },
+        customer: true,
       },
     });
     return NextResponse.json(tables);
@@ -31,7 +35,7 @@ export async function GET() {
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
-    const { id, status, x, y, width, height, capacity, serverId, section, shape, name } = body;
+    const { id, status, x, y, width, height, capacity, serverId, section, shape, name, customerId } = body;
 
     const table = await db.restaurantTable.update({
       where: { id },
@@ -46,11 +50,13 @@ export async function PATCH(request: Request) {
         ...(section !== undefined && { section }),
         ...(shape !== undefined && { shape }),
         ...(name !== undefined && { name }),
+        ...(customerId !== undefined && { customerId: customerId || null }),
       },
       include: {
         server: {
           select: { id: true, name: true, role: true },
         },
+        customer: true,
       },
     });
     return NextResponse.json(table);

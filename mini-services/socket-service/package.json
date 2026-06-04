@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "bun --hot index.ts"
+    "dev": "bun --hot index.ts",
+    "dev:node": "npx tsx watch index.ts"
   },
   "dependencies": {
     "socket.io": "^4.7.4"

@@ -12,12 +12,15 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { view: 'dashboard', labelKey: 'nav.dashboard', icon: 'LayoutDashboard', roles: ['ADMIN', 'MANAGER'] },
   { view: 'floor-plan', labelKey: 'nav.floorPlan', icon: 'Map', roles: ['ADMIN', 'MANAGER', 'FOH'] },
-  { view: 'pos', labelKey: 'nav.pos', icon: 'ShoppingCart', roles: ['ADMIN', 'MANAGER', 'FOH'] },
+  { view: 'pos', labelKey: 'nav.pos', icon: 'ShoppingCart', roles: ['ADMIN', 'MANAGER', 'FOH', 'BAR'] },
   { view: 'kds', labelKey: 'nav.kds', icon: 'ChefHat', roles: ['ADMIN', 'MANAGER', 'KITCHEN', 'BAR'] },
   { view: 'reservations', labelKey: 'nav.reservations', icon: 'CalendarDays', roles: ['ADMIN', 'MANAGER', 'FOH'] },
   { view: 'inventory', labelKey: 'nav.inventory', icon: 'Package', roles: ['ADMIN', 'MANAGER', 'KITCHEN', 'BAR'] },
   { view: 'staff', labelKey: 'nav.staff', icon: 'Users', roles: ['ADMIN', 'MANAGER'] },
   { view: 'crm', labelKey: 'nav.crm', icon: 'Heart', roles: ['ADMIN', 'MANAGER'] },
+  { view: 'transactions', labelKey: 'nav.transactions', icon: 'ArrowLeftRight', roles: ['ADMIN', 'MANAGER'] },
+  { view: 'menu', labelKey: 'nav.menu', icon: 'ChefHat', roles: ['ADMIN', 'MANAGER'] },
+  { view: 'settings', labelKey: 'settings.title', icon: 'Settings', roles: ['ADMIN', 'MANAGER'] },
 ];
 
 export const TABLE_STATUS_COLORS: Record<string, string> = {

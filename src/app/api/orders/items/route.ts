@@ -7,6 +7,14 @@ export async function PATCH(request: Request) {
     const { orderId, itemId, status } = body;
 
     if (itemId && status) {
+      const existingItem = await db.orderItem.findUnique({
+        where: { id: itemId },
+      });
+
+      if (!existingItem) {
+        return NextResponse.json({ error: 'Order item not found' }, { status: 404 });
+      }
+
       const updateData: any = { status };
       if (status === 'FIRED') updateData.firedAt = new Date();
       if (status === 'READY') updateData.readyAt = new Date();
@@ -17,6 +25,28 @@ export async function PATCH(request: Request) {
         data: updateData,
         include: { menuItem: true, order: true },
       });
+
+      if (status === 'SERVED' && existingItem.status !== 'SERVED') {
+        const recipeItems = await db.recipeItem.findMany({
+          where: { menuItemId: item.menuItemId },
+          include: { ingredient: true },
+        });
+        for (const ri of recipeItems) {
+          const deductQty = ri.quantity * item.quantity;
+          await db.ingredient.update({
+            where: { id: ri.ingredientId },
+            data: { currentStock: { decrement: deductQty } },
+          });
+          await db.stockLedger.create({
+            data: {
+              ingredientId: ri.ingredientId,
+              change: -deductQty,
+              reason: 'ORDER',
+              referenceId: item.orderId,
+            },
+          });
+        }
+      }
 
       if (status === 'SERVED') {
         const orderItems = await db.orderItem.findMany({

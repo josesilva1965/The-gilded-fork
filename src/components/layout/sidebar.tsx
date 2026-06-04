@@ -11,6 +11,7 @@ import {
   Users,
   Heart,
   ArrowLeftRight,
+  Settings,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuthStore, ROLE_COLORS } from '@/stores/auth-store';
@@ -21,7 +22,6 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { LanguageSwitcher } from '@/components/layout/language-switcher';
 import { cn } from '@/lib/utils';
 
 const ICON_MAP: Record<string, LucideIcon> = {
@@ -33,6 +33,8 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Package,
   Users,
   Heart,
+  ArrowLeftRight,
+  Settings,
 };
 
 function getIcon(name: string): LucideIcon {
@@ -60,6 +62,7 @@ function getNavLabel(view: string, t: any): string {
     'inventory': t.nav.inventory,
     'staff': t.nav.staff,
     'crm': t.nav.crm,
+    'settings': t.settings?.title,
   };
   return labelMap[view] || view;
 }
@@ -145,16 +148,7 @@ export function Sidebar() {
         </nav>
       </ScrollArea>
 
-      <Separator className="bg-zinc-800" />
 
-      {/* Language Switcher */}
-      {sidebarOpen && (
-        <div className="px-3 pt-3">
-          <LanguageSwitcher variant="full" />
-        </div>
-      )}
-
-      <Separator className="bg-zinc-800" />
 
       {/* User Info & Switch Role */}
       <div className="p-3 space-y-2 shrink-0">
@@ -284,14 +278,7 @@ export function MobileSidebar({
         </nav>
       </ScrollArea>
 
-      <Separator className="bg-zinc-800" />
 
-      {/* Language Switcher */}
-      <div className="px-3 pt-3">
-        <LanguageSwitcher variant="full" />
-      </div>
-
-      <Separator className="bg-zinc-800" />
 
       {/* User & Switch Role */}
       <div className="p-3 space-y-2 shrink-0">

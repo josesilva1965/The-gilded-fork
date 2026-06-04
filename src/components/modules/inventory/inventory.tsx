@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -13,6 +13,7 @@ import {
   Filter,
   Trash2,
   ChevronDown,
+  ChevronsUpDown,
   ChevronUp,
   ChevronRight,
   X,
@@ -24,9 +25,10 @@ import {
   Wine,
   Edit3,
   Check,
+  Printer,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
-import { useT, useLocale } from '@/stores/locale-store';
+import { useT, useLocale, useLocaleConfig } from '@/stores/locale-store';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrencyByLocale, formatDateByLocale } from '@/lib/i18n/locales';
 import { cn } from '@/lib/utils';
@@ -50,6 +52,11 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import {
   Tabs,
   TabsContent,
@@ -288,12 +295,16 @@ function SummaryCards({
 function IngredientRow({
   ingredient,
   onEditStock,
+  onSaveStock,
 }: {
   ingredient: Ingredient;
   onEditStock: (ing: Ingredient) => void;
+  onSaveStock: (id: string, data: any) => Promise<void>;
 }) {
   const t = useT();
   const locale = useLocale();
+  const [quickAddQty, setQuickAddQty] = useState('');
+  const [savingQuickAdd, setSavingQuickAdd] = useState(false);
   const level = getStockLevel(ingredient.currentStock, ingredient.minStock, ingredient.maxStock);
   const percent = getStockPercent(ingredient.currentStock, ingredient.maxStock);
   const isLow = ingredient.currentStock <= ingredient.minStock;
@@ -343,7 +354,7 @@ function IngredientRow({
       {/* Unit + Cost - desktop only */}
       <div className="hidden md:block">
         <p className="text-sm text-zinc-300">{formatCurrencyByLocale(ingredient.costPerUnit, locale)}</p>
-        <p className="text-[10px] text-zinc-600">per {ingredient.unit}</p>
+        <p className="text-[10px] text-zinc-600">{t.common.per} {ingredient.unit}</p>
       </div>
 
       {/* Storage Location - desktop only */}
@@ -359,6 +370,48 @@ function IngredientRow({
         <p className="text-xs text-zinc-400 truncate max-w-[120px]">
           {ingredient.vendor?.name || '—'}
         </p>
+      </div>
+
+      {/* Quick Add input - desktop only */}
+      <div className="hidden md:block">
+        <Input
+          type="number"
+          placeholder={t.kds.qty}
+          value={quickAddQty}
+          onChange={(e) => setQuickAddQty(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          className="bg-zinc-800 border-zinc-700 text-zinc-100 h-8 text-xs font-mono w-20 focus:border-emerald-600/40"
+        />
+      </div>
+
+      {/* Quick Add button - desktop only */}
+      <div className="hidden md:block">
+        <Button
+          size="sm"
+          variant="outline"
+          className="border-emerald-600/30 text-emerald-400 hover:bg-emerald-600/10 hover:text-emerald-300 text-[10px] h-8 px-2.5"
+          onClick={async (e) => {
+            e.stopPropagation();
+            const val = parseFloat(quickAddQty);
+            if (!isNaN(val) && val !== 0) {
+              setSavingQuickAdd(true);
+              await onSaveStock(ingredient.id, {
+                currentStock: ingredient.currentStock + val,
+                reason: val > 0 ? 'RESTOCK' : 'ADJUSTMENT',
+              });
+              setQuickAddQty('');
+              setSavingQuickAdd(false);
+            }
+          }}
+          disabled={savingQuickAdd || !quickAddQty || isNaN(parseFloat(quickAddQty))}
+        >
+          {savingQuickAdd ? (
+            <Loader2 className="size-3 animate-spin mr-1" />
+          ) : (
+            <Plus className="size-3 mr-1" />
+          )}
+          {t.common.add}
+        </Button>
       </div>
 
       {/* Mobile: compact stock info */}
@@ -394,88 +447,363 @@ function EditStockDialog({
   open,
   onClose,
   onSave,
+  vendors,
 }: {
   ingredient: Ingredient | null;
   open: boolean;
   onClose: () => void;
-  onSave: (id: string, newStock: number) => void;
+  onSave: (id: string, data: any) => void;
+  vendors: { id: string; name: string }[];
 }) {
-  const [newStock, setNewStock] = useState(
-    ingredient ? ingredient.currentStock.toString() : ''
-  );
+  const { currencySymbol } = useLocaleConfig();
+  const t = useT();
+  const [name, setName] = useState('');
+  const [unit, setUnit] = useState('');
+  const [category, setCategory] = useState('');
+  const [storageLocation, setStorageLocation] = useState('');
+  const [vendorId, setVendorId] = useState('');
+  const [currentStock, setCurrentStock] = useState('');
+  const [minStock, setMinStock] = useState('');
+  const [maxStock, setMaxStock] = useState('');
+  const [costPerUnit, setCostPerUnit] = useState('');
+  const [adjustQty, setAdjustQty] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // Reset stock value when ingredient changes - use key prop on parent instead
+  useEffect(() => {
+    if (ingredient && open) {
+      setName(ingredient.name);
+      setUnit(ingredient.unit);
+      setCategory(ingredient.category || 'OTHER');
+      setStorageLocation(ingredient.storageLocation || 'DRY_STORAGE');
+      setVendorId(ingredient.vendorId || 'none');
+      setCurrentStock(ingredient.currentStock.toString());
+      setMinStock(ingredient.minStock.toString());
+      setMaxStock(ingredient.maxStock.toString());
+      setCostPerUnit(ingredient.costPerUnit.toString());
+      setAdjustQty('');
+    }
+  }, [ingredient, open]);
 
   const handleSave = async () => {
     if (!ingredient) return;
     setSaving(true);
-    await onSave(ingredient.id, parseFloat(newStock));
+    const finalStock = parseFloat(currentStock || '0');
+    await onSave(ingredient.id, {
+      name,
+      unit,
+      category,
+      storageLocation,
+      vendorId: vendorId === 'none' ? null : vendorId,
+      currentStock: finalStock,
+      minStock: parseFloat(minStock || '0'),
+      maxStock: parseFloat(maxStock || '0'),
+      costPerUnit: parseFloat(costPerUnit || '0'),
+      reason: finalStock > ingredient.currentStock ? 'RESTOCK' : 'ADJUSTMENT',
+    });
     setSaving(false);
     onClose();
   };
 
   if (!ingredient) return null;
 
-  const diff = parseFloat(newStock || '0') - ingredient.currentStock;
-
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="bg-zinc-900 border-zinc-800 max-w-md">
+      <DialogContent className="bg-zinc-900 border-zinc-800 max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-zinc-100">Adjust Stock Level</DialogTitle>
+          <DialogTitle className="text-zinc-100">{t.inventory.editProductStock}</DialogTitle>
           <DialogDescription className="text-zinc-500">
-            Update the current stock for {ingredient.name}
+            {t.inventory.configureThresholds} for {ingredient.name}
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-2">
-          <div className="flex items-center justify-between bg-zinc-800/50 rounded-lg p-3">
-            <span className="text-sm text-zinc-400">Current Stock</span>
-            <span className="text-lg font-mono font-bold text-zinc-200">
-              {ingredient.currentStock} {ingredient.unit}
-            </span>
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm text-zinc-400">New Stock Level</label>
-            <Input
-              type="number"
-              step="0.1"
-              min="0"
-              value={newStock}
-              onChange={(e) => setNewStock(e.target.value)}
-              className="bg-zinc-800 border-zinc-700 text-zinc-100 text-lg font-mono"
-            />
-          </div>
-          {diff !== 0 && (
-            <div className={cn(
-              'flex items-center justify-between rounded-lg p-3',
-              diff > 0 ? 'bg-emerald-950/30' : 'bg-red-950/30'
-            )}>
-              <span className="text-sm text-zinc-400">Change</span>
-              <span className={cn(
-                'font-mono font-bold',
-                diff > 0 ? 'text-emerald-400' : 'text-red-400'
-              )}>
-                {diff > 0 ? '+' : ''}{diff.toFixed(1)} {ingredient.unit}
-              </span>
+        <div className="grid grid-cols-2 gap-4 py-2">
+          <div className="space-y-3 col-span-2">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-emerald-400">{t.inventory.productInfo}</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-[11px] text-zinc-500 font-medium">{t.inventory.productName}</label>
+                <Input value={name} onChange={(e) => setName(e.target.value)} className="bg-zinc-800 border-zinc-700 text-zinc-100 h-9 text-sm focus:border-emerald-600/40" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] text-zinc-500 font-medium">{t.inventory.unitLabel}</label>
+                <Input value={unit} onChange={(e) => setUnit(e.target.value)} className="bg-zinc-800 border-zinc-700 text-zinc-100 h-9 text-sm focus:border-emerald-600/40" />
+              </div>
             </div>
-          )}
-          <div className="flex items-center justify-between text-xs text-zinc-600">
-            <span>Min: {ingredient.minStock} {ingredient.unit}</span>
-            <span>Max: {ingredient.maxStock} {ingredient.unit}</span>
+          </div>
+
+          <div className="space-y-3 col-span-2">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <label className="text-[11px] text-zinc-500 font-medium">{t.inventory.category}</label>
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-200 h-9 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-800 border-zinc-700">
+                    {CATEGORIES.filter(c => c !== 'ALL').map((c) => (
+                      <SelectItem key={c} value={c} className="text-zinc-200 focus:bg-zinc-700">
+                        {getCategoryLabel(c, t)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] text-zinc-500 font-medium">{t.inventory.storageLocation}</label>
+                <Select value={storageLocation} onValueChange={setStorageLocation}>
+                  <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-200 h-9 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-800 border-zinc-700">
+                    {STORAGE_LOCATIONS.filter(l => l !== 'ALL').map((l) => (
+                      <SelectItem key={l} value={l} className="text-zinc-200 focus:bg-zinc-700">
+                        {getStorageLabel(l, t)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] text-zinc-500 font-medium">{t.inventory.vendorLabel}</label>
+                <Select value={vendorId} onValueChange={setVendorId}>
+                  <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-200 h-9 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-800 border-zinc-700">
+                    <SelectItem value="none" className="text-zinc-400 focus:bg-zinc-700">{t.common.none}</SelectItem>
+                    {vendors.map((v) => (
+                      <SelectItem key={v.id} value={v.id} className="text-zinc-200 focus:bg-zinc-700">
+                        {v.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3 col-span-2">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-emerald-400">{t.inventory.stockCostLevels}</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-[11px] text-zinc-500 font-medium">{t.inventory.currentStock}</label>
+                <Input type="number" step="0.1" value={currentStock} onChange={(e) => setCurrentStock(e.target.value)} className="bg-zinc-800 border-zinc-700 text-zinc-100 h-9 text-sm font-mono focus:border-emerald-600/40" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] text-zinc-500 font-medium">{t.inventory.addToStock}</label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  placeholder="e.g. +10 or -5"
+                  value={adjustQty}
+                  onChange={(e) => {
+                    setAdjustQty(e.target.value);
+                    const val = parseFloat(e.target.value);
+                    if (!isNaN(val)) {
+                      setCurrentStock((ingredient.currentStock + val).toString());
+                    } else {
+                      setCurrentStock(ingredient.currentStock.toString());
+                    }
+                  }}
+                  className="bg-zinc-800 border-zinc-700 text-zinc-100 h-9 text-sm font-mono focus:border-emerald-600/40"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] text-zinc-500 font-medium">{t.inventory.minLevelAlert}</label>
+                <Input type="number" step="0.1" value={minStock} onChange={(e) => setMinStock(e.target.value)} className="bg-zinc-800 border-zinc-700 text-zinc-100 h-9 text-sm font-mono focus:border-emerald-600/40" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] text-zinc-500 font-medium">{t.inventory.maxLevelTarget}</label>
+                <Input type="number" step="0.1" value={maxStock} onChange={(e) => setMaxStock(e.target.value)} className="bg-zinc-800 border-zinc-700 text-zinc-100 h-9 text-sm font-mono focus:border-emerald-600/40" />
+              </div>
+              <div className="space-y-1 col-span-2">
+                <label className="text-[11px] text-zinc-500 font-medium">{t.inventory.costPerUnitLabel} ({currencySymbol})</label>
+                <Input type="number" step="0.01" value={costPerUnit} onChange={(e) => setCostPerUnit(e.target.value)} className="bg-zinc-800 border-zinc-700 text-zinc-100 h-9 text-sm font-mono focus:border-emerald-600/40" />
+              </div>
+            </div>
           </div>
         </div>
-        <DialogFooter className="gap-2">
+        <DialogFooter className="gap-2 mt-4">
           <Button variant="outline" onClick={onClose} className="border-zinc-700 text-zinc-400">
-            Cancel
+            {t.common.cancel}
           </Button>
           <Button
             onClick={handleSave}
-            disabled={saving || newStock === ingredient.currentStock.toString()}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            disabled={saving || !name || !unit}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
           >
             {saving ? <Loader2 className="size-4 animate-spin mr-1" /> : <Check className="size-4 mr-1" />}
-            Save
+            {t.inventory.saveChanges}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ─── Add Product Dialog ─── */
+function AddProductDialog({
+  open,
+  onClose,
+  onAdd,
+  vendors,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onAdd: (data: any) => void;
+  vendors: { id: string; name: string }[];
+}) {
+  const { currencySymbol } = useLocaleConfig();
+  const t = useT();
+  const [name, setName] = useState('');
+  const [unit, setUnit] = useState('');
+  const [category, setCategory] = useState('OTHER');
+  const [storageLocation, setStorageLocation] = useState('DRY_STORAGE');
+  const [vendorId, setVendorId] = useState('none');
+  const [currentStock, setCurrentStock] = useState('0');
+  const [minStock, setMinStock] = useState('5');
+  const [maxStock, setMaxStock] = useState('20');
+  const [costPerUnit, setCostPerUnit] = useState('0');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setName('');
+      setUnit('');
+      setCategory('OTHER');
+      setStorageLocation('DRY_STORAGE');
+      setVendorId('none');
+      setCurrentStock('0');
+      setMinStock('5');
+      setMaxStock('20');
+      setCostPerUnit('0');
+    }
+  }, [open]);
+
+  const handleAdd = async () => {
+    setSaving(true);
+    await onAdd({
+      name,
+      unit,
+      category,
+      storageLocation,
+      vendorId: vendorId === 'none' ? null : vendorId,
+      currentStock: parseFloat(currentStock || '0'),
+      minStock: parseFloat(minStock || '0'),
+      maxStock: parseFloat(maxStock || '0'),
+      costPerUnit: parseFloat(costPerUnit || '0'),
+    });
+    setSaving(false);
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="bg-zinc-900 border-zinc-800 max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="text-zinc-100">{t.inventory.addNewProduct}</DialogTitle>
+          <DialogDescription className="text-zinc-500">
+            {t.inventory.createProductDesc}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid grid-cols-2 gap-4 py-2">
+          <div className="space-y-3 col-span-2">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-emerald-400">{t.inventory.productInfo}</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-[11px] text-zinc-500 font-medium">{t.inventory.productName}</label>
+                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Fresh Lemons" className="bg-zinc-800 border-zinc-700 text-zinc-100 h-9 text-sm focus:border-emerald-600/40" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] text-zinc-500 font-medium">{t.inventory.unitLabel}</label>
+                <Input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="e.g. KG" className="bg-zinc-800 border-zinc-700 text-zinc-100 h-9 text-sm focus:border-emerald-600/40" />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3 col-span-2">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <label className="text-[11px] text-zinc-500 font-medium">{t.inventory.category}</label>
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-200 h-9 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-800 border-zinc-700">
+                    {CATEGORIES.filter(c => c !== 'ALL').map((c) => (
+                      <SelectItem key={c} value={c} className="text-zinc-200 focus:bg-zinc-700">
+                        {getCategoryLabel(c, t)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] text-zinc-500 font-medium">{t.inventory.storageLocation}</label>
+                <Select value={storageLocation} onValueChange={setStorageLocation}>
+                  <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-200 h-9 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-800 border-zinc-700">
+                    {STORAGE_LOCATIONS.filter(l => l !== 'ALL').map((l) => (
+                      <SelectItem key={l} value={l} className="text-zinc-200 focus:bg-zinc-700">
+                        {getStorageLabel(l, t)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] text-zinc-500 font-medium">{t.inventory.vendorLabel}</label>
+                <Select value={vendorId} onValueChange={setVendorId}>
+                  <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-200 h-9 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-800 border-zinc-700">
+                    <SelectItem value="none" className="text-zinc-400 focus:bg-zinc-700">{t.common.none}</SelectItem>
+                    {vendors.map((v) => (
+                      <SelectItem key={v.id} value={v.id} className="text-zinc-200 focus:bg-zinc-700">
+                        {v.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3 col-span-2">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-emerald-400">{t.inventory.stockCostLevels}</h4>
+            <div className="grid grid-cols-4 gap-3">
+              <div className="space-y-1">
+                <label className="text-[11px] text-zinc-500 font-medium">{t.inventory.currentStock}</label>
+                <Input type="number" step="0.1" value={currentStock} onChange={(e) => setCurrentStock(e.target.value)} className="bg-zinc-800 border-zinc-700 text-zinc-100 h-9 text-sm font-mono focus:border-emerald-600/40" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] text-zinc-500 font-medium">{t.inventory.minLevelAlert}</label>
+                <Input type="number" step="0.1" value={minStock} onChange={(e) => setMinStock(e.target.value)} className="bg-zinc-800 border-zinc-700 text-zinc-100 h-9 text-sm font-mono focus:border-emerald-600/40" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] text-zinc-500 font-medium">{t.inventory.maxLevelTarget}</label>
+                <Input type="number" step="0.1" value={maxStock} onChange={(e) => setMaxStock(e.target.value)} className="bg-zinc-800 border-zinc-700 text-zinc-100 h-9 text-sm font-mono focus:border-emerald-600/40" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] text-zinc-500 font-medium">{t.inventory.costPerUnitLabel} ({currencySymbol})</label>
+                <Input type="number" step="0.01" value={costPerUnit} onChange={(e) => setCostPerUnit(e.target.value)} className="bg-zinc-800 border-zinc-700 text-zinc-100 h-9 text-sm font-mono focus:border-emerald-600/40" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <DialogFooter className="gap-2 mt-4">
+          <Button variant="outline" onClick={onClose} className="border-zinc-700 text-zinc-400">
+            {t.common.cancel}
+          </Button>
+          <Button
+            onClick={handleAdd}
+            disabled={saving || !name || !unit}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+          >
+            {saving ? <Loader2 className="size-4 animate-spin mr-1" /> : <Plus className="size-4 mr-1" />}
+            {t.inventory.addProduct}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -505,6 +833,20 @@ function LogWastageDialog({
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    if (!open) {
+      setSearchTerm('');
+      setPopoverOpen(false);
+    }
+  }, [open]);
+
+  const filteredIngs = useMemo(() => {
+    if (!searchTerm.trim()) return ingredients;
+    return ingredients.filter((i) => i.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  }, [ingredients, searchTerm]);
 
   const ingredient = ingredients.find((i) => i.id === selectedIngredient);
   const autoValue = ingredient && quantity
@@ -554,20 +896,65 @@ function LogWastageDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
-          <div className="space-y-2">
+          <div className="space-y-2 flex flex-col">
             <label className="text-sm text-zinc-400">Ingredient</label>
-            <Select value={selectedIngredient} onValueChange={setSelectedIngredient}>
-              <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-200">
-                <SelectValue placeholder="Select ingredient..." />
-              </SelectTrigger>
-              <SelectContent className="bg-zinc-800 border-zinc-700 max-h-60">
-                {ingredients.map((ing) => (
-                  <SelectItem key={ing.id} value={ing.id} className="text-zinc-200 focus:bg-zinc-700 focus:text-zinc-100">
-                    {ing.name} ({ing.currentStock} {ing.unit})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={popoverOpen}
+                  className="w-full justify-between bg-zinc-800 border-zinc-700 text-zinc-200 hover:bg-zinc-800 hover:text-zinc-200 text-left font-normal"
+                >
+                  {selectedIngredient
+                    ? ingredients.find((i) => i.id === selectedIngredient)?.name
+                    : t.inventory.selectIngredient}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-zinc-800 border-zinc-700 z-50">
+                <div className="flex flex-col h-60">
+                  <div className="p-2 border-b border-zinc-700">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500" />
+                      <Input
+                        placeholder={t.inventory.searchIngredients}
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-8 h-8 text-xs bg-zinc-900 border-zinc-800 text-zinc-100 focus:border-emerald-600/40"
+                      />
+                    </div>
+                  </div>
+                  <ScrollArea className="flex-1 overflow-y-auto">
+                    <div className="p-1">
+                      {filteredIngs.length === 0 ? (
+                        <p className="p-2 text-xs text-zinc-500 text-center">{t.inventory.noIngredientsFound}</p>
+                      ) : (
+                        filteredIngs.map((ing) => (
+                          <button
+                            key={ing.id}
+                            className={cn(
+                              "w-full text-left px-2 py-1.5 text-xs rounded-sm hover:bg-zinc-700 text-zinc-200 transition-colors flex justify-between items-center",
+                              selectedIngredient === ing.id && "bg-zinc-700 font-medium text-emerald-400"
+                            )}
+                            onClick={() => {
+                              setSelectedIngredient(ing.id);
+                              setPopoverOpen(false);
+                              setSearchTerm('');
+                            }}
+                          >
+                            <span>{ing.name}</span>
+                            <span className="text-[10px] text-zinc-500">
+                              ({ing.currentStock} {ing.unit})
+                            </span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </ScrollArea>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -716,6 +1103,7 @@ export function Inventory() {
   const [generatingPOId, setGeneratingPOId] = useState<string | null>(null);
   const [lowStockPanelOpen, setLowStockPanelOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('stock');
+  const [addProductDialogOpen, setAddProductDialogOpen] = useState(false);
 
   /* Data Fetching */
   const { data: inventoryData, isLoading: inventoryLoading } = useQuery({
@@ -759,6 +1147,7 @@ export function Inventory() {
   const ingredients = inventoryData?.ingredients || [];
   const lowStockItems = inventoryData?.lowStock || [];
   const totalValue = inventoryData?.totalValue || 0;
+  const vendors = (inventoryData as any)?.vendors || [];
   const weekWastageValue = wastageData?.weekWastageValue || 0;
   const purchaseOrders = poData?.purchaseOrders || [];
   const activePOs = purchaseOrders.filter((po) =>
@@ -780,19 +1169,194 @@ export function Inventory() {
     setEditDialogOpen(true);
   }, []);
 
-  const handleSaveStock = useCallback(async (id: string, newStock: number) => {
+  const handleSaveStock = useCallback(async (id: string, data: any) => {
     try {
       const res = await fetch('/api/inventory', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, currentStock: newStock, reason: 'ADJUSTMENT' }),
+        body: JSON.stringify({ id, ...data }),
       });
       if (res.ok) {
         queryClient.invalidateQueries({ queryKey: ['inventory'] });
         toast({ title: t.inventory.stockUpdated });
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast({ title: t.common.error, description: err.error || t.inventory.failedToUpdateStock, variant: 'destructive' });
       }
     } catch {
       toast({ title: t.common.error, description: t.inventory.failedToUpdateStock, variant: 'destructive' });
+    }
+  }, [queryClient, toast, t]);
+
+  const handlePrintShoppingList = useCallback(() => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast({
+        title: t.inventory.popupBlockedTitle,
+        description: t.inventory.popupBlockedDesc,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const lowStockList = ingredients.filter(i => i.currentStock <= i.minStock);
+
+    const html = `
+      <html>
+        <head>
+          <title>${t.auth.restaurantName} - ${t.inventory.shoppingList}</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+              color: #18181b;
+              padding: 40px;
+              margin: 0;
+            }
+            .header {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              border-bottom: 2px solid #e4e4e7;
+              padding-bottom: 20px;
+              margin-bottom: 30px;
+            }
+            h1 {
+              margin: 0;
+              font-size: 24px;
+              font-weight: 700;
+              color: #0f172a;
+            }
+            .date {
+              font-size: 14px;
+              color: #71717a;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 30px;
+            }
+            th {
+              text-align: left;
+              padding: 12px 8px;
+              border-bottom: 2px solid #e4e4e7;
+              color: #71717a;
+              font-size: 12px;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+            }
+            td {
+              padding: 14px 8px;
+              border-bottom: 1px solid #f4f4f5;
+              font-size: 14px;
+            }
+            .item-name {
+              font-weight: 600;
+              color: #0f172a;
+            }
+            .number {
+              font-family: monospace;
+              font-size: 13px;
+            }
+            .reorder-qty {
+              font-weight: 700;
+              color: #059669;
+            }
+            .footer {
+              margin-top: 50px;
+              border-top: 1px solid #e4e4e7;
+              padding-top: 20px;
+              font-size: 12px;
+              color: #a1a1aa;
+              display: flex;
+              justify-content: space-between;
+            }
+            @media print {
+              body { padding: 20px 0; }
+              button { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <h1>${t.auth.restaurantName} - ${t.inventory.shoppingList}</h1>
+              <div class="date">${t.inventory.generatedOn} ${new Date().toLocaleString()}</div>
+            </div>
+            <div style="font-size: 14px; font-weight: 600; color: #e11d48; background: #ffe4e6; padding: 6px 12px; border-radius: 9999px;">
+              ${lowStockList.length} ${t.inventory.itemsLowInStock}
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>${t.inventory.ingredientProduct}</th>
+                <th>${t.inventory.category}</th>
+                <th>${t.inventory.currentStock}</th>
+                <th>${t.inventory.maxLevelTarget}</th>
+                <th style="text-align: right;">${t.inventory.suggestedReorder}</th>
+                <th>${t.inventory.vendorLabel}</th>
+                <th style="text-align: right;">${t.inventory.estCost}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${lowStockList.map(item => {
+                const reorderQty = Math.max(0, item.maxStock - item.currentStock);
+                const estCost = reorderQty * item.costPerUnit;
+                return `
+                  <tr>
+                    <td>
+                      <div class="item-name">${item.name}</div>
+                    </td>
+                    <td>${item.category ? getCategoryLabel(item.category, t) : t.inventory.other}</td>
+                    <td class="number">${item.currentStock} ${item.unit}</td>
+                    <td class="number">${item.maxStock} ${item.unit}</td>
+                    <td class="number reorder-qty" style="text-align: right;">${reorderQty.toFixed(1)} ${item.unit}</td>
+                    <td>${item.vendor?.name || '—'}</td>
+                    <td class="number" style="text-align: right; font-weight: 600;">
+                      ${estCost > 0 ? fmtCur(estCost) : '—'}
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+
+          <div class="footer">
+            <span>${t.inventory.totalEstRestockValue}: ${fmtCur(lowStockList.reduce((sum, item) => sum + (Math.max(0, item.maxStock - item.currentStock) * item.costPerUnit), 0))}</span>
+            <span>${t.auth.restaurantName} CRM & Operations Management</span>
+          </div>
+
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(function() { window.close(); }, 500);
+            }
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+  }, [ingredients, toast, t]);
+
+  const handleAddProduct = useCallback(async (data: any) => {
+    try {
+      const res = await fetch('/api/inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) {
+        queryClient.invalidateQueries({ queryKey: ['inventory'] });
+        toast({ title: 'Product Added Successfully' });
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast({ title: t.common.error, description: err.error || 'Failed to add product', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: t.common.error, description: 'Failed to add product', variant: 'destructive' });
     }
   }, [queryClient, toast, t]);
 
@@ -867,7 +1431,7 @@ export function Inventory() {
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="size-5 text-red-400 animate-pulse" />
                   <CardTitle className="text-sm font-semibold text-red-400">
-                    Low Stock Alerts
+                    {t.inventory.lowStockAlerts}
                   </CardTitle>
                   <Badge variant="outline" className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px]">
                     {lowStockItems.length}
@@ -898,7 +1462,7 @@ export function Inventory() {
                             {' / '}{item.minStock} {item.unit}
                           </p>
                           <p className="text-[10px] text-zinc-600">
-                            Suggest reorder: {reorderQty > 0 ? `${reorderQty.toFixed(1)} ${item.unit}` : '—'}
+                            {t.inventory.suggestReorder}: {reorderQty > 0 ? `${reorderQty.toFixed(1)} ${item.unit}` : '—'}
                           </p>
                         </div>
                         <Button
@@ -930,15 +1494,15 @@ export function Inventory() {
         <TabsList className="bg-zinc-900 border border-zinc-800 h-10">
           <TabsTrigger value="stock" className="data-[state=active]:bg-emerald-600/20 data-[state=active]:text-emerald-400 text-xs">
             <Package className="size-3.5 mr-1.5" />
-            Stock
+            {t.inventory.stock}
           </TabsTrigger>
           <TabsTrigger value="wastage" className="data-[state=active]:bg-amber-600/20 data-[state=active]:text-amber-400 text-xs">
             <TrendingDown className="size-3.5 mr-1.5" />
-            Wastage
+            {t.inventory.wastage}
           </TabsTrigger>
           <TabsTrigger value="orders" className="data-[state=active]:bg-sky-600/20 data-[state=active]:text-sky-400 text-xs">
             <FileText className="size-3.5 mr-1.5" />
-            Purchase Orders
+            {t.inventory.purchaseOrders}
           </TabsTrigger>
         </TabsList>
 
@@ -949,7 +1513,7 @@ export function Inventory() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-zinc-500" />
               <Input
-                placeholder="Search ingredients..."
+                placeholder={t.inventory.searchIngredients}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 bg-zinc-900 border-zinc-800 text-zinc-200 h-10"
@@ -972,7 +1536,7 @@ export function Inventory() {
                 <SelectContent className="bg-zinc-800 border-zinc-700">
                   {CATEGORIES.map((cat) => (
                     <SelectItem key={cat} value={cat} className="text-zinc-200 focus:bg-zinc-700 focus:text-zinc-100">
-                      {cat === 'ALL' ? 'All Categories' : CATEGORY_LABELS[cat] || cat}
+                      {cat === 'ALL' ? t.inventory.allCategories : getCategoryLabel(cat, t)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -984,7 +1548,7 @@ export function Inventory() {
                 <SelectContent className="bg-zinc-800 border-zinc-700">
                   {STORAGE_LOCATIONS.map((loc) => (
                     <SelectItem key={loc} value={loc} className="text-zinc-200 focus:bg-zinc-700 focus:text-zinc-100">
-                      {loc === 'ALL' ? 'All Locations' : STORAGE_LABELS[loc] || loc}
+                      {loc === 'ALL' ? t.inventory.allLocations : getStorageLabel(loc, t)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1001,7 +1565,25 @@ export function Inventory() {
                 onClick={() => setShowLowStockOnly(!showLowStockOnly)}
               >
                 <AlertTriangle className="size-3.5 mr-1.5" />
-                Low Stock
+                {t.inventory.lowStock}
+              </Button>
+              {lowStockItems.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-10 text-xs shrink-0 border-zinc-800 text-zinc-400 hover:text-emerald-400 hover:border-emerald-500/30 gap-1.5"
+                  onClick={handlePrintShoppingList}
+                >
+                  <Printer className="size-3.5" />
+                  {t.inventory.printList}
+                </Button>
+              )}
+              <Button
+                className="h-10 text-xs shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+                onClick={() => setAddProductDialogOpen(true)}
+              >
+                <Plus className="size-3.5" />
+                {t.inventory.addProduct}
               </Button>
             </div>
           </div>
@@ -1010,12 +1592,12 @@ export function Inventory() {
           <div className="space-y-1.5">
             {/* Desktop header row */}
             <div className="hidden md:grid grid-cols-[2fr_1fr_1fr_1.5fr_0.8fr_0.8fr_1fr_auto] gap-3 items-center px-4 py-2 text-[11px] text-zinc-600 uppercase tracking-wider font-medium">
-              <span>Ingredient</span>
-              <span>Stock Level</span>
-              <span>Cost/Unit</span>
-              <span>Storage</span>
-              <span>Vendor</span>
-              <span></span>
+              <span>{t.inventory.ingredient}</span>
+              <span>{t.inventory.stockLevel}</span>
+              <span>{t.inventory.costPerUnit}</span>
+              <span>{t.inventory.storage}</span>
+              <span>{t.inventory.vendor}</span>
+              <span>{t.inventory.quickAdd}</span>
               <span></span>
               <span></span>
             </div>
@@ -1033,6 +1615,7 @@ export function Inventory() {
                       key={ing.id}
                       ingredient={ing}
                       onEditStock={handleEditStock}
+                      onSaveStock={handleSaveStock}
                     />
                   ))
                 )}
@@ -1119,9 +1702,9 @@ export function Inventory() {
         <TabsContent value="orders" className="mt-4 space-y-3">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-medium text-zinc-300">Purchase Orders</h3>
+              <h3 className="text-sm font-medium text-zinc-300">{t.inventory.purchaseOrders}</h3>
               <p className="text-[11px] text-zinc-600">
-                {purchaseOrders.length} total · {activePOs.length} active
+                {purchaseOrders.length} {t.common.total.toLowerCase()} · {activePOs.length} {t.common.active.toLowerCase()}
               </p>
             </div>
           </div>
@@ -1155,6 +1738,14 @@ export function Inventory() {
           setEditingIngredient(null);
         }}
         onSave={handleSaveStock}
+        vendors={vendors}
+      />
+
+      <AddProductDialog
+        open={addProductDialogOpen}
+        onClose={() => setAddProductDialogOpen(false)}
+        onAdd={handleAddProduct}
+        vendors={vendors}
       />
 
       <LogWastageDialog

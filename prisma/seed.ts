@@ -6,6 +6,8 @@ async function main() {
   console.log('🌱 Seeding database...');
 
   // Clean existing data
+  await prisma.orderItemExtra.deleteMany();
+  await prisma.menuItemExtra.deleteMany();
   await prisma.topSellingItem.deleteMany();
   await prisma.dailySnapshot.deleteMany();
   await prisma.customerVisit.deleteMany();
@@ -174,6 +176,35 @@ async function main() {
     prisma.menuItem.create({ data: { categoryId: categories[6].id, name: 'Mashed Potatoes', description: 'Creamy butter mash with chives', price: 7, cost: 1.5, type: 'SIDE', station: 'KITCHEN', prepTime: 8, allergies: 'dairy' } }),
   ]);
   console.log(`  ✅ Created ${menuItems.length} menu items`);
+
+  // ===== MENU ITEM EXTRAS =====
+  const extras = await Promise.all([
+    // Caesar Salad
+    prisma.menuItemExtra.create({ data: { menuItemId: menuItems[0].id, name: 'Extra Chicken', price: 5.0, cost: 1.5 } }),
+    prisma.menuItemExtra.create({ data: { menuItemId: menuItems[0].id, name: 'Extra Prawns', price: 7.0, cost: 2.5 } }),
+    prisma.menuItemExtra.create({ data: { menuItemId: menuItems[0].id, name: 'Extra Bacon', price: 2.0, cost: 0.5 } }),
+
+    // Grilled Ribeye
+    prisma.menuItemExtra.create({ data: { menuItemId: menuItems[4].id, name: 'Truffle Butter', price: 2.50, cost: 0.8 } }),
+    prisma.menuItemExtra.create({ data: { menuItemId: menuItems[4].id, name: 'Extra Sauce', price: 1.50, cost: 0.3 } }),
+
+    // Spaghetti Carbonara
+    prisma.menuItemExtra.create({ data: { menuItemId: menuItems[7].id, name: 'Extra Guanciale', price: 3.50, cost: 1.0 } }),
+    prisma.menuItemExtra.create({ data: { menuItemId: menuItems[7].id, name: 'Gluten-Free Pasta', price: 2.0, cost: 0.5 } }),
+
+    // Classic Mojito
+    prisma.menuItemExtra.create({ data: { menuItemId: menuItems[13].id, name: 'Extra Rum', price: 4.0, cost: 1.0 } }),
+    prisma.menuItemExtra.create({ data: { menuItemId: menuItems[13].id, name: 'Extra Mint', price: 0.5, cost: 0.1 } }),
+    prisma.menuItemExtra.create({ data: { menuItemId: menuItems[13].id, name: 'Extra Lime', price: 0.5, cost: 0.1 } }),
+
+    // Espresso
+    prisma.menuItemExtra.create({ data: { menuItemId: menuItems[22].id, name: 'Double Shot', price: 1.5, cost: 0.3 } }),
+    prisma.menuItemExtra.create({ data: { menuItemId: menuItems[22].id, name: 'Oat Milk', price: 0.8, cost: 0.2 } }),
+    prisma.menuItemExtra.create({ data: { menuItemId: menuItems[22].id, name: 'Almond Milk', price: 0.8, cost: 0.2 } }),
+    prisma.menuItemExtra.create({ data: { menuItemId: menuItems[22].id, name: 'Vanilla Syrup', price: 0.5, cost: 0.1 } }),
+    prisma.menuItemExtra.create({ data: { menuItemId: menuItems[22].id, name: 'Caramel Syrup', price: 0.5, cost: 0.1 } }),
+  ]);
+  console.log(`  ✅ Created ${extras.length} menu item extras`);
 
   // ===== RECIPE ITEMS (Ingredient mapping) =====
   const recipeItems = await Promise.all([
