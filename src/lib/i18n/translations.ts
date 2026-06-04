@@ -47,6 +47,9 @@ export interface Translations {
     details: string;
     updating: string;
     noResults: string;
+    none: string;
+    add: string;
+    per: string;
   };
 
   // ─── Auth / Role Selection ───
@@ -78,6 +81,8 @@ export interface Translations {
     inventory: string;
     staff: string;
     crm: string;
+    transactions: string;
+    settings: string;
   };
 
   // ─── Dashboard ───
@@ -106,8 +111,24 @@ export interface Translations {
     allStockOk: string;
     loadingDashboard: string;
     failedToLoad: string;
-    revenue: string;
+        revenue: string;
     qtySold: string;
+    resetShift: string;
+    clearShiftOperations: string;
+    clearAllData: string;
+    dailyCheckMonitor: string;
+    todaysSales: string;
+    cashPayments: string;
+    cardPayments: string;
+    creditPayments: string;
+    avgCheckSize: string;
+    activeServedChecks: string;
+    tableTallies: string;
+    serverSales: string;
+    noActiveTablesToday: string;
+    noServerRecordsToday: string;
+    serviceNotStartedYet: string;
+    noMatchingOrdersFound: string;
   };
 
   // ─── Floor Plan ───
@@ -174,6 +195,9 @@ export interface Translations {
     quickAssignServer: string;
     seatsShort: string;
     maxSeats: string;
+    editLayout: string;
+    doneEditing: string;
+    clickEditLayoutToMove: string;
   };
 
   // ─── POS ───
@@ -222,7 +246,46 @@ export interface Translations {
     orderFailed: string;
     stationKitchen: string;
     stationBar: string;
-    editOrderBtn: string;
+        editOrderBtn: string;
+    settleBill: string;
+    payBill: string;
+    selectPaymentMethod: string;
+    cash: string;
+    card: string;
+    credit: string;
+    paymentProcessing: string;
+    paymentSuccessful: string;
+    paymentFailed: string;
+    checkPaidClosed: string;
+    authorizeStoreCredit: string;
+    allowedCreditDesc: string;
+    creditApproved: string;
+    creditApprovedDesc: string;
+    creditDenied: string;
+    creditDeniedDesc: string;
+    searchSelectGuest: string;
+    blocked: string;
+    selectCustomerCredit: string;
+    creditNotAllowed: string;
+    customerGuest: string;
+    noCustomerAssigned: string;
+    manageMenu: string;
+    category_Starters: string;
+    category_Mains: string;
+    category_Desserts: string;
+    category_Cocktails: string;
+    category_Beer_and_Wine: string;
+    category_Non_Alcoholic: string;
+    category_Sides: string;
+    sortBy: string;
+    popularity: string;
+    sortName: string;
+    sortPriceLow: string;
+    sortPriceHigh: string;
+    menuManagement: string;
+    menuManagementDesc: string;
+    addNewDish: string;
+    itemsCountLabel: string;
   };
 
   // ─── KDS ───
@@ -241,6 +304,63 @@ export interface Translations {
     elapsed: string;
     minutes: string;
     seconds: string;
+    activeTickets: string;
+    kanbanBoard: string;
+    queued: string;
+    preparing: string;
+    ready: string;
+    itemReadyAlert: string;
+    produced: string;
+    today: string;
+    week: string;
+    month: string;
+    productionDetails: string;
+    preparedItems: string;
+    chronologicalLog: string;
+    groupedSummary: string;
+    item: string;
+    qty: string;
+    station: string;
+    preparedTime: string;
+    searchItems: string;
+    noItemsPrepared: string;
+  };
+
+  // ─── Transactions Ledger ───
+  transactions: {
+    title: string;
+    subtitle: string;
+    inflow: string;
+    outflow: string;
+    netProfit: string;
+    labor: string;
+    searchPlaceholder: string;
+    all: string;
+    inflows: string;
+    outflows: string;
+    category: string;
+    amount: string;
+    operator: string;
+    date: string;
+    noTransactions: string;
+    details: string;
+    poDetails: string;
+    wastageDetails: string;
+    saleDetails: string;
+    day: string;
+    week: string;
+    month: string;
+    taxSummary: string;
+    vatReceived: string;
+    vatExpected: string;
+    vatPaid: string;
+    netVat: string;
+    vatReceivedDesc: string;
+    vatExpectedDesc: string;
+    vatPaidDesc: string;
+    netVatDesc: string;
+    vatOwedToTaxMan: string;
+    vatReclaimable: string;
   };
 
   // ─── Reservations ───
@@ -267,6 +387,34 @@ export interface Translations {
     todayReservations: string;
     upcomingReservations: string;
     pastReservations: string;
+    availableTables: string;
+    noTablesAvailable: string;
+    tablesOverview: string;
+    noReservationsToday: string;
+    createResOrCreateWalkIn: string;
+    noGuestsWaitlist: string;
+    addWalkInGetStarted: string;
+    crmLookup: string;
+    searchCrmPlaceholder: string;
+    specialRequestsPlaceholder: string;
+    seatGuest: string;
+    assignTable: string;
+    selectTablePlaceholder: string;
+    noTableAssigned: string;
+    waitMinutes: string;
+    now: string;
+    successRefreshed: string;
+    successSeated: string;
+    errorSeated: string;
+    successCancelled: string;
+    errorCancelled: string;
+    successNoShow: string;
+    errorNoShow: string;
+    successWaitlistAdded: string;
+    errorWaitlistAdded: string;
+    successCreated: string;
+    errorCreated: string;
+    smsNotified: string;
   };
 
   // ─── Inventory ───
@@ -328,6 +476,34 @@ export interface Translations {
     draftPOCreated: string;
     failedToCreatePO: string;
     noVendorAssigned: string;
+    addProduct: string;
+    addNewProduct: string;
+    createProductDesc: string;
+    editProductStock: string;
+    configureThresholds: string;
+    productInfo: string;
+    productName: string;
+    unitLabel: string;
+    category: string;
+    storageLocation: string;
+    vendorLabel: string;
+    stockCostLevels: string;
+    addToStock: string;
+    minLevelAlert: string;
+    maxLevelTarget: string;
+    costPerUnitLabel: string;
+    printList: string;
+    saveChanges: string;
+    quickAdd: string;
+    shoppingList: string;
+    generatedOn: string;
+    itemsLowInStock: string;
+    ingredientProduct: string;
+    suggestedReorder: string;
+    estCost: string;
+    totalEstRestockValue: string;
+    popupBlockedTitle: string;
+    popupBlockedDesc: string;
   };
 
   // ─── Staff ───
@@ -354,6 +530,33 @@ export interface Translations {
     hoursWorked: string;
     hourlyRate: string;
     noStaffOnShift: string;
+    deleteShift: string;
+    confirmDeleteShift: string;
+    shiftDeleted: string;
+    errorDeleteShift: string;
+    shiftAssigned: string;
+    shiftUpdated: string;
+    errorSaveShift: string;
+    editShiftAssignment: string;
+    assignShift: string;
+    staffMember: string;
+    shiftTemplate: string;
+    selectTemplate: string;
+    startTimeOverride: string;
+    endTimeOverride: string;
+    positionRole: string;
+    additionalInstructions: string;
+    noShiftsScheduled: string;
+    assignFirstShift: string;
+    shift: string;
+    shifts: string;
+    requiredFieldsError: string;
+    positionServer: string;
+    positionBartender: string;
+    positionChef: string;
+    positionHost: string;
+    positionManager: string;
+    positionBusboy: string;
   };
 
   // ─── CRM ───
@@ -374,9 +577,62 @@ export interface Translations {
     totalSpent: string;
     noGuestsFound: string;
     searchGuests: string;
+    firstName: string;
+    lastName: string;
+    birthday: string;
+    marketingOptIn: string;
+    addCustomer: string;
+    addNewCustomer: string;
+    addNewCustomerDesc: string;
+    nameRequired: string;
+    errorCreateCustomer: string;
+    filterByTier: string;
+    tier: string;
+    contactInfo: string;
+    loyaltyProgram: string;
+    progressTo: string;
+    pointsTo: string;
+    addPoints: string;
+    sendMarketingEmail: string;
+    pointsAdded: string;
+    creditAuthorized: string;
+    creditRevoked: string;
+    errorLoadCustomers: string;
+    memberSince: string;
+    allergiesPlaceholder: string;
+    marketingEmailAlert: string;
+    noEmailOnFile: string;
+    errorAddPoints: string;
+    errorUpdateCredit: string;
   };
 
-  // ─── Footer ───
+  // ─── Settings ───
+
+  settings: {
+    title: string;
+    dataManagement: string;
+    dangerZone: string;
+    clearDatabase: string;
+    clearDatabaseDesc: string;
+    backupDatabase: string;
+    backupDatabaseDesc: string;
+    confirmClearTitle: string;
+    confirmClearDesc: string;
+    clearSuccess: string;
+    clearFailed: string;
+    backupSuccess: string;
+    backupFailed: string;
+    restoreDatabase: string;
+    restoreSuccess: string;
+    restoreFailed: string;
+    localization: string;
+    localizationDesc: string;
+    language: string;
+    customTaxRate: string;
+    resetToDefault: string;
+  };
+
+
   footer: {
     copyright: string;
     version: string;
@@ -430,6 +686,9 @@ export const enGB: Translations = {
     details: 'Details',
     updating: 'Updating...',
     noResults: 'No results found',
+    none: 'None',
+    add: 'Add',
+    per: 'per',
   },
   auth: {
     restaurantName: 'The Gilded Fork',
@@ -455,6 +714,8 @@ export const enGB: Translations = {
     inventory: 'Inventory',
     staff: 'Staff / Rota',
     crm: 'CRM / Guests',
+    transactions: 'Transactions',
+    settings: 'Settings',
   },
   dashboard: {
     title: 'Dashboard',
@@ -481,8 +742,24 @@ export const enGB: Translations = {
     allStockOk: 'All stock levels OK',
     loadingDashboard: 'Loading dashboard...',
     failedToLoad: 'Failed to load dashboard',
-    revenue: 'Revenue',
+        revenue: 'Revenue',
     qtySold: 'Qty Sold',
+    resetShift: 'Reset Shift',
+    clearShiftOperations: 'Clear Shift Operations?',
+    clearAllData: 'Clear All Data',
+    dailyCheckMonitor: 'Daily Check Monitor',
+    todaysSales: "Today's Sales",
+    cashPayments: 'Cash Payments',
+    cardPayments: 'Card Payments',
+    creditPayments: 'Credit Payments',
+    avgCheckSize: 'Avg Check Size',
+    activeServedChecks: 'Active & Served Checks',
+    tableTallies: 'Table Tallies',
+    serverSales: 'Server Sales',
+    noActiveTablesToday: 'No active tables today',
+    noServerRecordsToday: 'No server records today',
+    serviceNotStartedYet: 'Service has not started yet',
+    noMatchingOrdersFound: 'No matching orders found',
   },
   floorPlan: {
     title: 'Floor Plan',
@@ -543,6 +820,9 @@ export const enGB: Translations = {
     quickAssignServer: 'Server',
     seatsShort: 'seats',
     maxSeats: 'Max 20 seats',
+    editLayout: 'Edit Layout',
+    doneEditing: 'Done Editing',
+    clickEditLayoutToMove: 'Click "Edit Layout" to reposition tables',
   },
   pos: {
     newOrder: 'New Order',
@@ -584,7 +864,46 @@ export const enGB: Translations = {
     orderFailed: 'Failed to create order',
     stationKitchen: 'KITCHEN',
     stationBar: 'BAR',
-    editOrderBtn: 'Edit Order',
+        editOrderBtn: 'Edit Order',
+    settleBill: 'Settle Bill',
+    payBill: 'Pay Bill',
+    selectPaymentMethod: 'Select Payment Method',
+    cash: 'Cash',
+    card: 'Card',
+    credit: 'Credit',
+    paymentProcessing: 'Processing payment...',
+    paymentSuccessful: 'Payment successful. Table cleared.',
+    paymentFailed: 'Payment transaction failed',
+    checkPaidClosed: 'Check successfully paid & closed',
+    authorizeStoreCredit: 'Authorize Store Credit',
+    allowedCreditDesc: 'Allows guest to charge bills to store credit account.',
+    creditApproved: 'Credit Authorization Approved',
+    creditApprovedDesc: 'Manually authorized customer is cleared for store credit.',
+    creditDenied: 'Authorization Denied',
+    creditDeniedDesc: 'Store credit requires explicit manager authorization override.',
+    searchSelectGuest: 'Search or select guest...',
+    blocked: 'Blocked',
+    selectCustomerCredit: 'Please select a customer to apply credit.',
+    creditNotAllowed: 'Selected customer is not authorized by management to use store credit.',
+    customerGuest: 'Customer / Guest',
+    noCustomerAssigned: 'Walk-in / No Customer',
+    manageMenu: 'Manage Menu',
+    category_Starters: 'Starters',
+    category_Mains: 'Mains',
+    category_Desserts: 'Desserts',
+    category_Cocktails: 'Cocktails',
+    category_Beer_and_Wine: 'Beer & Wine',
+    category_Non_Alcoholic: 'Non-Alcoholic',
+    category_Sides: 'Sides',
+    sortBy: 'Sort by',
+    popularity: 'Popularity',
+    sortName: 'Name (A-Z)',
+    sortPriceLow: 'Price: Low-High',
+    sortPriceHigh: 'Price: High-Low',
+    menuManagement: 'Menu Management',
+    menuManagementDesc: 'Create, edit, or remove dishes from the digital restaurant menu.',
+    addNewDish: 'Add New Dish',
+    itemsCountLabel: 'items',
   },
   kds: {
     title: 'Kitchen / Bar Display',
@@ -601,6 +920,61 @@ export const enGB: Translations = {
     elapsed: 'elapsed',
     minutes: 'min',
     seconds: 's',
+    activeTickets: 'Active Tickets',
+    kanbanBoard: 'Kanban Board',
+    queued: 'Queued',
+    preparing: 'Preparing',
+    ready: 'Ready',
+    itemReadyAlert: 'Dish is ready for pickup!',
+    produced: 'Produced',
+    today: 'Today',
+    week: 'This Week',
+    month: 'This Month',
+    productionDetails: 'Production Details',
+    preparedItems: 'Prepared Dishes & Drinks',
+    chronologicalLog: 'Chronological Log',
+    groupedSummary: 'Grouped Summary',
+    item: 'Item',
+    qty: 'Qty',
+    station: 'Station',
+    preparedTime: 'Prepared Time',
+    searchItems: 'Search items...',
+    noItemsPrepared: 'No items prepared in this period',
+  },
+  transactions: {
+    title: 'Transactions Ledger',
+    subtitle: 'Manage and audit all financial inflows and outflows',
+    inflow: 'Inflow (Sales)',
+    outflow: 'Outflow (Expenses)',
+    netProfit: 'Net Profit/Loss',
+    labor: 'Labor Cost',
+    searchPlaceholder: 'Search by ID, customer, vendor, operator...',
+    all: 'All Transactions',
+    inflows: 'Inflows Only',
+    outflows: 'Outflows Only',
+    category: 'Category',
+    amount: 'Amount',
+    operator: 'Operator',
+    date: 'Date & Time',
+    noTransactions: 'No transactions found in this period',
+    details: 'Transaction Details',
+    poDetails: 'Purchase Order Details',
+    wastageDetails: 'Wastage Details',
+    saleDetails: 'Sale Details',
+    day: 'Today',
+    week: 'This Week',
+    month: 'This Month',
+    taxSummary: 'Tax & VAT Summary',
+    vatReceived: 'VAT Received (Paid Sales)',
+    vatExpected: 'VAT Accrued (Total Sales)',
+    vatPaid: 'Estimated VAT Paid (Purchases)',
+    netVat: 'Net VAT Position',
+    vatReceivedDesc: 'Actual VAT collected from settled orders',
+    vatExpectedDesc: 'Total VAT generated on all sales (accrued)',
+    vatPaidDesc: 'Estimated VAT paid on inventory purchases',
+    netVatDesc: 'Net VAT balance (VAT Received - VAT Paid)',
+    vatOwedToTaxMan: 'Owed to Tax Man',
+    vatReclaimable: 'Tax Reclaimable',
   },
   reservations: {
     title: 'Reservations',
@@ -625,6 +999,34 @@ export const enGB: Translations = {
     todayReservations: "Today's Reservations",
     upcomingReservations: 'Upcoming',
     pastReservations: 'Past',
+    availableTables: 'Available Tables',
+    noTablesAvailable: 'No tables available',
+    tablesOverview: 'Tables Seating Overview',
+    noReservationsToday: 'No reservations for today',
+    createResOrCreateWalkIn: 'Create a new reservation or add a walk-in guest',
+    noGuestsWaitlist: 'No guests on the waitlist',
+    addWalkInGetStarted: 'Add a walk-in guest to get started',
+    crmLookup: 'CRM Lookup (optional)',
+    searchCrmPlaceholder: 'Search by name, email, or phone...',
+    specialRequestsPlaceholder: 'Special requests, allergies, celebrations...',
+    seatGuest: 'Seat Guest',
+    assignTable: 'Assign Table',
+    selectTablePlaceholder: 'Select a table',
+    noTableAssigned: 'No table assigned',
+    waitMinutes: 'wait',
+    now: 'NOW',
+    successRefreshed: 'Reservations refreshed',
+    successSeated: 'Guest seated successfully',
+    errorSeated: 'Failed to seat guest',
+    successCancelled: 'Reservation cancelled',
+    errorCancelled: 'Failed to cancel reservation',
+    successNoShow: 'Guest marked as no-show',
+    errorNoShow: 'Failed to update reservation',
+    successWaitlistAdded: 'Guest added to waitlist',
+    errorWaitlistAdded: 'Failed to add walk-in guest',
+    successCreated: 'Reservation created successfully',
+    errorCreated: 'Failed to create reservation',
+    smsNotified: 'SMS notification sent',
   },
   inventory: {
     title: 'Inventory',
@@ -681,6 +1083,34 @@ export const enGB: Translations = {
     draftPOCreated: 'Draft PO created',
     failedToCreatePO: 'Failed to create purchase order',
     noVendorAssigned: 'No vendor assigned for this ingredient',
+    addProduct: 'Add Product',
+    addNewProduct: 'Add New Product',
+    createProductDesc: 'Create a new inventory item and set its default levels.',
+    editProductStock: 'Edit Product & Stock Levels',
+    configureThresholds: 'Configure thresholds, vendor, and levels',
+    productInfo: 'Product Info',
+    productName: 'Product Name',
+    unitLabel: 'Unit (e.g. KG, L, UNIT)',
+    category: 'Category',
+    storageLocation: 'Storage Location',
+    vendorLabel: 'Vendor',
+    stockCostLevels: 'Stock & Cost Levels',
+    addToStock: 'Add to Stock (Restock)',
+    minLevelAlert: 'Min Level',
+    maxLevelTarget: 'Max Level',
+    costPerUnitLabel: 'Cost per Unit',
+    printList: 'Print List',
+    saveChanges: 'Save Changes',
+    quickAdd: 'Quick Add',
+    shoppingList: 'Shopping List',
+    generatedOn: 'Generated on',
+    itemsLowInStock: 'Items Low in Stock',
+    ingredientProduct: 'Ingredient / Product',
+    suggestedReorder: 'Suggested Reorder',
+    estCost: 'Est. Cost',
+    totalEstRestockValue: 'Total Estimated Restock Value',
+    popupBlockedTitle: 'Pop-up Blocked',
+    popupBlockedDesc: 'Please allow pop-ups to print the shopping list.',
   },
   staff: {
     title: 'Staff / Rota',
@@ -705,6 +1135,33 @@ export const enGB: Translations = {
     hoursWorked: 'Hours Worked',
     hourlyRate: 'Hourly Rate',
     noStaffOnShift: 'No staff on shift',
+    deleteShift: 'Delete Shift',
+    confirmDeleteShift: 'Are you sure you want to delete this shift assignment?',
+    shiftDeleted: 'Shift deleted successfully.',
+    errorDeleteShift: 'Failed to delete shift.',
+    shiftAssigned: 'Shift assigned successfully.',
+    shiftUpdated: 'Shift updated successfully.',
+    errorSaveShift: 'Failed to save shift.',
+    editShiftAssignment: 'Edit Shift Assignment',
+    assignShift: 'Assign Shift',
+    staffMember: 'Staff Member',
+    shiftTemplate: 'Shift Template',
+    selectTemplate: 'Select a Template',
+    startTimeOverride: 'Start Time Override',
+    endTimeOverride: 'End Time Override',
+    positionRole: 'Position / Role',
+    additionalInstructions: 'Additional instructions...',
+    noShiftsScheduled: 'No shifts scheduled for this date.',
+    assignFirstShift: 'Assign First Shift',
+    shift: 'shift',
+    shifts: 'shifts',
+    requiredFieldsError: 'Please fill in all required fields.',
+    positionServer: 'Server',
+    positionBartender: 'Bartender',
+    positionChef: 'Chef',
+    positionHost: 'Host',
+    positionManager: 'Manager',
+    positionBusboy: 'Busboy',
   },
   crm: {
     title: 'CRM / Guests',
@@ -723,6 +1180,56 @@ export const enGB: Translations = {
     totalSpent: 'Total Spent',
     noGuestsFound: 'No guests found',
     searchGuests: 'Search guests...',
+    firstName: 'First Name',
+    lastName: 'Last Name',
+    birthday: 'Birthday',
+    marketingOptIn: 'Marketing opt-in',
+    addCustomer: 'Add Customer',
+    addNewCustomer: 'Add New Customer',
+    addNewCustomerDesc: 'Add a new guest to the CRM system.',
+    nameRequired: 'First name and last name are required.',
+    errorCreateCustomer: 'Failed to create customer',
+    filterByTier: 'Filter by tier',
+    tier: 'Tier',
+    contactInfo: 'Contact Info',
+    loyaltyProgram: 'Loyalty Program',
+    progressTo: 'Progress to',
+    pointsTo: 'points to',
+    addPoints: 'Add Points',
+    sendMarketingEmail: 'Send Marketing Email',
+    pointsAdded: 'Points added to customer',
+    creditAuthorized: 'Store credit authorized for guest',
+    creditRevoked: 'Store credit revoked for guest',
+    errorLoadCustomers: 'Failed to load customers',
+    memberSince: 'Member since',
+    allergiesPlaceholder: 'nuts, gluten (comma-separated)',
+    marketingEmailAlert: 'Marketing email would be sent to',
+    noEmailOnFile: 'no email on file',
+    errorAddPoints: 'Failed to add points',
+    errorUpdateCredit: 'Failed to update credit authorization',
+  },
+  settings: {
+    title: 'Settings',
+    dataManagement: 'Data Management',
+    dangerZone: 'Danger Zone',
+    clearDatabase: 'Clear Database',
+    clearDatabaseDesc: 'Wipes all orders, transactions, and customers. Keeps menu and staff.',
+    backupDatabase: 'Backup Database',
+    backupDatabaseDesc: 'Download a copy of the database before making changes.',
+    confirmClearTitle: 'Are you absolutely sure?',
+    confirmClearDesc: 'This will delete all historical transactional data.',
+    clearSuccess: 'Database cleared successfully.',
+    clearFailed: 'Failed to clear database.',
+    backupSuccess: 'Backup downloaded successfully.',
+    backupFailed: 'Failed to backup database.',
+    restoreDatabase: 'Restore Database',
+    restoreSuccess: 'Database restored successfully.',
+    restoreFailed: 'Failed to restore database.',
+    localization: 'Localization & Tax',
+    localizationDesc: 'Configure your region, language, and override default tax rates.',
+    language: 'Language & Region',
+    customTaxRate: 'Custom Tax Rate (%)',
+    resetToDefault: 'Reset to Default'
   },
   footer: {
     copyright: 'The Gilded Fork',
@@ -777,6 +1284,9 @@ export const ptPT: Translations = {
     details: 'Detalhes',
     updating: 'A atualizar...',
     noResults: 'Sem resultados',
+    none: 'Nenhum',
+    add: 'Adicionar',
+    per: 'por',
   },
   auth: {
     restaurantName: 'The Gilded Fork',
@@ -802,6 +1312,8 @@ export const ptPT: Translations = {
     inventory: 'Inventário',
     staff: 'Pessoal / Escala',
     crm: 'CRM / Clientes',
+    transactions: 'Transações',
+    settings: 'Configurações',
   },
   dashboard: {
     title: 'Painel',
@@ -828,8 +1340,24 @@ export const ptPT: Translations = {
     allStockOk: 'Todos os níveis de stock OK',
     loadingDashboard: 'A carregar painel...',
     failedToLoad: 'Falha ao carregar o painel',
-    revenue: 'Receita',
+        revenue: 'Receita',
     qtySold: 'Qtd Vendida',
+    resetShift: 'Reiniciar Turno',
+    clearShiftOperations: 'Limpar Operações do Turno?',
+    clearAllData: 'Limpar Todos os Dados',
+    dailyCheckMonitor: 'Monitor de Pedidos Diários',
+    todaysSales: "Vendas de Hoje",
+    cashPayments: 'Pagamentos em Dinheiro',
+    cardPayments: 'Pagamentos com Cartão',
+    creditPayments: 'Pagamentos a Crédito',
+    avgCheckSize: 'Valor Médio por Pedido',
+    activeServedChecks: 'Pedidos Ativos e Servidos',
+    tableTallies: 'Totais de Mesas',
+    serverSales: 'Vendas por Empregado',
+    noActiveTablesToday: 'Sem mesas ativas hoje',
+    noServerRecordsToday: 'Sem registos de empregados hoje',
+    serviceNotStartedYet: 'O serviço ainda não começou',
+    noMatchingOrdersFound: 'Nenhum pedido correspondente encontrado',
   },
   floorPlan: {
     title: 'Planta',
@@ -890,6 +1418,9 @@ export const ptPT: Translations = {
     quickAssignServer: 'Empregado',
     seatsShort: 'lug.',
     maxSeats: 'Máx. 20 lugares',
+    editLayout: 'Editar Planta',
+    doneEditing: 'Concluído',
+    clickEditLayoutToMove: 'Clique em "Editar Planta" para reposicionar',
   },
   pos: {
     newOrder: 'Novo Pedido',
@@ -931,7 +1462,46 @@ export const ptPT: Translations = {
     orderFailed: 'Falha ao criar pedido',
     stationKitchen: 'COZINHA',
     stationBar: 'BAR',
-    editOrderBtn: 'Editar Pedido',
+        editOrderBtn: 'Editar Pedido',
+    settleBill: 'Fechar Conta',
+    payBill: 'Pagar Conta',
+    selectPaymentMethod: 'Selecionar Método de Pagamento',
+    cash: 'Numerário',
+    card: 'Cartão',
+    credit: 'Crédito',
+    paymentProcessing: 'A processar pagamento...',
+    paymentSuccessful: 'Pagamento concluído. Mesa livre.',
+    paymentFailed: 'A transação de pagamento falhou',
+    checkPaidClosed: 'Conta paga e fechada com sucesso',
+    authorizeStoreCredit: 'Autorizar Crédito da Loja',
+    allowedCreditDesc: 'Permite que o cliente debite contas na sua conta de crédito.',
+    creditApproved: 'Autorização de Crédito Aprovada',
+    creditApprovedDesc: 'Cliente autorizado manualmente está liberado para crédito.',
+    creditDenied: 'Autorização Negada',
+    creditDeniedDesc: 'O crédito exige autorização explícita do gerente.',
+    searchSelectGuest: 'Procurar ou selecionar cliente...',
+    blocked: 'Bloqueado',
+    selectCustomerCredit: 'Por favor, selecione um cliente para aplicar o crédito.',
+    creditNotAllowed: 'O cliente selecionado não tem autorização da gerência para usar crédito.',
+    customerGuest: 'Cliente / Convidado',
+    noCustomerAssigned: 'Cliente de passagem / Não Atribuído',
+    manageMenu: 'Gerenciar Menu',
+    category_Starters: 'Entradas',
+    category_Mains: 'Pratos Principais',
+    category_Desserts: 'Sobremesas',
+    category_Cocktails: 'Cocktails',
+    category_Beer_and_Wine: 'Cerveja e Vinho',
+    category_Non_Alcoholic: 'Bebidas sem Álcool',
+    category_Sides: 'Acompanhamentos',
+    sortBy: 'Ordenar por',
+    popularity: 'Popularidade',
+    sortName: 'Nome (A-Z)',
+    sortPriceLow: 'Preço: Baixo-Alto',
+    sortPriceHigh: 'Preço: Alto-Baixo',
+    menuManagement: 'Gestão de Menu',
+    menuManagementDesc: 'Crie, edite ou remova pratos do menu digital do restaurante.',
+    addNewDish: 'Adicionar Prato',
+    itemsCountLabel: 'itens',
   },
   kds: {
     title: 'Ecrã Cozinha / Bar',
@@ -948,6 +1518,61 @@ export const ptPT: Translations = {
     elapsed: 'decorrido',
     minutes: 'min',
     seconds: 's',
+    activeTickets: 'Fichas Ativas',
+    kanbanBoard: 'Quadro Kanban',
+    queued: 'Na Fila',
+    preparing: 'A Preparar',
+    ready: 'Pronto',
+    itemReadyAlert: 'Prato pronto para servir!',
+    produced: 'Produzido',
+    today: 'Hoje',
+    week: 'Esta Semana',
+    month: 'Este Mês',
+    productionDetails: 'Detalhes de Produção',
+    preparedItems: 'Pratos e Bebidas Preparados',
+    chronologicalLog: 'Registo Cronológico',
+    groupedSummary: 'Resumo Agrupado',
+    item: 'Item',
+    qty: 'Qtd',
+    station: 'Estação',
+    preparedTime: 'Hora de Preparação',
+    searchItems: 'Procurar itens...',
+    noItemsPrepared: 'Nenhum item preparado neste período',
+  },
+  transactions: {
+    title: 'Livro de Transações',
+    subtitle: 'Gerencie e audite todos os fluxos de entrada e saída',
+    inflow: 'Entrada (Vendas)',
+    outflow: 'Saída (Despesas)',
+    netProfit: 'Lucro Líquido',
+    labor: 'Custo de Mão de Obra',
+    searchPlaceholder: 'Buscar por ID, cliente, fornecedor, operador...',
+    all: 'Todas as Transações',
+    inflows: 'Apenas Entradas',
+    outflows: 'Apenas Saídas',
+    category: 'Categoria',
+    amount: 'Valor',
+    operator: 'Operador',
+    date: 'Data e Hora',
+    noTransactions: 'Nenhuma transação encontrada neste período',
+    details: 'Detalhes da Transação',
+    poDetails: 'Detalhes do Pedido de Compra',
+    wastageDetails: 'Detalhes de Desperdício',
+    saleDetails: 'Detalhes da Venda',
+    day: 'Hoje',
+    week: 'Esta Semana',
+    month: 'Este Mês',
+    taxSummary: 'Resumo de Impostos e IVA',
+    vatReceived: 'IVA Recebido (Vendas Pagas)',
+    vatExpected: 'IVA Acumulado (Total de Vendas)',
+    vatPaid: 'IVA Pago Estimado (Compras)',
+    netVat: 'Posição Líquida do IVA',
+    vatReceivedDesc: 'IVA real cobrado de pedidos liquidados',
+    vatExpectedDesc: 'IVA total gerado em todas as vendas (acumulado)',
+    vatPaidDesc: 'IVA estimado pago em compras de inventário',
+    netVatDesc: 'Saldo líquido de IVA (IVA Recebido - IVA Pago)',
+    vatOwedToTaxMan: 'Devido às Finanças',
+    vatReclaimable: 'IVA a Recuperar',
   },
   reservations: {
     title: 'Reservas',
@@ -972,6 +1597,34 @@ export const ptPT: Translations = {
     todayReservations: 'Reservas de Hoje',
     upcomingReservations: 'Próximas',
     pastReservations: 'Passadas',
+    availableTables: 'Mesas Disponíveis',
+    noTablesAvailable: 'Nenhuma mesa disponível',
+    tablesOverview: 'Visão Geral das Mesas',
+    noReservationsToday: 'Sem reservas para hoje',
+    createResOrCreateWalkIn: 'Crie uma nova reserva ou adicione um cliente sem reserva',
+    noGuestsWaitlist: 'Nenhum cliente na lista de espera',
+    addWalkInGetStarted: 'Adicione um cliente sem reserva para começar',
+    crmLookup: 'Pesquisa de CRM (opcional)',
+    searchCrmPlaceholder: 'Pesquisar por nome, email ou telefone...',
+    specialRequestsPlaceholder: 'Pedidos especiais, alergias, celebrações...',
+    seatGuest: 'Sentar Cliente',
+    assignTable: 'Atribuir Mesa',
+    selectTablePlaceholder: 'Selecione uma mesa',
+    noTableAssigned: 'Sem mesa atribuída',
+    waitMinutes: 'espera',
+    now: 'AGORA',
+    successRefreshed: 'Reservas atualizadas',
+    successSeated: 'Cliente sentado com sucesso',
+    errorSeated: 'Falha ao sentar cliente',
+    successCancelled: 'Reserva cancelada',
+    errorCancelled: 'Falha ao cancelar reserva',
+    successNoShow: 'Cliente marcado como não compareceu',
+    errorNoShow: 'Falha ao atualizar reserva',
+    successWaitlistAdded: 'Cliente adicionado à lista de espera',
+    errorWaitlistAdded: 'Falha ao adicionar cliente sem reserva',
+    successCreated: 'Reserva criada com sucesso',
+    errorCreated: 'Falha ao criar reserva',
+    smsNotified: 'Notificação SMS enviada',
   },
   inventory: {
     title: 'Inventário',
@@ -1028,6 +1681,34 @@ export const ptPT: Translations = {
     draftPOCreated: 'Rascunho de EC criado',
     failedToCreatePO: 'Falha ao criar encomenda de compra',
     noVendorAssigned: 'Sem fornecedor atribuído para este ingrediente',
+    addProduct: 'Adicionar Produto',
+    addNewProduct: 'Adicionar Novo Produto',
+    createProductDesc: 'Crie um novo item de inventário e defina os seus níveis padrão.',
+    editProductStock: 'Editar Níveis de Produto e Stock',
+    configureThresholds: 'Configure limites, fornecedor e níveis',
+    productInfo: 'Informações do Produto',
+    productName: 'Nome do Produto',
+    unitLabel: 'Unidade (ex. KG, L, UNID)',
+    category: 'Categoria',
+    storageLocation: 'Local de Armazenamento',
+    vendorLabel: 'Fornecedor',
+    stockCostLevels: 'Níveis de Stock e Custo',
+    addToStock: 'Adicionar ao Stock (Restock)',
+    minLevelAlert: 'Nível Mínimo',
+    maxLevelTarget: 'Nível Máximo',
+    costPerUnitLabel: 'Custo por Unidade',
+    printList: 'Imprimir Lista',
+    saveChanges: 'Guardar Alterações',
+    quickAdd: 'Adicionar Rápido',
+    shoppingList: 'Lista de Compras',
+    generatedOn: 'Gerado em',
+    itemsLowInStock: 'Itens com Stock Baixo',
+    ingredientProduct: 'Ingrediente / Produto',
+    suggestedReorder: 'Reabastecimento Sugerido',
+    estCost: 'Custo Est.',
+    totalEstRestockValue: 'Valor Total Estimado de Reabastecimento',
+    popupBlockedTitle: 'Pop-up Bloqueado',
+    popupBlockedDesc: 'Por favor, permita pop-ups para imprimir a lista de compras.',
   },
   staff: {
     title: 'Pessoal / Escala',
@@ -1052,6 +1733,33 @@ export const ptPT: Translations = {
     hoursWorked: 'Horas Trabalhadas',
     hourlyRate: 'Taxa Horária',
     noStaffOnShift: 'Sem pessoal no turno',
+    deleteShift: 'Eliminar Turno',
+    confirmDeleteShift: 'Tem a certeza de que deseja eliminar esta atribuição de turno?',
+    shiftDeleted: 'Turno eliminado com sucesso.',
+    errorDeleteShift: 'Falha ao eliminar o turno.',
+    shiftAssigned: 'Turno atribuído com sucesso.',
+    shiftUpdated: 'Turno atualizado com sucesso.',
+    errorSaveShift: 'Falha ao salvar o turno.',
+    editShiftAssignment: 'Editar Atribuição de Turno',
+    assignShift: 'Atribuir Turno',
+    staffMember: 'Membro da Equipa',
+    shiftTemplate: 'Modelo de Turno',
+    selectTemplate: 'Selecione um Modelo',
+    startTimeOverride: 'Substituição da Hora de Início',
+    endTimeOverride: 'Substituição da Hora de Fim',
+    positionRole: 'Posição / Função',
+    additionalInstructions: 'Instruções adicionais...',
+    noShiftsScheduled: 'Nenhum turno agendado para esta data.',
+    assignFirstShift: 'Atribuir Primeiro Turno',
+    shift: 'turno',
+    shifts: 'turnos',
+    requiredFieldsError: 'Por favor, preencha todos os campos obrigatórios.',
+    positionServer: 'Empregado de Mesa',
+    positionBartender: 'Barman',
+    positionChef: 'Chef',
+    positionHost: 'Anfitrião',
+    positionManager: 'Gerente',
+    positionBusboy: 'Ajudante de Mesa',
   },
   crm: {
     title: 'CRM / Clientes',
@@ -1070,6 +1778,56 @@ export const ptPT: Translations = {
     totalSpent: 'Total Gasto',
     noGuestsFound: 'Nenhum cliente encontrado',
     searchGuests: 'Pesquisar clientes...',
+    firstName: 'Primeiro Nome',
+    lastName: 'Apelido',
+    birthday: 'Data de Nascimento',
+    marketingOptIn: 'Autorizar marketing',
+    addCustomer: 'Adicionar Cliente',
+    addNewCustomer: 'Adicionar Novo Cliente',
+    addNewCustomerDesc: 'Adicione um novo cliente ao sistema CRM.',
+    nameRequired: 'O primeiro nome e o apelido são obrigatórios.',
+    errorCreateCustomer: 'Falha ao criar cliente',
+    filterByTier: 'Filtrar por nível',
+    tier: 'Nível',
+    contactInfo: 'Informações de Contacto',
+    loyaltyProgram: 'Programa de Fidelização',
+    progressTo: 'Progresso para',
+    pointsTo: 'pontos para',
+    addPoints: 'Adicionar Pontos',
+    sendMarketingEmail: 'Enviar E-mail de Marketing',
+    pointsAdded: 'Pontos adicionados ao cliente',
+    creditAuthorized: 'Crédito de loja autorizado para o cliente',
+    creditRevoked: 'Crédito de loja revogado para o cliente',
+    errorLoadCustomers: 'Falha ao carregar clientes',
+    memberSince: 'Membro desde',
+    allergiesPlaceholder: 'frutos secos, glúten (separados por vírgula)',
+    marketingEmailAlert: 'O e-mail de marketing seria enviado para',
+    noEmailOnFile: 'nenhum e-mail registrado',
+    errorAddPoints: 'Falha ao adicionar pontos',
+    errorUpdateCredit: 'Falha ao atualizar a autorização de crédito',
+  },
+  settings: {
+    title: 'Configurações',
+    dataManagement: 'Gerenciamento de Dados',
+    dangerZone: 'Zona de Perigo',
+    clearDatabase: 'Limpar Banco de Dados',
+    clearDatabaseDesc: 'Limpa todos os pedidos, transações e clientes. Mantém o menu e equipe.',
+    backupDatabase: 'Fazer Backup',
+    backupDatabaseDesc: 'Baixe uma cópia do banco de dados antes de fazer alterações.',
+    confirmClearTitle: 'Você tem certeza absoluta?',
+    confirmClearDesc: 'Isso excluirá todos os dados transacionais históricos.',
+    clearSuccess: 'Banco de dados limpo com sucesso.',
+    clearFailed: 'Falha ao limpar o banco de dados.',
+    backupSuccess: 'Backup baixado com sucesso.',
+    backupFailed: 'Falha ao fazer backup do banco de dados.',
+    restoreDatabase: 'Restaurar Banco de Dados',
+    restoreSuccess: 'Banco de dados restaurado com sucesso.',
+    restoreFailed: 'Falha ao restaurar o banco de dados.',
+    localization: 'Localização e Impostos',
+    localizationDesc: 'Configure sua região, idioma e substitua as taxas de imposto padrão.',
+    language: 'Idioma e Região',
+    customTaxRate: 'Taxa de Imposto Personalizada (%)',
+    resetToDefault: 'Redefinir Padrão'
   },
   footer: {
     copyright: 'The Gilded Fork',
@@ -1124,6 +1882,9 @@ export const frFR: Translations = {
     details: 'Détails',
     updating: 'Mise à jour...',
     noResults: 'Aucun résultat',
+    none: 'Aucun',
+    add: 'Ajouter',
+    per: 'par',
   },
   auth: {
     restaurantName: 'The Gilded Fork',
@@ -1149,6 +1910,8 @@ export const frFR: Translations = {
     inventory: 'Inventaire',
     staff: 'Personnel / Planning',
     crm: 'CRM / Clients',
+    transactions: 'Transactions',
+    settings: 'Paramètres',
   },
   dashboard: {
     title: 'Tableau de Bord',
@@ -1175,8 +1938,24 @@ export const frFR: Translations = {
     allStockOk: 'Tous les niveaux de stock sont OK',
     loadingDashboard: 'Chargement du tableau de bord...',
     failedToLoad: 'Échec du chargement du tableau de bord',
-    revenue: "Chiffre d'affaires",
+        revenue: "Chiffre d'affaires",
     qtySold: 'Qté Vendue',
+    resetShift: 'Réinitialiser le Service',
+    clearShiftOperations: 'Effacer les Opérations du Service ?',
+    clearAllData: 'Effacer Toutes les Données',
+    dailyCheckMonitor: 'Moniteur de Commandes Quotidien',
+    todaysSales: "Ventes du Jour",
+    cashPayments: 'Règlements Espèces',
+    cardPayments: 'Règlements Carte',
+    creditPayments: 'Règlements Crédit',
+    avgCheckSize: 'Panier Moyen',
+    activeServedChecks: 'Commandes Actives et Servies',
+    tableTallies: 'Totaux des Tables',
+    serverSales: 'Ventes par Serveur',
+    noActiveTablesToday: 'Aucune table active aujourd\'hui',
+    noServerRecordsToday: 'Aucun enregistrement de serveur aujourd\'hui',
+    serviceNotStartedYet: 'Le service n\'a pas encore commencé',
+    noMatchingOrdersFound: 'Aucune commande correspondante trouvée',
   },
   floorPlan: {
     title: 'Plan de Salle',
@@ -1237,6 +2016,9 @@ export const frFR: Translations = {
     quickAssignServer: 'Serveur',
     seatsShort: 'pl.',
     maxSeats: 'Max 20 places',
+    editLayout: 'Modifier le Plan',
+    doneEditing: 'Terminé',
+    clickEditLayoutToMove: 'Cliquez sur "Modifier le Plan" pour repositionner',
   },
   pos: {
     newOrder: 'Nouvelle Commande',
@@ -1278,7 +2060,46 @@ export const frFR: Translations = {
     orderFailed: 'Échec de la création de la commande',
     stationKitchen: 'CUISINE',
     stationBar: 'BAR',
-    editOrderBtn: 'Modifier la Commande',
+        editOrderBtn: 'Modifier la Commande',
+    settleBill: 'Régler l\'Addition',
+    payBill: 'Payer',
+    selectPaymentMethod: 'Sélectionner le Mode de Paiement',
+    cash: 'Espèces',
+    card: 'Carte',
+    credit: 'Crédit',
+    paymentProcessing: 'Traitement du paiement en cours...',
+    paymentSuccessful: 'Paiement réussi. Table libérée.',
+    paymentFailed: 'Échec de la transaction de paiement',
+    checkPaidClosed: 'Addition payée et clôturée avec succès',
+    authorizeStoreCredit: 'Autoriser le Crédit Magasin',
+    allowedCreditDesc: 'Permet au client de facturer des additions sur son compte de crédit.',
+    creditApproved: 'Autorisation de Crédit Approuvée',
+    creditApprovedDesc: 'Le client autorisé manuellement est validé pour le crédit magasin.',
+    creditDenied: 'Autorisation Refusée',
+    creditDeniedDesc: 'Le crédit magasin nécessite une autorisation explicite du gérant.',
+    searchSelectGuest: 'Rechercher ou sélectionner un client...',
+    blocked: 'Bloqué',
+    selectCustomerCredit: 'Veuillez sélectionner un client pour appliquer le crédit.',
+    creditNotAllowed: 'Le client sélectionné n\'est pas autorisé par la direction à utiliser le crédit magasin.',
+    customerGuest: 'Client / Invité',
+    noCustomerAssigned: 'Client de passage / Non Attribué',
+    manageMenu: 'Gérer le Menu',
+    category_Starters: 'Entrées',
+    category_Mains: 'Plats Principaux',
+    category_Desserts: 'Desserts',
+    category_Cocktails: 'Cocktails',
+    category_Beer_and_Wine: 'Bière et Vin',
+    category_Non_Alcoholic: 'Bébidas sans Alcool',
+    category_Sides: 'Accompagnements',
+    sortBy: 'Trier par',
+    popularity: 'Popularité',
+    sortName: 'Nom (A-Z)',
+    sortPriceLow: 'Prix: Bas-Élevé',
+    sortPriceHigh: 'Prix: Élevé-Bas',
+    menuManagement: 'Gestion du Menu',
+    menuManagementDesc: 'Créez, modifiez ou supprimez des plats du menu numérique du restaurant.',
+    addNewDish: 'Ajouter un Plat',
+    itemsCountLabel: 'articles',
   },
   kds: {
     title: 'Écran Cuisine / Bar',
@@ -1295,6 +2116,61 @@ export const frFR: Translations = {
     elapsed: 'écoulé',
     minutes: 'min',
     seconds: 's',
+    activeTickets: 'Fiches Actives',
+    kanbanBoard: 'Tableau Kanban',
+    queued: 'En File',
+    preparing: 'En Préparation',
+    ready: 'Prêt',
+    itemReadyAlert: 'Le plat est prêt !',
+    produced: 'Produit',
+    today: 'Aujourd\'hui',
+    week: 'Cette Semaine',
+    month: 'Ce Mois',
+    productionDetails: 'Détails de Production',
+    preparedItems: 'Plats et Boissons Préparés',
+    chronologicalLog: 'Journal Chronologique',
+    groupedSummary: 'Résumé Groupé',
+    item: 'Article',
+    qty: 'Qté',
+    station: 'Station',
+    preparedTime: 'Heure de Préparation',
+    searchItems: 'Rechercher des articles...',
+    noItemsPrepared: 'Aucun article préparé durant cette période',
+  },
+  transactions: {
+    title: 'Livre de Comptes',
+    subtitle: 'Gérer et auditer les entrées et sorties financières',
+    inflow: 'Entrées (Ventes)',
+    outflow: 'Sorties (Dépenses)',
+    netProfit: 'Bénéfice Net',
+    labor: 'Coût de Main-d\'œuvre',
+    searchPlaceholder: 'Rechercher par ID, client, fournisseur, opérateur...',
+    all: 'Toutes les Transactions',
+    inflows: 'Entrées Uniquement',
+    outflows: 'Sorties Uniquement',
+    category: 'Catégorie',
+    amount: 'Montant',
+    operator: 'Opérateur',
+    date: 'Date & Heure',
+    noTransactions: 'Aucune transaction trouvée pour cette période',
+    details: 'Détails de la Transaction',
+    poDetails: 'Détails du Bon de Commande',
+    wastageDetails: 'Détails du Gaspillage',
+    saleDetails: 'Détails de la Vente',
+    day: 'Aujourd\'hui',
+    week: 'Cette Semaine',
+    month: 'Ce Mois',
+    taxSummary: 'Résumé de la TVA et Taxes',
+    vatReceived: 'TVA Collectée (Ventes Payées)',
+    vatExpected: 'TVA Facturée (Total des Ventes)',
+    vatPaid: 'TVA Déductible Estimée (Achats)',
+    netVat: 'Position Nette de TVA',
+    vatReceivedDesc: 'TVA réelle collectée sur les commandes réglées',
+    vatExpectedDesc: 'TVA totale générée sur toutes les ventes (facturée)',
+    vatPaidDesc: 'TVA estimée payée sur les achats de stock',
+    netVatDesc: 'Solde net de TVA (TVA Collectée - TVA Déductible)',
+    vatOwedToTaxMan: 'Dû au Fisc',
+    vatReclaimable: 'Crédit de TVA',
   },
   reservations: {
     title: 'Réservations',
@@ -1319,6 +2195,34 @@ export const frFR: Translations = {
     todayReservations: "Réservations du Jour",
     upcomingReservations: 'À venir',
     pastReservations: 'Passées',
+    availableTables: 'Tables Disponibles',
+    noTablesAvailable: 'Aucune table disponible',
+    tablesOverview: 'Aperçu du Placement des Tables',
+    noReservationsToday: 'Aucune réservation pour aujourd\'hui',
+    createResOrCreateWalkIn: 'Créer une nouvelle réservation ou ajouter un client sans réservation',
+    noGuestsWaitlist: 'Aucun client sur la liste d\'attente',
+    addWalkInGetStarted: 'Ajouter un client sans réservation pour commencer',
+    crmLookup: 'Recherche CRM (optionnel)',
+    searchCrmPlaceholder: 'Rechercher par nom, e-mail ou téléphone...',
+    specialRequestsPlaceholder: 'Demandes spéciales, allergies, célébrations...',
+    seatGuest: 'Installer le Client',
+    assignTable: 'Assigner une Table',
+    selectTablePlaceholder: 'Sélectionner une table',
+    noTableAssigned: 'Aucune table assignée',
+    waitMinutes: 'd\'attente',
+    now: 'MAINTENANT',
+    successRefreshed: 'Réservations actualisées',
+    successSeated: 'Client installé avec succès',
+    errorSeated: 'Échec de l\'installation du client',
+    successCancelled: 'Réservation annulée',
+    errorCancelled: 'Échec de l\'annulation de la réservation',
+    successNoShow: 'Client marqué comme non présent',
+    errorNoShow: 'Échec de la mise à jour de la réservation',
+    successWaitlistAdded: 'Client ajouté à la liste d\'attente',
+    errorWaitlistAdded: 'Échec de l\'ajout du client sans réservation',
+    successCreated: 'Réservation créée avec succès',
+    errorCreated: 'Échec de la création de la réservation',
+    smsNotified: 'Notification SMS envoyée',
   },
   inventory: {
     title: 'Inventaire',
@@ -1375,6 +2279,34 @@ export const frFR: Translations = {
     draftPOCreated: 'Brouillon de BC créé',
     failedToCreatePO: 'Échec de la création du bon de commande',
     noVendorAssigned: 'Aucun fournisseur assigné pour cet ingrédient',
+    addProduct: 'Ajouter un Produit',
+    addNewProduct: 'Ajouter un Nouveau Produit',
+    createProductDesc: 'Créez un nouvel article d\'inventaire et définissez ses niveaux par défaut.',
+    editProductStock: 'Modifier les Niveaux de Produit et Stock',
+    configureThresholds: 'Configurer les seuils, le fournisseur et les niveaux',
+    productInfo: 'Informations Produit',
+    productName: 'Nom du Produit',
+    unitLabel: 'Unité (ex. KG, L, UNITÉ)',
+    category: 'Catégorie',
+    storageLocation: 'Lieu de Stockage',
+    vendorLabel: 'Fournisseur',
+    stockCostLevels: 'Niveau de Stock et Coût',
+    addToStock: 'Ajouter au Stock (Restock)',
+    minLevelAlert: 'Seuil Minimum',
+    maxLevelTarget: 'Seuil Maximum',
+    costPerUnitLabel: 'Coût par Unité',
+    printList: 'Imprimer la Liste',
+    saveChanges: 'Enregistrer les Modifications',
+    quickAdd: 'Ajout Rapide',
+    shoppingList: 'Liste d\'Achats',
+    generatedOn: 'Généré le',
+    itemsLowInStock: 'Articles en Stock Faible',
+    ingredientProduct: 'Ingrédient / Produit',
+    suggestedReorder: 'Réapprovisionnement Suggéré',
+    estCost: 'Coût Est.',
+    totalEstRestockValue: 'Valeur Totale Estimée du Réapprovisionnement',
+    popupBlockedTitle: 'Fenêtre contextuelle bloquée',
+    popupBlockedDesc: 'Veuillez autoriser les fenêtres contextuelles pour imprimer la liste d\'achats.',
   },
   staff: {
     title: 'Personnel / Planning',
@@ -1399,6 +2331,33 @@ export const frFR: Translations = {
     hoursWorked: 'Heures Travaillées',
     hourlyRate: 'Taux Horaire',
     noStaffOnShift: 'Aucun personnel en service',
+    deleteShift: 'Supprimer le quart de travail',
+    confirmDeleteShift: 'Êtes-vous sûr de vouloir supprimer cette affectation de quart de travail ?',
+    shiftDeleted: 'Quart de travail supprimé avec succès.',
+    errorDeleteShift: 'Échec de la suppression du quart de travail.',
+    shiftAssigned: 'Quart de travail attribué avec succès.',
+    shiftUpdated: 'Quart de travail mis à jour avec succès.',
+    errorSaveShift: 'Échec de l\'enregistrement du quart de travail.',
+    editShiftAssignment: 'Modifier l\'affectation du quart de travail',
+    assignShift: 'Attribuer un quart de travail',
+    staffMember: 'Membre du personnel',
+    shiftTemplate: 'Modèle de quart',
+    selectTemplate: 'Sélectionner un modèle',
+    startTimeOverride: 'Surcharge de l\'heure de début',
+    endTimeOverride: 'Surcharge de l\'heure de fin',
+    positionRole: 'Poste / Rôle',
+    additionalInstructions: 'Instructions supplémentaires...',
+    noShiftsScheduled: 'Aucun quart de travail prévu pour cette date.',
+    assignFirstShift: 'Attribuer le premier quart',
+    shift: 'quart de travail',
+    shifts: 'quarts de travail',
+    requiredFieldsError: 'Veuillez remplir tous les champs obligatoires.',
+    positionServer: 'Serveur',
+    positionBartender: 'Barman',
+    positionChef: 'Chef',
+    positionHost: 'Hôte',
+    positionManager: 'Directeur',
+    positionBusboy: 'Commis de salle',
   },
   crm: {
     title: 'CRM / Clients',
@@ -1417,6 +2376,56 @@ export const frFR: Translations = {
     totalSpent: 'Total Dépensé',
     noGuestsFound: 'Aucun client trouvé',
     searchGuests: 'Rechercher des clients...',
+    firstName: 'Prénom',
+    lastName: 'Nom',
+    birthday: 'Date de naissance',
+    marketingOptIn: 'Option marketing',
+    addCustomer: 'Ajouter un client',
+    addNewCustomer: 'Ajouter un nouveau client',
+    addNewCustomerDesc: 'Ajouter un nouveau client au système CRM.',
+    nameRequired: 'Le prénom et le nom sont requis.',
+    errorCreateCustomer: 'Échec de la création du client',
+    filterByTier: 'Filtrer par niveau',
+    tier: 'Niveau',
+    contactInfo: 'Coordonnées',
+    loyaltyProgram: 'Programme de fidélité',
+    progressTo: 'Progression vers',
+    pointsTo: 'points vers',
+    addPoints: 'Ajouter des points',
+    sendMarketingEmail: 'Envoyer un e-mail marketing',
+    pointsAdded: 'Points ajoutés au client',
+    creditAuthorized: 'Crédit magasin autorisé pour le client',
+    creditRevoked: 'Crédit magasin révoqué pour le client',
+    errorLoadCustomers: 'Échec du chargement des clients',
+    memberSince: 'Membre depuis',
+    allergiesPlaceholder: 'fruits à coque, gluten (séparés par des virgules)',
+    marketingEmailAlert: 'L\'e-mail marketing serait envoyé à',
+    noEmailOnFile: 'aucun e-mail enregistré',
+    errorAddPoints: 'Échec de l\'ajout de points',
+    errorUpdateCredit: 'Échec de la mise à jour de l\'autorisation de crédit',
+  },
+  settings: {
+    title: 'Paramètres',
+    dataManagement: 'Gestion des Données',
+    dangerZone: 'Zone de Danger',
+    clearDatabase: 'Effacer la Base de Données',
+    clearDatabaseDesc: 'Efface toutes les commandes, transactions et clients. Conserve le menu et le personnel.',
+    backupDatabase: 'Sauvegarder la Base',
+    backupDatabaseDesc: 'Téléchargez une copie de la base de données.',
+    confirmClearTitle: 'Êtes-vous absolument sûr ?',
+    confirmClearDesc: 'Cela supprimera toutes les données transactionnelles historiques.',
+    clearSuccess: 'Base de données effacée avec succès.',
+    clearFailed: 'Échec de l\'effacement de la base de données.',
+    backupSuccess: 'Sauvegarde téléchargée avec succès.',
+    backupFailed: 'Échec de la sauvegarde.',
+    restoreDatabase: 'Restaurer la Base de Données',
+    restoreSuccess: 'Base de données restaurée avec succès.',
+    restoreFailed: 'Échec de la restauration.',
+    localization: 'Localisation et Taxes',
+    localizationDesc: 'Configurez votre région, langue et remplacez les taux de taxes par défaut.',
+    language: 'Langue et Région',
+    customTaxRate: 'Taux de Taxe Personnalisé (%)',
+    resetToDefault: 'Réinitialiser'
   },
   footer: {
     copyright: 'The Gilded Fork',
@@ -1471,6 +2480,9 @@ export const esES: Translations = {
     details: 'Detalles',
     updating: 'Actualizando...',
     noResults: 'Sin resultados',
+    none: 'Ninguno',
+    add: 'Añadir',
+    per: 'por',
   },
   auth: {
     restaurantName: 'The Gilded Fork',
@@ -1496,6 +2508,8 @@ export const esES: Translations = {
     inventory: 'Inventario',
     staff: 'Personal / Turnos',
     crm: 'CRM / Clientes',
+    transactions: 'Transacciones',
+    settings: 'Ajustes',
   },
   dashboard: {
     title: 'Panel',
@@ -1522,8 +2536,24 @@ export const esES: Translations = {
     allStockOk: 'Todos los niveles de stock OK',
     loadingDashboard: 'Cargando panel...',
     failedToLoad: 'Error al cargar el panel',
-    revenue: 'Ingresos',
+        revenue: 'Ingresos',
     qtySold: 'Cant. Vendida',
+    resetShift: 'Reiniciar Turno',
+    clearShiftOperations: '¿Borrar Operaciones del Turno?',
+    clearAllData: 'Borrar Todos los Datos',
+    dailyCheckMonitor: 'Monitor de Pedidos Diarios',
+    todaysSales: "Ventas de Hoy",
+    cashPayments: 'Pagos en Efectivo',
+    cardPayments: 'Pagos con Tarjeta',
+    creditPayments: 'Pagos a Crédito',
+    avgCheckSize: 'Ticket Promedio',
+    activeServedChecks: 'Pedidos Activos y Servidos',
+    tableTallies: 'Totales de Mesas',
+    serverSales: 'Ventas por Camarero',
+    noActiveTablesToday: 'No hay mesas activas hoy',
+    noServerRecordsToday: 'No hay registros de camareros hoy',
+    serviceNotStartedYet: 'El servicio aún no ha comenzado',
+    noMatchingOrdersFound: 'No se encontraron pedidos coincidentes',
   },
   floorPlan: {
     title: 'Plano',
@@ -1584,6 +2614,9 @@ export const esES: Translations = {
     quickAssignServer: 'Camarero',
     seatsShort: 'as.',
     maxSeats: 'Máx. 20 asientos',
+    editLayout: 'Editar Plano',
+    doneEditing: 'Terminado',
+    clickEditLayoutToMove: 'Haga clic en "Editar Plano" para reposicionar',
   },
   pos: {
     newOrder: 'Nuevo Pedido',
@@ -1626,6 +2659,45 @@ export const esES: Translations = {
     stationKitchen: 'COCINA',
     stationBar: 'BAR',
     editOrderBtn: 'Editar Pedido',
+    settleBill: 'Cerrar Cuenta',
+    payBill: 'Pagar Cuenta',
+    selectPaymentMethod: 'Seleccionar Método de Pago',
+    cash: 'Efectivo',
+    card: 'Tarjeta',
+    credit: 'Crédito',
+    paymentProcessing: 'Procesando pago...',
+    paymentSuccessful: 'Pago exitoso. Mesa liberada.',
+    paymentFailed: 'Transacción de pago fallida',
+    checkPaidClosed: 'Cuenta pagada y cerrada con éxito',
+    authorizeStoreCredit: 'Autorizar Crédito de Tienda',
+    allowedCreditDesc: 'Permite al cliente cargar cuentas a su cuenta de crédito de tienda.',
+    creditApproved: 'Autorización de Crédito Aprovada',
+    creditApprovedDesc: 'Cliente autorizado manualmente está aprobado para crédito.',
+    creditDenied: 'Autorización Denegada',
+    creditDeniedDesc: 'El crédito requiere autorización explícita de la gerencia.',
+    searchSelectGuest: 'Buscar o seleccionar cliente...',
+    blocked: 'Bloqueado',
+    selectCustomerCredit: 'Por favor seleccione un cliente para aplicar crédito.',
+    creditNotAllowed: 'El cliente seleccionado no está autorizado a usar crédito.',
+    customerGuest: 'Cliente / Invitado',
+    noCustomerAssigned: 'Cliente de paso / No Asignado',
+    manageMenu: 'Administrar Menú',
+    category_Starters: 'Entrantes',
+    category_Mains: 'Platos Principales',
+    category_Desserts: 'Postres',
+    category_Cocktails: 'Cócteles',
+    category_Beer_and_Wine: 'Cerveza y Vino',
+    category_Non_Alcoholic: 'Bebidas sin Alcohol',
+    category_Sides: 'Guarniciones',
+    sortBy: 'Ordenar por',
+    popularity: 'Popularidad',
+    sortName: 'Nombre (A-Z)',
+    sortPriceLow: 'Precio: Bajo-Alto',
+    sortPriceHigh: 'Precio: Alto-Bajo',
+    menuManagement: 'Gestión de Menú',
+    menuManagementDesc: 'Cree, edite o elimine platos del menú digital del restaurante.',
+    addNewDish: 'Añadir Plato',
+    itemsCountLabel: 'artículos',
   },
   kds: {
     title: 'Pantalla Cocina / Bar',
@@ -1642,6 +2714,61 @@ export const esES: Translations = {
     elapsed: 'transcurrido',
     minutes: 'min',
     seconds: 's',
+    activeTickets: 'Fichas Activas',
+    kanbanBoard: 'Tablero Kanban',
+    queued: 'En Cola',
+    preparing: 'Preparando',
+    ready: 'Listo',
+    itemReadyAlert: '¡El plato está listo!',
+    produced: 'Producido',
+    today: 'Hoy',
+    week: 'Esta Semana',
+    month: 'Este Mes',
+    productionDetails: 'Detalles de Producción',
+    preparedItems: 'Platos y Bebidas Preparados',
+    chronologicalLog: 'Registro Chronológico',
+    groupedSummary: 'Resumen Agrupado',
+    item: 'Artículo',
+    qty: 'Cant',
+    station: 'Estación',
+    preparedTime: 'Hora de Preparación',
+    searchItems: 'Buscar artículos...',
+    noItemsPrepared: 'No se prepararon artículos en este período',
+  },
+  transactions: {
+    title: 'Libro de Transacciones',
+    subtitle: 'Gestione y audite todos los flujos de entrada y salida',
+    inflow: 'Entrada (Ventas)',
+    outflow: 'Salida (Gastos)',
+    netProfit: 'Beneficio Neto',
+    labor: 'Costo de Mano de Obra',
+    searchPlaceholder: 'Buscar por ID, cliente, proveedor, operador...',
+    all: 'Todas las Transacciones',
+    inflows: 'Solo Entradas',
+    outflows: 'Solo Salidas',
+    category: 'Categoría',
+    amount: 'Monto',
+    operator: 'Operador',
+    date: 'Fecha y Hora',
+    noTransactions: 'No se encontraron transacciones en este período',
+    details: 'Detalles de la Transacción',
+    poDetails: 'Detalles del Pedido de Compra',
+    wastageDetails: 'Detalles del Desperdicio',
+    saleDetails: 'Detalles de la Vente',
+    day: 'Hoy',
+    week: 'Esta Semana',
+    month: 'Este Mes',
+    taxSummary: 'Resumen de Impuestos e IVA',
+    vatReceived: 'IVA Repercutido (Ventas Cobradas)',
+    vatExpected: 'IVA Devengado (Total de Ventas)',
+    vatPaid: 'IVA Soportado Estimado (Compras)',
+    netVat: 'Posición Neta del IVA',
+    vatReceivedDesc: 'IVA real cobrado de pedidos pagados',
+    vatExpectedDesc: 'IVA total generado en todas las ventas (devengado)',
+    vatPaidDesc: 'IVA estimado pagado en compras de inventario',
+    netVatDesc: 'Saldo neto de IVA (IVA Repercutido - IVA Soportado)',
+    vatOwedToTaxMan: 'A pagar a Hacienda',
+    vatReclaimable: 'IVA a Devolver',
   },
   reservations: {
     title: 'Reservas',
@@ -1666,6 +2793,34 @@ export const esES: Translations = {
     todayReservations: 'Reservas de Hoy',
     upcomingReservations: 'Próximas',
     pastReservations: 'Pasadas',
+    availableTables: 'Mesas Disponibles',
+    noTablesAvailable: 'No hay mesas disponibles',
+    tablesOverview: 'Resumen de Ocupación de Mesas',
+    noReservationsToday: 'No hay reservas para hoy',
+    createResOrCreateWalkIn: 'Crear una nueva reserva o añadir un cliente sin reserva',
+    noGuestsWaitlist: 'No hay clientes en la lista de espera',
+    addWalkInGetStarted: 'Añada un cliente sin reserva para comenzar',
+    crmLookup: 'Búsqueda de CRM (opcional)',
+    searchCrmPlaceholder: 'Buscar por nombre, correo electrónico o teléfono...',
+    specialRequestsPlaceholder: 'Peticiones especiales, alergias, celebraciones...',
+    seatGuest: 'Sentar Cliente',
+    assignTable: 'Asignar Mesa',
+    selectTablePlaceholder: 'Seleccionar una mesa',
+    noTableAssigned: 'Sin mesa asignada',
+    waitMinutes: 'de espera',
+    now: 'AHORA',
+    successRefreshed: 'Reservas actualizadas',
+    successSeated: 'Cliente sentado con éxito',
+    errorSeated: 'Error al sentar al cliente',
+    successCancelled: 'Reserva cancelada',
+    errorCancelled: 'Error al cancelar la reserva',
+    successNoShow: 'Cliente marcado como no presentado',
+    errorNoShow: 'Error al actualizar la reserva',
+    successWaitlistAdded: 'Cliente añadido a la lista de espera',
+    errorWaitlistAdded: 'Error al añadir al cliente sin reserva',
+    successCreated: 'Reserva creada con éxito',
+    errorCreated: 'Error al crear la reserva',
+    smsNotified: 'Notificación SMS enviada',
   },
   inventory: {
     title: 'Inventario',
@@ -1722,6 +2877,34 @@ export const esES: Translations = {
     draftPOCreated: 'Borrador de OC creado',
     failedToCreatePO: 'Error al crear la orden de compra',
     noVendorAssigned: 'Sin proveedor asignado para este ingrediente',
+    addProduct: 'Añadir Producto',
+    addNewProduct: 'Añadir Nuevo Producto',
+    createProductDesc: 'Cree un nuevo artículo de inventario y establezca sus niveles predeterminados.',
+    editProductStock: 'Editar Niveles de Producto y Stock',
+    configureThresholds: 'Configurar umbrales, proveedor y niveles',
+    productInfo: 'Información del Producto',
+    productName: 'Nombre del Producto',
+    unitLabel: 'Unidad (ej. KG, L, UNID)',
+    category: 'Categoría',
+    storageLocation: 'Lugar de Almacenamiento',
+    vendorLabel: 'Proveedor',
+    stockCostLevels: 'Niveles de Stock y Costo',
+    addToStock: 'Añadir al Stock (Restock)',
+    minLevelAlert: 'Nivel Mínimo',
+    maxLevelTarget: 'Nivel Máximo',
+    costPerUnitLabel: 'Costo por Unidad',
+    printList: 'Imprimir Lista',
+    saveChanges: 'Guardar Cambios',
+    quickAdd: 'Añadir Rápido',
+    shoppingList: 'Lista de Compras',
+    generatedOn: 'Generado el',
+    itemsLowInStock: 'Artículos con Stock Bajo',
+    ingredientProduct: 'Ingrediente / Producto',
+    suggestedReorder: 'Reabastecimiento Sugerido',
+    estCost: 'Coste Est.',
+    totalEstRestockValue: 'Valor Total Estimado de Reabastecimiento',
+    popupBlockedTitle: 'Pop-up Bloqueado',
+    popupBlockedDesc: 'Por favor, permita pop-ups para imprimir la lista de compras.',
   },
   staff: {
     title: 'Personal / Turnos',
@@ -1746,6 +2929,33 @@ export const esES: Translations = {
     hoursWorked: 'Horas Trabajadas',
     hourlyRate: 'Tarifa Horaria',
     noStaffOnShift: 'Sin personal en turno',
+    deleteShift: 'Eliminar Turno',
+    confirmDeleteShift: '¿Está seguro de que desea eliminar esta asignación de turno?',
+    shiftDeleted: 'Turno eliminado con éxito.',
+    errorDeleteShift: 'Error al eliminar el turno.',
+    shiftAssigned: 'Turno asignado con éxito.',
+    shiftUpdated: 'Turno actualizado con éxito.',
+    errorSaveShift: 'Error al guardar el turno.',
+    editShiftAssignment: 'Editar Asignación de Turno',
+    assignShift: 'Asignar Turno',
+    staffMember: 'Miembro del Personal',
+    shiftTemplate: 'Plantilla de Turno',
+    selectTemplate: 'Seleccionar una Plantilla',
+    startTimeOverride: 'Anulación de Hora de Inicio',
+    endTimeOverride: 'Anulación de Hora de Fin',
+    positionRole: 'Puesto / Rol',
+    additionalInstructions: 'Instrucciones adicionales...',
+    noShiftsScheduled: 'No hay turnos programados para esta fecha.',
+    assignFirstShift: 'Asignar Primer Turno',
+    shift: 'turno',
+    shifts: 'turnos',
+    requiredFieldsError: 'Por favor, rellene todos los campos obligatorios.',
+    positionServer: 'Camarero',
+    positionBartender: 'Barman',
+    positionChef: 'Chef',
+    positionHost: 'Anfitrión',
+    positionManager: 'Gerente',
+    positionBusboy: 'Ayudante de Camarero',
   },
   crm: {
     title: 'CRM / Clientes',
@@ -1764,6 +2974,56 @@ export const esES: Translations = {
     totalSpent: 'Total Gastado',
     noGuestsFound: 'Ningún cliente encontrado',
     searchGuests: 'Buscar clientes...',
+    firstName: 'Nombre',
+    lastName: 'Apellido',
+    birthday: 'Fecha de nacimiento',
+    marketingOptIn: 'Opción de marketing',
+    addCustomer: 'Añadir Cliente',
+    addNewCustomer: 'Añadir Nuevo Cliente',
+    addNewCustomerDesc: 'Añada un nuevo cliente al sistema CRM.',
+    nameRequired: 'El nombre y el apellido son obligatorios.',
+    errorCreateCustomer: 'Error al crear el cliente',
+    filterByTier: 'Filtrar por nivel',
+    tier: 'Nivel',
+    contactInfo: 'Información de Contacto',
+    loyaltyProgram: 'Programa de Fidelización',
+    progressTo: 'Progreso hacia',
+    pointsTo: 'puntos para',
+    addPoints: 'Añadir Puntos',
+    sendMarketingEmail: 'Enviar Correo de Marketing',
+    pointsAdded: 'Puntos añadidos al cliente',
+    creditAuthorized: 'Crédito de tienda autorizado para el cliente',
+    creditRevoked: 'Crédito de tienda revocado para el cliente',
+    errorLoadCustomers: 'Error al cargar clientes',
+    memberSince: 'Miembro desde',
+    allergiesPlaceholder: 'frutos secos, gluten (separados por comas)',
+    marketingEmailAlert: 'El correo de marketing se enviaría a',
+    noEmailOnFile: 'sin correo registrado',
+    errorAddPoints: 'Error al añadir puntos',
+    errorUpdateCredit: 'Error al actualizar la asignación de crédito',
+  },
+  settings: {
+    title: 'Ajustes',
+    dataManagement: 'Gestión de Datos',
+    dangerZone: 'Zona de Peligro',
+    clearDatabase: 'Borrar Base de Datos',
+    clearDatabaseDesc: 'Borra todos los pedidos, transacciones y clientes. Mantiene menú y personal.',
+    backupDatabase: 'Copia de Seguridad',
+    backupDatabaseDesc: 'Descargue una copia de la base de datos antes de hacer cambios.',
+    confirmClearTitle: '¿Estás absolutamente seguro?',
+    confirmClearDesc: 'Esto eliminará todos los datos transaccionales históricos.',
+    clearSuccess: 'Base de datos borrada con éxito.',
+    clearFailed: 'Fallo al borrar la base de datos.',
+    backupSuccess: 'Copia de seguridad descargada con éxito.',
+    backupFailed: 'Fallo al hacer copia de seguridad.',
+    restoreDatabase: 'Restaurar Base de Datos',
+    restoreSuccess: 'Base de datos restaurada con éxito.',
+    restoreFailed: 'Fallo al restaurar la base de datos.',
+    localization: 'Localización e Impuestos',
+    localizationDesc: 'Configure su región, idioma y sobreescriba los impuestos por defecto.',
+    language: 'Idioma y Región',
+    customTaxRate: 'Tasa de Impuesto Personalizada (%)',
+    resetToDefault: 'Restablecer por Defecto'
   },
   footer: {
     copyright: 'The Gilded Fork',

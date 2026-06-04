@@ -26,8 +26,13 @@ import {
   X,
   Delete,
   CornerDownLeft,
+  Plus,
+  Pencil,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -44,7 +49,7 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/app-store';
-import { useT, useLocale } from '@/stores/locale-store';
+import { useT, useLocale, useLocaleConfig } from '@/stores/locale-store';
 import { formatCurrencyByLocale } from '@/lib/i18n/locales';
 
 /* ─── Types ─── */
@@ -315,10 +320,48 @@ function SummaryCards({ staff }: { staff: StaffUser[] }) {
 }
 
 /* Schedule Tab */
-function ScheduleTab({ staff }: { staff: StaffUser[] }) {
+function ScheduleTab({ staff, onRefresh }: { staff: StaffUser[]; onRefresh: () => void }) {
   const t = useT();
+  const addNotification = useAppStore((s) => s.addNotification);
   const [weekOffset, setWeekOffset] = useState(0);
   const [referenceDate] = useState(new Date());
+
+  // Views Toggle State
+  const [viewMode, setViewMode] = useState<'grid' | 'daily'>('grid');
+  const [selectedDayTab, setSelectedDayTab] = useState(0); // 0 = Mon, ..., 6 = Sun
+
+  // Dialog State
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingAssignment, setEditingAssignment] = useState<ShiftAssignment | null>(null);
+  const [selectedUser, setSelectedUser] = useState<StaffUser | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [templates, setTemplates] = useState<ShiftTemplate[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Form State
+  const [formUserId, setFormUserId] = useState('');
+  const [formTemplateId, setFormTemplateId] = useState('');
+  const [formDate, setFormDate] = useState('');
+  const [formStartTime, setFormStartTime] = useState('');
+  const [formEndTime, setFormEndTime] = useState('');
+  const [formPosition, setFormPosition] = useState('SERVER');
+  const [formNotes, setFormNotes] = useState('');
+
+  // Fetch templates from API
+  useEffect(() => {
+    async function fetchTemplates() {
+      try {
+        const res = await fetch('/api/staff/shifts');
+        if (res.ok) {
+          const data = await res.json();
+          setTemplates(data.templates || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch templates:', err);
+      }
+    }
+    fetchTemplates();
+  }, []);
 
   const weekDates = useMemo(() => {
     const d = new Date(referenceDate);
@@ -333,147 +376,608 @@ function ScheduleTab({ staff }: { staff: StaffUser[] }) {
     return `${fmt(start)} — ${fmt(end)}`;
   }, [weekDates]);
 
-  const staffWithShifts = useMemo(
-    () => staff.filter((u) => u.shifts.length > 0),
-    [staff]
-  );
+  const sortedStaff = useMemo(() => {
+    return [...staff].sort((a, b) => a.name.localeCompare(b.name));
+  }, [staff]);
+
+  const handleTemplateChange = (templateId: string) => {
+    setFormTemplateId(templateId);
+    const template = templates.find((t) => t.id === templateId);
+    if (template) {
+      setFormStartTime(template.startTime);
+      setFormEndTime(template.endTime);
+    }
+  };
+
+  const openCreateDialog = (user: StaffUser, date: Date) => {
+    setEditingAssignment(null);
+    setSelectedUser(user);
+    setSelectedDate(date);
+    
+    setFormUserId(user.id);
+    setFormDate(date.toISOString().split('T')[0]);
+    
+    if (templates.length > 0) {
+      setFormTemplateId(templates[0].id);
+      setFormStartTime(templates[0].startTime);
+      setFormEndTime(templates[0].endTime);
+    } else {
+      setFormTemplateId('');
+      setFormStartTime('');
+      setFormEndTime('');
+    }
+    
+    setFormPosition(user.role === 'FOH' ? 'SERVER' : user.role === 'KITCHEN' ? 'CHEF' : user.role === 'BAR' ? 'BARTENDER' : 'SERVER');
+    setFormNotes('');
+    
+    setIsDialogOpen(true);
+  };
+
+  const openEditDialog = (user: StaffUser, assignment: ShiftAssignment) => {
+    setEditingAssignment(assignment);
+    setSelectedUser(user);
+    setSelectedDate(new Date(assignment.date));
+    
+    setFormUserId(user.id);
+    setFormDate(new Date(assignment.date).toISOString().split('T')[0]);
+    setFormTemplateId(assignment.shiftTemplateId);
+    setFormStartTime(assignment.startTime || assignment.shiftTemplate.startTime);
+    setFormEndTime(assignment.endTime || assignment.shiftTemplate.endTime);
+    setFormPosition(assignment.position || 'SERVER');
+    setFormNotes(assignment.notes || '');
+    
+    setIsDialogOpen(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formUserId || !formTemplateId || !formDate) {
+      addNotification(t.staff.requiredFieldsError, 'error');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    try {
+      const isEditing = !!editingAssignment;
+      const res = await fetch('/api/staff/shifts', {
+        method: isEditing ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingAssignment?.id,
+          userId: formUserId,
+          shiftTemplateId: formTemplateId,
+          date: formDate,
+          startTime: formStartTime,
+          endTime: formEndTime,
+          position: formPosition,
+          notes: formNotes,
+        }),
+      });
+
+      if (res.ok) {
+        addNotification(
+          isEditing ? t.staff.shiftUpdated : t.staff.shiftAssigned,
+          'success'
+        );
+        setIsDialogOpen(false);
+        onRefresh();
+      } else {
+        const data = await res.json();
+        throw new Error(data.error || t.staff.errorSaveShift);
+      }
+    } catch (err: any) {
+      addNotification(err.message || t.staff.errorSaveShift, 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!editingAssignment) return;
+    if (!confirm(t.staff.confirmDeleteShift)) return;
+    
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`/api/staff/shifts?id=${editingAssignment.id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        addNotification(t.staff.shiftDeleted, 'success');
+        setIsDialogOpen(false);
+        onRefresh();
+      } else {
+        const data = await res.json();
+        throw new Error(data.error || t.staff.errorDeleteShift);
+      }
+    } catch (err: any) {
+      addNotification(err.message || t.staff.errorDeleteShift, 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Get shifts for daily view
+  const selectedDateObject = weekDates[selectedDayTab];
+  const shiftsForSelectedDay = useMemo(() => {
+    const list: Array<{ user: StaffUser; shift: ShiftAssignment }> = [];
+    for (const user of sortedStaff) {
+      const dayShifts = getShiftsForDay(user.shifts, selectedDateObject);
+      for (const shift of dayShifts) {
+        list.push({ user, shift });
+      }
+    }
+    return list.sort((a, b) => {
+      const timeA = a.shift.startTime || a.shift.shiftTemplate.startTime;
+      const timeB = b.shift.startTime || b.shift.shiftTemplate.startTime;
+      return timeA.localeCompare(timeB);
+    });
+  }, [sortedStaff, selectedDateObject]);
 
   return (
     <div className="space-y-4">
-      {/* Week Navigation */}
-      <div className="flex items-center justify-between gap-3">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setWeekOffset((w) => w - 1)}
-          className="bg-zinc-900 border-zinc-700 hover:bg-zinc-800"
-        >
-          <ChevronLeft className="size-4" />
-        </Button>
-        <div className="text-center">
-          <p className="text-sm font-medium text-zinc-200">{weekLabel}</p>
-          {weekOffset === 0 && (
-            <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 mt-1">
-              This Week
-            </Badge>
+      {/* Week Navigation & General Actions */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-zinc-900/40 p-4 rounded-xl border border-zinc-800/85">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setWeekOffset((w) => w - 1)}
+            className="bg-zinc-900 border-zinc-700 hover:bg-zinc-800 h-8 w-8 p-0"
+          >
+            <ChevronLeft className="size-4" />
+          </Button>
+          <div className="text-center px-2">
+            <p className="text-xs font-semibold text-zinc-200">{weekLabel}</p>
+            {weekOffset === 0 && (
+              <Badge variant="outline" className="text-[9px] h-4 py-0 px-1.5 border-emerald-500/30 text-emerald-400 mt-0.5">
+                This Week
+              </Badge>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setWeekOffset((w) => w + 1)}
+            className="bg-zinc-900 border-zinc-700 hover:bg-zinc-800 h-8 w-8 p-0"
+          >
+            <ChevronRight className="size-4" />
+          </Button>
+          {weekOffset !== 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setWeekOffset(0)}
+              className="text-emerald-400 hover:text-emerald-300 text-[10px] h-8 px-2"
+            >
+              Today
+            </Button>
           )}
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setWeekOffset((w) => w + 1)}
-          className="bg-zinc-900 border-zinc-700 hover:bg-zinc-800"
-        >
-          <ChevronRight className="size-4" />
-        </Button>
-        {weekOffset !== 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setWeekOffset(0)}
-            className="text-emerald-400 hover:text-emerald-300 text-xs"
-          >
-            Today
-          </Button>
-        )}
-      </div>
 
-      {/* Calendar Grid */}
-      <div className="overflow-x-auto">
-        <div className="min-w-[700px]">
-          {/* Header Row */}
-          <div className="grid grid-cols-[160px_repeat(7,1fr)] gap-1 mb-1">
-            <div className="p-2 text-xs text-zinc-500 font-medium">Staff</div>
-            {weekDates.map((date, i) => (
-              <div
-                key={i}
-                className={cn(
-                  'p-2 text-center text-xs font-medium rounded-t-lg',
-                  isToday(date)
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                    : 'bg-zinc-900 text-zinc-400 border border-zinc-800'
-                )}
-              >
-                <div>{DAY_NAMES[i]}</div>
-                <div className={cn('text-lg font-bold', isToday(date) ? 'text-emerald-200' : 'text-zinc-300')}>
-                  {date.getDate()}
-                </div>
-              </div>
-            ))}
+        {/* View Mode & Add Shift Button */}
+        <div className="flex items-center gap-3 justify-between md:justify-end w-full md:w-auto">
+          <div className="flex items-center bg-zinc-950 p-1 rounded-lg border border-zinc-800/70">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={cn(
+                "px-3 py-1 text-[10px] font-semibold rounded-md transition-all cursor-pointer",
+                viewMode === 'grid'
+                  ? "bg-zinc-800 text-zinc-100 shadow"
+                  : "text-zinc-500 hover:text-zinc-300"
+              )}
+            >
+              Weekly Grid
+            </button>
+            <button
+              onClick={() => setViewMode('daily')}
+              className={cn(
+                "px-3 py-1 text-[10px] font-semibold rounded-md transition-all cursor-pointer",
+                viewMode === 'daily'
+                  ? "bg-zinc-800 text-zinc-100 shadow"
+                  : "text-zinc-500 hover:text-zinc-300"
+              )}
+            >
+              Daily List
+            </button>
           </div>
 
-          {/* Staff Rows */}
-          <ScrollArea className="max-h-[500px]">
-            {staffWithShifts.length === 0 ? (
-              <div className="text-center py-12 text-zinc-500">
-                <Calendar className="size-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">{t.staff.noStaffOnShift}</p>
-              </div>
-            ) : (
-              staffWithShifts.map((user) => (
-                <div
-                  key={user.id}
-                  className="grid grid-cols-[160px_repeat(7,1fr)] gap-1 mb-1"
-                >
-                  {/* Staff Name */}
-                  <div className="p-2 flex items-center gap-2 min-w-0">
-                    <div className={cn('w-2 h-2 rounded-full shrink-0', isClockedIn(user) ? 'bg-emerald-400' : 'bg-zinc-600')} />
-                    <span className="text-xs text-zinc-300 truncate font-medium">{user.name}</span>
-                  </div>
-
-                  {/* Day Cells */}
-                  {weekDates.map((date, dayIdx) => {
-                    const dayShifts = getShiftsForDay(user.shifts, date);
-                    return (
-                      <div
-                        key={dayIdx}
-                        className={cn(
-                          'p-1 min-h-[48px] rounded border',
-                          isToday(date) ? 'bg-emerald-950/20 border-emerald-500/20' : 'bg-zinc-900/50 border-zinc-800/50'
-                        )}
-                      >
-                        {dayShifts.map((shift) => {
-                          const shiftType = shift.shiftTemplate.type;
-                          const colors = SHIFT_TYPE_COLORS[shiftType] || SHIFT_TYPE_COLORS.AFTERNOON;
-                          const start = shift.startTime || shift.shiftTemplate.startTime;
-                          const end = shift.endTime || shift.shiftTemplate.endTime;
-                          return (
-                            <div
-                              key={shift.id}
-                              className={cn(
-                                'px-1.5 py-0.5 rounded text-[10px] mb-0.5 border',
-                                colors.bg,
-                                colors.border
-                              )}
-                            >
-                              <div className={cn('font-semibold', colors.text)}>
-                                {shift.position || shift.shiftTemplate.name}
-                              </div>
-                              <div className="text-zinc-400">
-                                {start}–{end}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))
-            )}
-          </ScrollArea>
+          <Button
+            onClick={() => {
+              if (sortedStaff.length > 0) {
+                openCreateDialog(sortedStaff[0], viewMode === 'daily' ? selectedDateObject : new Date());
+              }
+            }}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-1.5 h-8 text-xs rounded-lg px-3 cursor-pointer"
+            disabled={sortedStaff.length === 0}
+          >
+            <Plus className="size-3.5" />
+            Assign Shift
+          </Button>
         </div>
       </div>
+
+      {viewMode === 'grid' ? (
+        /* Calendar Grid */
+        <div className="overflow-x-auto rounded-xl border border-zinc-800/80 bg-zinc-900/20 p-2">
+          <div className="min-w-[850px]">
+            {/* Header Row */}
+            <div className="grid grid-cols-[160px_repeat(7,1fr)] gap-1 mb-1">
+              <div className="p-2 text-xs text-zinc-500 font-semibold uppercase tracking-wider">Staff</div>
+              {weekDates.map((date, i) => (
+                <div
+                  key={i}
+                  className={cn(
+                    'p-2 text-center text-xs font-semibold rounded-lg border',
+                    isToday(date)
+                      ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                      : 'bg-zinc-900/60 text-zinc-400 border-zinc-850'
+                  )}
+                >
+                  <div className="text-[10px] uppercase opacity-70">{DAY_NAMES[i]}</div>
+                  <div className={cn('text-lg font-bold mt-0.5', isToday(date) ? 'text-emerald-300' : 'text-zinc-200')}>
+                    {date.getDate()}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Staff Rows */}
+            <ScrollArea className="max-h-[520px] pr-1">
+              {sortedStaff.length === 0 ? (
+                <div className="text-center py-12 text-zinc-500">
+                  <Calendar className="size-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">{t.staff.noStaffOnShift}</p>
+                </div>
+              ) : (
+                sortedStaff.map((user) => (
+                  <div
+                    key={user.id}
+                    className="grid grid-cols-[160px_repeat(7,1fr)] gap-1 mb-1 items-stretch"
+                  >
+                    {/* Staff Name Card */}
+                    <div className="p-2.5 bg-zinc-900/40 rounded-lg border border-zinc-850 flex items-center gap-2 min-w-0">
+                      <div className={cn('w-2.5 h-2.5 rounded-full shrink-0 shadow-inner', isClockedIn(user) ? 'bg-emerald-450 shadow-emerald-400/50' : 'bg-zinc-650')} />
+                      <div className="min-w-0">
+                        <p className="text-xs text-zinc-200 truncate font-semibold">{user.name}</p>
+                        <p className="text-[9px] text-zinc-500 capitalize">{user.role.toLowerCase()}</p>
+                      </div>
+                    </div>
+
+                    {/* Day Cells */}
+                    {weekDates.map((date, dayIdx) => {
+                      const dayShifts = getShiftsForDay(user.shifts, date);
+                      return (
+                        <div
+                          key={dayIdx}
+                          className={cn(
+                            'p-1.5 min-h-[68px] rounded-lg border relative group transition-all duration-150 flex flex-col justify-start gap-1',
+                            isToday(date) ? 'bg-emerald-950/10 border-emerald-500/25' : 'bg-zinc-900/25 border-zinc-850 hover:bg-zinc-800/15'
+                          )}
+                        >
+                          {/* Cell hover add action */}
+                          <button
+                            onClick={() => openCreateDialog(user, date)}
+                            className="absolute right-1 bottom-1 opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-600 hover:bg-emerald-500 text-white rounded p-0.5 shadow-md z-10 cursor-pointer"
+                          >
+                            <Plus className="size-3" />
+                          </button>
+
+                          <div className="space-y-1 w-full z-0">
+                            {dayShifts.map((shift) => {
+                              const shiftType = shift.shiftTemplate.type;
+                              const start = shift.startTime || shift.shiftTemplate.startTime;
+                              const end = shift.endTime || shift.shiftTemplate.endTime;
+                              return (
+                                <button
+                                  key={shift.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openEditDialog(user, shift);
+                                  }}
+                                  className={cn(
+                                    'w-full text-left p-1.5 rounded-md border-l-4 text-[10px] leading-snug font-bold transition-all hover:scale-[1.02] cursor-pointer block bg-zinc-900 border border-zinc-800/60 shadow-sm',
+                                    shiftType === 'MORNING' ? 'border-l-amber-500' :
+                                    shiftType === 'AFTERNOON' ? 'border-l-sky-500' :
+                                    shiftType === 'EVENING' ? 'border-l-purple-500' : 'border-l-zinc-500'
+                                  )}
+                                >
+                                  <div className="text-zinc-100 truncate font-bold">
+                                    {shift.position || shift.shiftTemplate.name}
+                                  </div>
+                                  <div className="text-[8.5px] text-zinc-400 mt-1 font-semibold flex items-center gap-1">
+                                    <Clock className="size-2.5 opacity-75 shrink-0" />
+                                    <span>{start}–{end}</span>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))
+              )}
+            </ScrollArea>
+          </div>
+        </div>
+      ) : (
+        /* Daily List View (Focused & Spacious) */
+        <div className="space-y-4">
+          {/* Day Selector */}
+          <div className="flex justify-between gap-1 overflow-x-auto p-1 bg-zinc-900/50 rounded-xl border border-zinc-800/80">
+            {weekDates.map((date, idx) => {
+              const dayShiftsCount = staff.reduce((count, u) => count + getShiftsForDay(u.shifts, date).length, 0);
+              const isSelected = selectedDayTab === idx;
+              return (
+                <button
+                  key={idx}
+                  onClick={() => setSelectedDayTab(idx)}
+                  className={cn(
+                    "flex-1 min-w-[75px] py-2 px-1.5 rounded-lg text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5",
+                    isSelected
+                      ? "bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-600/10"
+                      : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40"
+                  )}
+                >
+                  <span className="text-[9px] uppercase font-bold tracking-wider opacity-85">{DAY_NAMES[idx]}</span>
+                  <span className="text-base font-black">{date.getDate()}</span>
+                  {dayShiftsCount > 0 && (
+                    <span className={cn(
+                      "text-[9px] px-2 py-0.5 rounded-full font-bold mt-1",
+                      isSelected ? "bg-emerald-800 text-emerald-100" : "bg-zinc-800 text-zinc-400"
+                    )}>
+                      {dayShiftsCount} {dayShiftsCount === 1 ? t.staff.shift : t.staff.shifts}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Daily list cards */}
+          {shiftsForSelectedDay.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 bg-zinc-900/10 rounded-xl border border-dashed border-zinc-800/80">
+              <p className="text-sm text-zinc-400">{t.staff.noShiftsScheduled}</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (sortedStaff.length > 0) {
+                    openCreateDialog(sortedStaff[0], selectedDateObject);
+                  }
+                }}
+                className="mt-4 border-zinc-700 hover:bg-zinc-800 text-zinc-200"
+              >
+                + {t.staff.assignFirstShift}
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {shiftsForSelectedDay.map(({ user, shift }) => {
+                const shiftType = shift.shiftTemplate.type;
+                const start = shift.startTime || shift.shiftTemplate.startTime;
+                const end = shift.endTime || shift.shiftTemplate.endTime;
+                return (
+                  <div
+                    key={shift.id}
+                    onClick={() => openEditDialog(user, shift)}
+                    className="p-5 rounded-xl border border-zinc-800 bg-zinc-900/40 hover:bg-zinc-900/80 hover:border-zinc-700 transition-all cursor-pointer flex flex-col justify-between gap-3 relative overflow-hidden group shadow-sm"
+                  >
+                    {/* Shift type solid color bar indicator */}
+                    <div className={cn("absolute top-0 left-0 right-0 h-1",
+                      shiftType === 'MORNING' ? 'bg-amber-500' :
+                      shiftType === 'AFTERNOON' ? 'bg-sky-500' :
+                      shiftType === 'EVENING' ? 'bg-purple-500' : 'bg-zinc-500'
+                    )} />
+
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <div className={cn('w-2 h-2 rounded-full shrink-0', isClockedIn(user) ? 'bg-emerald-450 shadow-sm shadow-emerald-400/50' : 'bg-zinc-650')} />
+                          <p className="text-sm font-bold text-zinc-100">{user.name}</p>
+                        </div>
+                        <p className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider">
+                          {user.role} &bull; {shift.position || shift.shiftTemplate.name}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="text-[9px] bg-zinc-950 border-zinc-800 text-zinc-400 uppercase font-semibold">
+                        {shiftType}
+                      </Badge>
+                    </div>
+
+                    <div className="flex items-center gap-3 text-xs font-semibold text-zinc-200 bg-zinc-950/50 p-3 rounded-lg border border-zinc-800/40 mt-1">
+                      <Clock className="size-4 text-zinc-500 shrink-0" />
+                      <div>
+                        <span>{start} &mdash; {end}</span>
+                      </div>
+                    </div>
+
+                    {shift.notes && (
+                      <p className="text-[10.5px] text-zinc-400 bg-zinc-950/20 p-2.5 rounded-lg border border-zinc-800/20 italic mt-1 leading-normal">
+                        "{shift.notes}"
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Shift Type Legend */}
       <div className="flex flex-wrap gap-3 pt-2">
         {Object.entries(SHIFT_TYPE_COLORS).map(([type, colors]) => (
-          <div key={type} className="flex items-center gap-1.5">
-            <div className={cn('w-3 h-3 rounded', colors.bg, 'border', colors.border)} />
-            <span className="text-[10px] text-zinc-500 capitalize">{type}</span>
+          <div key={type} className="flex items-center gap-1.5 bg-zinc-900/50 px-2 py-1.5 rounded-md border border-zinc-800/40 shadow-sm">
+            <div className={cn('w-2.5 h-2.5 rounded-sm',
+              type === 'MORNING' ? 'bg-amber-500' :
+              type === 'AFTERNOON' ? 'bg-sky-500' :
+              type === 'EVENING' ? 'bg-purple-500' : 'bg-zinc-500'
+            )} />
+            <span className="text-[9px] text-zinc-400 capitalize font-medium">{type.toLowerCase()}</span>
           </div>
         ))}
       </div>
+
+      {/* Assign/Edit Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="bg-zinc-950 border-zinc-850 text-zinc-100 sm:max-w-md w-[95vw] rounded-xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-zinc-100 text-base font-bold">
+              {editingAssignment ? t.staff.editShiftAssignment : t.staff.assignShift}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+            <div className="space-y-3">
+              {/* Staff Member Select */}
+              <div className="space-y-1">
+                <Label htmlFor="userId" className="text-xs text-zinc-400 font-medium">{t.staff.staffMember}</Label>
+                <select
+                  id="userId"
+                  value={formUserId}
+                  onChange={(e) => {
+                    setFormUserId(e.target.value);
+                    const user = staff.find(u => u.id === e.target.value);
+                    if (user) setSelectedUser(user);
+                  }}
+                  className="w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg p-2.5 text-sm focus:outline-none focus:border-emerald-600 cursor-pointer"
+                  required
+                  disabled={!!editingAssignment}
+                >
+                  {sortedStaff.map((u) => (
+                    <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Date Input */}
+              <div className="space-y-1">
+                <Label htmlFor="date" className="text-xs text-zinc-400 font-medium">{t.common.date}</Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={formDate}
+                  onChange={(e) => setFormDate(e.target.value)}
+                  className="bg-zinc-900 border-zinc-800 text-zinc-100 h-10"
+                  required
+                />
+              </div>
+
+              {/* Template Select */}
+              <div className="space-y-1">
+                <Label htmlFor="templateId" className="text-xs text-zinc-400 font-medium">{t.staff.shiftTemplate}</Label>
+                <select
+                  id="templateId"
+                  value={formTemplateId}
+                  onChange={(e) => handleTemplateChange(e.target.value)}
+                  className="w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg p-2.5 text-sm focus:outline-none focus:border-emerald-600 cursor-pointer"
+                  required
+                >
+                  <option value="" disabled>{t.staff.selectTemplate}</option>
+                  {templates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} ({t.startTime} - {t.endTime})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Custom Times Row */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="startTime" className="text-xs text-zinc-400 font-medium">{t.staff.startTimeOverride}</Label>
+                  <Input
+                    id="startTime"
+                    type="text"
+                    placeholder="e.g. 10:00"
+                    value={formStartTime}
+                    onChange={(e) => setFormStartTime(e.target.value)}
+                    className="bg-zinc-900 border-zinc-800 text-zinc-100 h-10"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="endTime" className="text-xs text-zinc-400 font-medium">{t.staff.endTimeOverride}</Label>
+                  <Input
+                    id="endTime"
+                    type="text"
+                    placeholder="e.g. 16:00"
+                    value={formEndTime}
+                    onChange={(e) => setFormEndTime(e.target.value)}
+                    className="bg-zinc-900 border-zinc-800 text-zinc-100 h-10"
+                  />
+                </div>
+              </div>
+
+              {/* Position Select */}
+              <div className="space-y-1">
+                <Label htmlFor="position" className="text-xs text-zinc-400 font-medium">{t.staff.positionRole}</Label>
+                <select
+                  id="position"
+                  value={formPosition}
+                  onChange={(e) => setFormPosition(e.target.value)}
+                  className="w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg p-2.5 text-sm focus:outline-none focus:border-emerald-600 cursor-pointer"
+                >
+                  <option value="SERVER">{t.staff.positionServer}</option>
+                  <option value="BARTENDER">{t.staff.positionBartender}</option>
+                  <option value="CHEF">{t.staff.positionChef}</option>
+                  <option value="HOST">{t.staff.positionHost}</option>
+                  <option value="MANAGER">{t.staff.positionManager}</option>
+                  <option value="BUSBOY">{t.staff.positionBusboy}</option>
+                </select>
+              </div>
+
+              {/* Notes */}
+              <div className="space-y-1">
+                <Label htmlFor="notes" className="text-xs text-zinc-400 font-medium">{t.common.notesOptional}</Label>
+                <textarea
+                  id="notes"
+                  rows={2}
+                  value={formNotes}
+                  onChange={(e) => setFormNotes(e.target.value)}
+                  className="w-full bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-lg p-2.5 text-sm focus:outline-none focus:border-emerald-600 resize-none"
+                  placeholder={t.staff.additionalInstructions}
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-0 flex flex-row items-center justify-between mt-6">
+              {editingAssignment ? (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={handleDelete}
+                  disabled={isSubmitting}
+                  className="h-9 px-3"
+                >
+                  {t.staff.deleteShift}
+                </Button>
+              ) : (
+                <div />
+              )}
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setIsDialogOpen(false)}
+                  disabled={isSubmitting}
+                  className="text-zinc-400 hover:text-zinc-200 h-9 px-3"
+                >
+                  {t.common.cancel}
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-9 px-4 rounded-lg flex items-center gap-1.5 shadow-sm shadow-emerald-500/10"
+                >
+                  {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
+                  {editingAssignment ? t.common.save : t.staff.assignShift}
+                </Button>
+              </div>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -481,9 +985,71 @@ function ScheduleTab({ staff }: { staff: StaffUser[] }) {
 /* Staff Directory Tab */
 function StaffDirectoryTab({ staff }: { staff: StaffUser[] }) {
   const t = useT();
+  const locale = useLocale();
+  const fmtCur = (a: number) => formatCurrencyByLocale(a, locale);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
   const [visiblePins, setVisiblePins] = useState<Set<string>>(new Set());
+
+  const [isAddStaffOpen, setIsAddStaffOpen] = useState(false);
+  const [editingStaff, setEditingStaff] = useState<StaffUser | null>(null);
+  
+  const [newStaff, setNewStaff] = useState({
+    name: '',
+    email: '',
+    role: 'FOH',
+    pin: '',
+    hourlyRate: '15',
+    phone: '',
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+
+  const handleEditStaff = async () => {
+    if (!editingStaff) return;
+    try {
+      setIsEditSubmitting(true);
+      const res = await fetch('/api/staff', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editingStaff),
+      });
+      if (res.ok) {
+        setEditingStaff(null);
+        window.location.reload();
+      } else {
+        alert('Failed to edit staff');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error editing staff');
+    } finally {
+      setIsEditSubmitting(false);
+    }
+  };
+
+  const handleAddStaff = async () => {
+    try {
+      setIsSubmitting(true);
+      const res = await fetch('/api/staff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newStaff),
+      });
+      if (res.ok) {
+        setIsAddStaffOpen(false);
+        setNewStaff({ name: '', email: '', role: 'FOH', pin: '', hourlyRate: '15', phone: '' });
+        window.location.reload(); // Quick refresh to get new data
+      } else {
+        alert('Failed to add staff');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error adding staff');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const filteredStaff = useMemo(() => {
     return staff.filter((u) => {
@@ -518,7 +1084,7 @@ function StaffDirectoryTab({ staff }: { staff: StaffUser[] }) {
             className="pl-9 bg-zinc-900 border-zinc-700 text-zinc-200 placeholder:text-zinc-600"
           />
         </div>
-        <div className="flex gap-1.5 flex-wrap">
+        <div className="flex gap-1.5 flex-wrap flex-1 justify-end">
           {roles.map((role) => (
             <Button
               key={role}
@@ -535,6 +1101,179 @@ function StaffDirectoryTab({ staff }: { staff: StaffUser[] }) {
               {role === 'ALL' ? t.common.all : role}
             </Button>
           ))}
+          <div className="w-px h-6 bg-zinc-800 mx-1 self-center" />
+          <Dialog open={isAddStaffOpen} onOpenChange={setIsAddStaffOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs">
+                <Plus className="size-3 mr-1" />
+                Add Staff
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100 sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Add New Staff Member</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="name" className="text-right text-xs text-zinc-400">Name</Label>
+                  <Input
+                    id="name"
+                    value={newStaff.name}
+                    onChange={(e) => setNewStaff({ ...newStaff, name: e.target.value })}
+                    className="col-span-3 bg-zinc-900 border-zinc-800 text-zinc-100"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="email" className="text-right text-xs text-zinc-400">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={newStaff.email}
+                    onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value })}
+                    className="col-span-3 bg-zinc-900 border-zinc-800 text-zinc-100"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="role" className="text-right text-xs text-zinc-400">Role</Label>
+                  <select
+                    id="role"
+                    value={newStaff.role}
+                    onChange={(e) => setNewStaff({ ...newStaff, role: e.target.value })}
+                    className="col-span-3 flex h-10 w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="FOH">FOH</option>
+                    <option value="BAR">BAR</option>
+                    <option value="KITCHEN">KITCHEN</option>
+                    <option value="MANAGER">MANAGER</option>
+                    <option value="ADMIN">ADMIN</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="pin" className="text-right text-xs text-zinc-400">4-Digit PIN</Label>
+                  <Input
+                    id="pin"
+                    maxLength={4}
+                    value={newStaff.pin}
+                    onChange={(e) => setNewStaff({ ...newStaff, pin: e.target.value.replace(/[^0-9]/g, '') })}
+                    className="col-span-3 bg-zinc-900 border-zinc-800 text-zinc-100 font-mono tracking-widest"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="rate" className="text-right text-xs text-zinc-400">Hourly Rate</Label>
+                  <Input
+                    id="rate"
+                    type="number"
+                    value={newStaff.hourlyRate}
+                    onChange={(e) => setNewStaff({ ...newStaff, hourlyRate: e.target.value })}
+                    className="col-span-3 bg-zinc-900 border-zinc-800 text-zinc-100"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsAddStaffOpen(false)} className="bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white">
+                  Cancel
+                </Button>
+                <Button onClick={handleAddStaff} disabled={isSubmitting || newStaff.pin.length !== 4 || !newStaff.name} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                  {isSubmitting ? 'Adding...' : 'Add Staff'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={!!editingStaff} onOpenChange={(open) => !open && setEditingStaff(null)}>
+            <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100 sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Edit Staff Member</DialogTitle>
+              </DialogHeader>
+              {editingStaff && (
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="edit-name" className="text-right text-xs text-zinc-400">Name</Label>
+                    <Input
+                      id="edit-name"
+                      value={editingStaff.name}
+                      onChange={(e) => setEditingStaff({ ...editingStaff, name: e.target.value })}
+                      className="col-span-3 bg-zinc-900 border-zinc-800 text-zinc-100"
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="edit-email" className="text-right text-xs text-zinc-400">Email</Label>
+                    <Input
+                      id="edit-email"
+                      type="email"
+                      value={editingStaff.email}
+                      onChange={(e) => setEditingStaff({ ...editingStaff, email: e.target.value })}
+                      className="col-span-3 bg-zinc-900 border-zinc-800 text-zinc-100"
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="edit-role" className="text-right text-xs text-zinc-400">Role</Label>
+                    <select
+                      id="edit-role"
+                      value={editingStaff.role}
+                      onChange={(e) => setEditingStaff({ ...editingStaff, role: e.target.value })}
+                      className="col-span-3 flex h-10 w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    >
+                      <option value="FOH">FOH</option>
+                      <option value="BAR">BAR</option>
+                      <option value="KITCHEN">KITCHEN</option>
+                      <option value="MANAGER">MANAGER</option>
+                      <option value="ADMIN">ADMIN</option>
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="edit-pin" className="text-right text-xs text-zinc-400">4-Digit PIN</Label>
+                    <Input
+                      id="edit-pin"
+                      maxLength={4}
+                      value={editingStaff.pin}
+                      onChange={(e) => setEditingStaff({ ...editingStaff, pin: e.target.value.replace(/[^0-9]/g, '') })}
+                      className="col-span-3 bg-zinc-900 border-zinc-800 text-zinc-100 font-mono tracking-widest"
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="edit-rate" className="text-right text-xs text-zinc-400">Hourly Rate</Label>
+                    <Input
+                      id="edit-rate"
+                      type="number"
+                      value={editingStaff.hourlyRate}
+                      onChange={(e) => setEditingStaff({ ...editingStaff, hourlyRate: parseFloat(e.target.value) || 0 })}
+                      className="col-span-3 bg-zinc-900 border-zinc-800 text-zinc-100"
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="edit-status" className="text-right text-xs text-zinc-400">Status</Label>
+                    <div className="col-span-3 flex items-center gap-2">
+                      <Button
+                        variant={editingStaff.active ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setEditingStaff({ ...editingStaff, active: true })}
+                        className={editingStaff.active ? "bg-emerald-600 hover:bg-emerald-700" : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800"}
+                      >
+                        Active
+                      </Button>
+                      <Button
+                        variant={!editingStaff.active ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setEditingStaff({ ...editingStaff, active: false })}
+                        className={!editingStaff.active ? "bg-red-600 hover:bg-red-700 text-white" : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800"}
+                      >
+                        Inactive
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setEditingStaff(null)} className="bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white">
+                  Cancel
+                </Button>
+                <Button onClick={handleEditStaff} disabled={isEditSubmitting || (editingStaff?.pin.length !== 4) || !editingStaff?.name} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                  {isEditSubmitting ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -552,6 +1291,7 @@ function StaffDirectoryTab({ staff }: { staff: StaffUser[] }) {
                   <TableHead className="text-zinc-500 text-xs text-right">{t.staff.hourlyRate}</TableHead>
                   <TableHead className="text-zinc-500 text-xs text-center">PIN</TableHead>
                   <TableHead className="text-zinc-500 text-xs text-center">{t.common.status}</TableHead>
+                  <TableHead className="text-zinc-500 text-xs text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -618,6 +1358,16 @@ function StaffDirectoryTab({ staff }: { staff: StaffUser[] }) {
                           {t.common.inactive}
                         </Badge>
                       )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditingStaff(user)}
+                        className="text-zinc-400 hover:text-emerald-400 hover:bg-emerald-500/10 h-8 w-8 p-0"
+                      >
+                        <Pencil className="size-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -915,7 +1665,10 @@ function ClockInOutTab({ staff, onClockAction }: { staff: StaffUser[]; onClockAc
 /* Tips Tab */
 function TipsTab({ staff }: { staff: StaffUser[] }) {
   const t = useT();
-  const [tipPool, setTipPool] = useState<string>('500');
+  const locale = useLocale();
+  const { currencySymbol } = useLocaleConfig();
+  const fmtCur = (a: number) => formatCurrencyByLocale(a, locale);
+  const [tipPool, setTipPool] = useState<string>('0');
   const [distributions, setDistributions] = useState<TipDistribution[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [distributed, setDistributed] = useState(false);
@@ -927,6 +1680,9 @@ function TipsTab({ staff }: { staff: StaffUser[] }) {
       if (res.ok) {
         const data = await res.json();
         setDistributions(data.distributions || []);
+        if (typeof data.totalTips === 'number') {
+          setTipPool(data.totalTips.toString());
+        }
       }
     } catch (err) {
       console.error('Failed to fetch tip distribution:', err);
@@ -975,7 +1731,7 @@ function TipsTab({ staff }: { staff: StaffUser[] }) {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-lg text-zinc-500">$</span>
+              <span className="text-lg text-zinc-500">{currencySymbol}</span>
               <Input
                 type="number"
                 value={tipPool}
@@ -1185,7 +1941,7 @@ export function StaffManagement() {
         </TabsList>
 
         <TabsContent value="schedule" className="mt-4">
-          <ScheduleTab staff={staff} />
+          <ScheduleTab staff={staff} onRefresh={fetchStaff} />
         </TabsContent>
 
         <TabsContent value="directory" className="mt-4">

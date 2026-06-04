@@ -33,6 +33,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Switch } from '@/components/ui/switch';
 import {
   Sheet,
   SheetContent,
@@ -100,6 +101,7 @@ interface Customer {
   visitCount: number;
   lastVisit: string | null;
   marketingOptIn: boolean;
+  allowedCredit: boolean;
   createdAt: string;
   updatedAt: string;
   favorites: CustomerFavorite[];
@@ -232,14 +234,17 @@ function CustomerDetailSheet({
   open,
   onClose,
   onAddPoints,
+  onToggleCreditAuth,
 }: {
   customer: Customer | null;
   open: boolean;
   onClose: () => void;
   onAddPoints: (customerId: string, points: number) => Promise<void>;
+  onToggleCreditAuth: (customerId: string, allowedCredit: boolean) => Promise<void>;
 }) {
   const [addingPoints, setAddingPoints] = useState(false);
   const [pointsToAdd, setPointsToAdd] = useState(100);
+  const [togglingCredit, setTogglingCredit] = useState(false);
   const t = useT();
   const locale = useLocale();
 
@@ -253,11 +258,22 @@ function CustomerDetailSheet({
     : [];
 
   async function handleAddPoints() {
+    if (!customer) return;
     setAddingPoints(true);
     try {
       await onAddPoints(customer.id, pointsToAdd);
     } finally {
       setAddingPoints(false);
+    }
+  }
+
+  async function handleToggleCreditAuth(checked: boolean) {
+    if (!customer) return;
+    setTogglingCredit(true);
+    try {
+      await onToggleCreditAuth(customer.id, checked);
+    } finally {
+      setTogglingCredit(false);
     }
   }
 
@@ -283,7 +299,7 @@ function CustomerDetailSheet({
                 {customer.firstName} {customer.lastName}
               </SheetTitle>
               <SheetDescription className="text-xs text-zinc-500">
-                Member since {formatDateByLocale(customer.createdAt, locale)}
+                {t.crm.memberSince} {formatDateByLocale(customer.createdAt, locale)}
               </SheetDescription>
             </div>
           </div>
@@ -293,7 +309,7 @@ function CustomerDetailSheet({
           {/* Contact Info */}
           <div className="space-y-2">
             <h4 className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
-              Contact Info
+              {t.crm.contactInfo}
             </h4>
             <div className="space-y-1.5">
               {customer.email && (
@@ -343,7 +359,7 @@ function CustomerDetailSheet({
           {/* Loyalty Info */}
           <div className="space-y-3">
             <h4 className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
-              Loyalty Program
+              {t.crm.loyaltyProgram}
             </h4>
             <div className="flex items-center justify-between">
               <Badge
@@ -361,7 +377,7 @@ function CustomerDetailSheet({
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between text-[11px]">
                   <span className="text-zinc-500">
-                    Progress to {nextTier}
+                    {t.crm.progressTo} {nextTier}
                   </span>
                   <span className="text-zinc-400">{Math.round(progress)}%</span>
                 </div>
@@ -370,7 +386,7 @@ function CustomerDetailSheet({
                   className="h-2 bg-zinc-800 [&>div]:bg-emerald-500"
                 />
                 <p className="text-[10px] text-zinc-600">
-                  {TIER_THRESHOLDS[nextTier] - customer.loyaltyPoints} points to{' '}
+                  {TIER_THRESHOLDS[nextTier] - customer.loyaltyPoints} {t.crm.pointsTo}{' '}
                   {nextTier}
                 </p>
               </div>
@@ -394,7 +410,7 @@ function CustomerDetailSheet({
                           {formatDateByLocale(visit.visitDate, locale)}
                         </p>
                         <p className="text-[10px] text-zinc-500">
-                          {visit.partySize} guest{visit.partySize !== 1 ? 's' : ''}
+                          {visit.partySize} {visit.partySize === 1 ? t.floorPlan.guest : t.floorPlan.guests}
                           {visit.notes && ` · ${visit.notes}`}
                         </p>
                       </div>
@@ -448,7 +464,7 @@ function CustomerDetailSheet({
             </h4>
             <div className="flex items-end gap-2">
               <div className="flex-1">
-                <Label className="text-[11px] text-zinc-400 mb-1">Add Points</Label>
+                <Label className="text-[11px] text-zinc-400 mb-1">{t.crm.addPoints}</Label>
                 <Input
                   type="number"
                   value={pointsToAdd}
@@ -468,19 +484,36 @@ function CustomerDetailSheet({
                 ) : (
                   <Plus className="size-3.5" />
                 )}
-                Add
+                {t.common.add}
               </Button>
             </div>
+
+            {/* Store Credit Authorization Toggle */}
+            <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-800/40 border border-zinc-700/50 my-2">
+              <div className="space-y-0.5">
+                <Label htmlFor="allowed-credit" className="text-xs font-semibold text-zinc-200 cursor-pointer">
+                  {t.pos.authorizeStoreCredit}
+                </Label>
+                <p className="text-[10px] text-zinc-500 leading-normal">{t.pos.allowedCreditDesc}</p>
+              </div>
+              <Switch
+                id="allowed-credit"
+                checked={customer.allowedCredit}
+                onCheckedChange={handleToggleCreditAuth}
+                disabled={togglingCredit}
+              />
+            </div>
+
             <Button
               variant="outline"
               size="sm"
               className="w-full border-zinc-700 text-zinc-300 hover:bg-zinc-800 gap-2 h-9"
               onClick={() => {
-                alert(`Marketing email would be sent to ${customer.email || 'no email on file'}`);
+                alert(`${t.crm.marketingEmailAlert} ${customer.email || t.crm.noEmailOnFile}`);
               }}
             >
               <Send className="size-3.5" />
-              Send Marketing Email
+              {t.crm.sendMarketingEmail}
             </Button>
           </div>
         </div>
@@ -538,7 +571,7 @@ function AddCustomerDialog({
 
   async function handleSubmit() {
     if (!form.firstName.trim() || !form.lastName.trim()) {
-      setError('First name and last name are required.');
+      setError(t.crm.nameRequired);
       return;
     }
     setSaving(true);
@@ -562,7 +595,7 @@ function AddCustomerDialog({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error('Failed to create customer');
+      if (!res.ok) throw new Error(t.crm.errorCreateCustomer);
       resetForm();
       onOpenChange(false);
       onCreated();
@@ -577,16 +610,16 @@ function AddCustomerDialog({
     <Dialog open={open} onOpenChange={(v) => { if (!v) resetForm(); onOpenChange(v); }}>
       <DialogContent className="bg-zinc-900 border-zinc-800 text-zinc-100 sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-zinc-100">Add New Customer</DialogTitle>
+          <DialogTitle className="text-zinc-100">{t.crm.addNewCustomer}</DialogTitle>
           <DialogDescription className="text-zinc-500">
-            Add a new guest to the CRM system.
+            {t.crm.addNewCustomerDesc}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs text-zinc-400">First Name *</Label>
+              <Label className="text-xs text-zinc-400">{t.crm.firstName} *</Label>
               <Input
                 value={form.firstName}
                 onChange={(e) => setForm({ ...form, firstName: e.target.value })}
@@ -595,7 +628,7 @@ function AddCustomerDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-zinc-400">Last Name *</Label>
+              <Label className="text-xs text-zinc-400">{t.crm.lastName} *</Label>
               <Input
                 value={form.lastName}
                 onChange={(e) => setForm({ ...form, lastName: e.target.value })}
@@ -624,7 +657,7 @@ function AddCustomerDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs text-zinc-400">Birthday</Label>
+            <Label className="text-xs text-zinc-400">{t.crm.birthday}</Label>
             <Input
               type="date"
               value={form.birthday}
@@ -637,7 +670,7 @@ function AddCustomerDialog({
             <Input
               value={form.allergies}
               onChange={(e) => setForm({ ...form, allergies: e.target.value })}
-              placeholder="nuts, gluten (comma-separated)"
+              placeholder={t.crm.allergiesPlaceholder}
               className="h-9 bg-zinc-800 border-zinc-700 text-zinc-200"
             />
           </div>
@@ -651,7 +684,7 @@ function AddCustomerDialog({
               className="border-zinc-600 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
             />
             <Label htmlFor="marketing" className="text-xs text-zinc-400 cursor-pointer">
-              Marketing opt-in
+              {t.crm.marketingOptIn}
             </Label>
           </div>
           {error && (
@@ -680,7 +713,7 @@ function AddCustomerDialog({
             ) : (
               <Plus className="size-4" />
             )}
-            Add Customer
+            {t.crm.addCustomer}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -754,8 +787,8 @@ export function CRMGuests() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: customerId, loyaltyPoints: points }),
       });
-      if (!res.ok) throw new Error('Failed to add points');
-      addNotification(`Added ${points} points to customer`, 'success');
+      if (!res.ok) throw new Error(t.crm.errorAddPoints);
+      addNotification(t.crm.pointsAdded, 'success');
       await fetchCustomers(false);
       // Update selected customer
       const updated = customers.find((c) => c.id === customerId);
@@ -766,7 +799,36 @@ export function CRMGuests() {
         });
       }
     } catch (err) {
-      addNotification('Failed to add points', 'error');
+      addNotification(t.crm.errorAddPoints, 'error');
+    }
+  }
+
+  /* Toggle store credit authorization */
+  async function handleToggleCreditAuth(customerId: string, allowedCredit: boolean) {
+    try {
+      const res = await fetch('/api/customers', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: customerId, allowedCredit }),
+      });
+      if (!res.ok) throw new Error(t.crm.errorUpdateCredit);
+      addNotification(
+        allowedCredit 
+          ? t.crm.creditAuthorized 
+          : t.crm.creditRevoked, 
+        'success'
+      );
+      await fetchCustomers(false);
+      // Update selected customer
+      const updated = customers.find((c) => c.id === customerId);
+      if (updated) {
+        setSelectedCustomer({
+          ...updated,
+          allowedCredit,
+        });
+      }
+    } catch (err) {
+      addNotification(t.crm.errorUpdateCredit, 'error');
     }
   }
 
@@ -819,7 +881,7 @@ export function CRMGuests() {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <XCircle className="size-8 text-red-500 mb-3" />
-        <p className="text-sm text-zinc-400 mb-2">Failed to load customers</p>
+        <p className="text-sm text-zinc-400 mb-2">{t.crm.errorLoadCustomers}</p>
         <p className="text-xs text-zinc-600 mb-4">{error}</p>
         <Button
           variant="outline"
@@ -851,7 +913,7 @@ export function CRMGuests() {
           className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 self-start"
         >
           <Plus className="size-4" />
-          Add Customer
+          {t.crm.addCustomer}
         </Button>
       </div>
 
@@ -871,7 +933,7 @@ export function CRMGuests() {
         </div>
         <Select value={tierFilter} onValueChange={setTierFilter}>
           <SelectTrigger className="w-full sm:w-[160px] bg-zinc-900 border-zinc-800 text-zinc-200 h-9">
-            <SelectValue placeholder="Filter by tier" />
+            <SelectValue placeholder={t.crm.filterByTier} />
           </SelectTrigger>
           <SelectContent className="bg-zinc-800 border-zinc-700">
             <SelectItem value="ALL" className="text-zinc-200 focus:bg-zinc-700 focus:text-zinc-100">
@@ -907,7 +969,7 @@ export function CRMGuests() {
                 </TableHead>
                 <TableHead className="text-zinc-400 hidden md:table-cell">{t.common.email}</TableHead>
                 <TableHead className="text-zinc-400 hidden lg:table-cell">{t.common.phone}</TableHead>
-                <TableHead className="text-zinc-400">Tier</TableHead>
+                <TableHead className="text-zinc-400">{t.crm.tier}</TableHead>
                 <TableHead
                   className="text-zinc-400 cursor-pointer select-none hover:text-zinc-200 text-right"
                   onClick={() => handleSort('visits')}
@@ -992,7 +1054,7 @@ export function CRMGuests() {
                         <Search className="size-6 text-zinc-600" />
                         <p className="text-sm">{t.crm.noGuestsFound}</p>
                         <p className="text-xs text-zinc-600">
-                          Try adjusting your search or filter
+                          {t.inventory.tryAdjusting}
                         </p>
                       </div>
                     </TableCell>
@@ -1004,7 +1066,6 @@ export function CRMGuests() {
         </CardContent>
       </Card>
 
-      {/* Customer Detail Sheet */}
       <CustomerDetailSheet
         customer={selectedCustomer}
         open={sheetOpen}
@@ -1013,6 +1074,7 @@ export function CRMGuests() {
           setSelectedCustomer(null);
         }}
         onAddPoints={handleAddPoints}
+        onToggleCreditAuth={handleToggleCreditAuth}
       />
 
       {/* Add Customer Dialog */}
