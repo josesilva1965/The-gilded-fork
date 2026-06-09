@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { notifyStockChange } from '@/lib/socket-server';
 
 export async function GET() {
   try {
@@ -72,7 +73,7 @@ export async function POST(request: Request) {
 
     // Deduct from ingredient stock
     const newStock = Math.max(0, ingredient.currentStock - parseFloat(quantity));
-    await db.ingredient.update({
+    const updatedIngredient = await db.ingredient.update({
       where: { id: ingredientId },
       data: { currentStock: newStock },
     });
@@ -86,6 +87,13 @@ export async function POST(request: Request) {
         referenceId: wastageLog.id,
         notes: `Wastage: ${reason}${notes ? ` - ${notes}` : ''}`,
       },
+    });
+
+    notifyStockChange({
+      name: updatedIngredient.name,
+      currentStock: updatedIngredient.currentStock,
+      minStock: updatedIngredient.minStock,
+      unit: updatedIngredient.unit,
     });
 
     return NextResponse.json(wastageLog, { status: 201 });

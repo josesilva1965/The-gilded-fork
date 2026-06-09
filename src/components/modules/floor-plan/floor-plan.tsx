@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   DndContext,
@@ -45,6 +45,11 @@ import {
   LayoutGrid,
   ChevronDown,
   Bell,
+  Trash2,
+  QrCode,
+  Copy,
+  ExternalLink,
+  Printer,
 } from 'lucide-react';
 import { useT, useLocale } from '@/stores/locale-store';
 import { useAppStore } from '@/stores/app-store';
@@ -331,11 +336,11 @@ function TableCardContent({
 }) {
   const t = useT();
   const locale = useLocale();
-  const hasActiveOrder = table.orders.length > 0;
+  const hasActiveOrder = (table.orders?.length || 0) > 0;
   const hasReadyItems = table.orders?.some(o => 
     o.items?.some(i => i.status === 'READY')
   );
-  const orderTotal = hasActiveOrder
+  const orderTotal = hasActiveOrder && table.orders
     ? table.orders.reduce((sum, o) => sum + o.totalAmount, 0)
     : 0;
   const isRound = table.shape === 'ROUND';
@@ -420,7 +425,7 @@ function TableCardContent({
         )}
 
         {/* Reservation indicator */}
-        {table.reservations.length > 0 && table.status === 'RESERVED' && (
+        {(table.reservations?.length || 0) > 0 && table.status === 'RESERVED' && table.reservations?.[0] && (
           <div className="flex items-center gap-1 mt-1">
             <Clock className="size-3 opacity-60" />
             <span className="text-[10px] opacity-70">{table.reservations[0].reservationTime}</span>
@@ -483,6 +488,8 @@ function CanvasTableCard({
   onClick,
   onDragMove,
   onDragEnd,
+  onResize,
+  onResizeEnd,
   staff,
   onCapacityChange,
   onServerChange,
@@ -493,6 +500,8 @@ function CanvasTableCard({
   onClick: () => void;
   onDragMove: (tableId: string, deltaX: number, deltaY: number) => void;
   onDragEnd: (tableId: string) => void;
+  onResize: (tableId: string, width: number, height: number) => void;
+  onResizeEnd: (tableId: string) => void;
   staff: StaffMember[];
   onCapacityChange: (tableId: string, newCapacity: number) => void;
   onServerChange: (tableId: string, serverId: string | null) => void;
@@ -500,24 +509,83 @@ function CanvasTableCard({
 }) {
   const t = useT();
   const elementRef = useRef<HTMLDivElement>(null);
+  const resizeHandleRef = useRef<HTMLDivElement>(null);
   const [hovered, setHovered] = useState(false);
   const [serverPopoverOpen, setServerPopoverOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const statusColor = TABLE_STATUS_COLORS[table.status] || '';
-  const hasActiveOrder = table.orders.length > 0;
+  const hasActiveOrder = (table.orders?.length || 0) > 0;
   const hasReadyItems = table.orders?.some(o => 
     o.items?.some(i => i.status === 'READY')
   );
 
+  // Keep refs of dimensions to avoid constant listener re-bindings
+  const tableWidthRef = useRef(table.width);
+  const tableHeightRef = useRef(table.height);
+  useEffect(() => {
+    tableWidthRef.current = table.width;
+    tableHeightRef.current = table.height;
+  }, [table.width, table.height]);
+
   // Use refs for callbacks to avoid stale closures in document event listeners
   const onDragMoveRef = useRef(onDragMove);
   const onDragEndRef = useRef(onDragEnd);
+  const onResizeRef = useRef(onResize);
+  const onResizeEndRef = useRef(onResizeEnd);
   const onClickRef = useRef(onClick);
   useEffect(() => {
     onDragMoveRef.current = onDragMove;
     onDragEndRef.current = onDragEnd;
+    onResizeRef.current = onResize;
+    onResizeEndRef.current = onResizeEnd;
     onClickRef.current = onClick;
   });
+
+  // Document-level resize handling for robust pointer tracking
+  useEffect(() => {
+    const handleEl = resizeHandleRef.current;
+    if (!handleEl || !isLayoutEditable) return;
+
+    const handlePointerDown = (e: PointerEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const startWidth = tableWidthRef.current;
+      const startHeight = tableHeightRef.current;
+      const startX = e.clientX;
+      const startY = e.clientY;
+
+      const handlePointerMove = (moveEvent: PointerEvent) => {
+        moveEvent.preventDefault();
+        const deltaX = moveEvent.clientX - startX;
+        const deltaY = moveEvent.clientY - startY;
+
+        // Restrict size between 60px and 300px
+        const newWidth = Math.max(60, Math.min(300, startWidth + deltaX));
+        const newHeight = Math.max(40, Math.min(300, startHeight + deltaY));
+
+        onResizeRef.current(table.id, newWidth, newHeight);
+      };
+
+      const handlePointerUp = () => {
+        document.removeEventListener('pointermove', handlePointerMove);
+        document.removeEventListener('pointerup', handlePointerUp);
+        document.removeEventListener('pointercancel', handlePointerUp);
+        
+        onResizeEndRef.current(table.id);
+      };
+
+      document.addEventListener('pointermove', handlePointerMove);
+      document.addEventListener('pointerup', handlePointerUp);
+      document.addEventListener('pointercancel', handlePointerUp);
+    };
+
+    handleEl.addEventListener('pointerdown', handlePointerDown);
+
+    return () => {
+      handleEl.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, [table.id, isLayoutEditable]);
 
   // Document-level drag handling for robust pointer tracking
   useEffect(() => {
@@ -752,10 +820,35 @@ function CanvasTableCard({
           </div>
 
           {/* Order indicator */}
-          {hasActiveOrder && (
+          {hasActiveOrder && !isLayoutEditable && (
             <span className="absolute bottom-1 right-1">
               <span className="block size-1.5 rounded-full bg-amber-400" />
             </span>
+          )}
+
+          {/* Resize handle in bottom-right corner */}
+          {isLayoutEditable && (
+            <div
+              ref={resizeHandleRef}
+              data-interactive
+              className="absolute bottom-1 right-1 size-4 cursor-se-resize flex items-end justify-end p-0.5 z-35"
+            >
+              <svg
+                width="6"
+                height="6"
+                viewBox="0 0 6 6"
+                className="text-zinc-500 hover:text-emerald-400 transition-colors"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M6 0L0 6M6 3L3 6"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </div>
           )}
         </div>
       </div>
@@ -798,6 +891,7 @@ function FloorViewCanvas({
   selectedTableId,
   onSelectTable,
   onTablePositionChange,
+  onTableSizeChange,
   onCapacityChange,
   onServerChange,
   staff,
@@ -807,6 +901,7 @@ function FloorViewCanvas({
   selectedTableId: string | null;
   onSelectTable: (table: RestaurantTable) => void;
   onTablePositionChange: (tableId: string, x: number, y: number) => void;
+  onTableSizeChange: (tableId: string, width: number, height: number) => void;
   onCapacityChange: (tableId: string, newCapacity: number) => void;
   onServerChange: (tableId: string, serverId: string | null) => void;
   staff: StaffMember[];
@@ -814,36 +909,60 @@ function FloorViewCanvas({
 }) {
   const t = useT();
   const containerRef = useRef<HTMLDivElement>(null);
+  
   // Ref to track which table is currently being dragged (prevents sync from overwriting)
   const draggingTableIdRef = useRef<string | null>(null);
   // Ref to always have latest local positions for drag calculations (avoids stale closures)
   const localPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
   const [localPositions, setLocalPositions] = useState<Record<string, { x: number; y: number }>>({});
+  
+  // Resizing tracking state and refs
+  const resizingTableIdRef = useRef<string | null>(null);
+  const localSizesRef = useRef<Record<string, { w: number; h: number }>>({});
+  const [localSizes, setLocalSizes] = useState<Record<string, { w: number; h: number }>>({});
+  
   const [initialized, setInitialized] = useState(false);
 
-  // Use ref for onTablePositionChange to avoid stale closures
+  // Use refs to avoid stale closures
   const onTablePositionChangeRef = useRef(onTablePositionChange);
+  const onTableSizeChangeRef = useRef(onTableSizeChange);
   useEffect(() => {
     onTablePositionChangeRef.current = onTablePositionChange;
+    onTableSizeChangeRef.current = onTableSizeChange;
   });
 
-  // Sync local positions when tables data changes
-  // Skip the currently-dragged table to prevent position jumps during drag
+  // Sync local positions and sizes when tables data changes
+  // Skip currently active interactions to prevent jumping
   useEffect(() => {
     setLocalPositions((prev) => {
       const newPos: Record<string, { x: number; y: number }> = {};
       tables.forEach((tbl) => {
-        // If this table is currently being dragged, preserve its local position
         if (draggingTableIdRef.current === tbl.id && prev[tbl.id]) {
           newPos[tbl.id] = prev[tbl.id];
         } else {
-          // Otherwise use the data from props (server data)
           newPos[tbl.id] = getInitialPixelPos(tbl);
         }
       });
       localPositionsRef.current = newPos;
       return newPos;
     });
+
+    setLocalSizes((prev) => {
+      const newSizes: Record<string, { w: number; h: number }> = {};
+      tables.forEach((tbl) => {
+        if (resizingTableIdRef.current === tbl.id && prev[tbl.id]) {
+          newSizes[tbl.id] = prev[tbl.id];
+        } else {
+          newSizes[tbl.id] = {
+            w: (!tbl.width || tbl.width <= 10) ? (tbl.shape === 'RECTANGLE' ? 140 : 110) : tbl.width,
+            h: (!tbl.height || tbl.height <= 10) ? (tbl.shape === 'RECTANGLE' ? 70 : 110) : tbl.height,
+          };
+        }
+      });
+      localSizesRef.current = newSizes;
+      return newSizes;
+    });
+
     setInitialized(true);
   }, [tables]);
 
@@ -877,20 +996,41 @@ function FloorViewCanvas({
       localPositionsRef.current[tableId] = { x: snappedX, y: snappedY };
       setLocalPositions((prev) => ({ ...prev, [tableId]: { x: snappedX, y: snappedY } }));
 
-      // Save to API - the parent will update tables state, which triggers the sync useEffect
-      // The sync useEffect will see draggingTableIdRef is still set, so it preserves the local position
+      // Save to API
       onTablePositionChangeRef.current(tableId, snappedX, snappedY);
 
-      // Clear the dragging flag after enough time for:
-      // 1. API call to complete and update setTables
-      // 2. React to process the state update
-      // 3. Sync useEffect to run and preserve the local position
-      // After this delay, subsequent state changes will use the (now correct) server data
       setTimeout(() => {
         draggingTableIdRef.current = null;
       }, 500);
     } else {
       draggingTableIdRef.current = null;
+    }
+  }, []);
+
+  // During resize: only update local state for visual feedback
+  const handleResize = useCallback((tableId: string, width: number, height: number) => {
+    resizingTableIdRef.current = tableId;
+    localSizesRef.current[tableId] = { w: width, h: height };
+    setLocalSizes((prev) => ({ ...prev, [tableId]: { w: width, h: height } }));
+  }, []);
+
+  // On resize end: save the final dimensions to the API
+  const handleResizeEnd = useCallback((tableId: string) => {
+    const finalSize = localSizesRef.current[tableId];
+    if (finalSize) {
+      const snappedW = Math.round(finalSize.w / 20) * 20;
+      const snappedH = Math.round(finalSize.h / 20) * 20;
+
+      localSizesRef.current[tableId] = { w: snappedW, h: snappedH };
+      setLocalSizes((prev) => ({ ...prev, [tableId]: { w: snappedW, h: snappedH } }));
+
+      onTableSizeChangeRef.current(tableId, snappedW, snappedH);
+
+      setTimeout(() => {
+        resizingTableIdRef.current = null;
+      }, 500);
+    } else {
+      resizingTableIdRef.current = null;
     }
   }, []);
 
@@ -941,13 +1081,15 @@ function FloorViewCanvas({
                 ...table,
                 x: pixelPos.x,
                 y: pixelPos.y,
-                width: (!table.width || table.width <= 10) ? (table.shape === 'RECTANGLE' ? 140 : 110) : table.width,
-                height: (!table.height || table.height <= 10) ? (table.shape === 'RECTANGLE' ? 70 : 110) : table.height,
+                width: localSizes[table.id]?.w ?? ((!table.width || table.width <= 10) ? (table.shape === 'RECTANGLE' ? 140 : 110) : table.width),
+                height: localSizes[table.id]?.h ?? ((!table.height || table.height <= 10) ? (table.shape === 'RECTANGLE' ? 70 : 110) : table.height),
               }}
               isSelected={selectedTableId === table.id}
               onClick={() => onSelectTable(table)}
               onDragMove={handleDragMove}
               onDragEnd={handleDragEnd}
+              onResize={handleResize}
+              onResizeEnd={handleResizeEnd}
               staff={staff}
               onCapacityChange={onCapacityChange}
               onServerChange={onServerChange}
@@ -983,16 +1125,20 @@ function TableDetailSheet({
   onClose,
   onStatusChange,
   onTableUpdate,
+  onDeleteTable,
   staff,
   customers,
+  isLayoutEditable,
 }: {
   table: RestaurantTable | null;
   open: boolean;
   onClose: () => void;
   onStatusChange: (tableId: string, newStatus: TableStatus) => Promise<void>;
   onTableUpdate: (tableId: string, updates: Record<string, unknown>) => Promise<void>;
+  onDeleteTable: (tableId: string) => Promise<void>;
   staff: StaffMember[];
   customers: any[];
+  isLayoutEditable: boolean;
 }) {
   const [updating, setUpdating] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -1002,26 +1148,47 @@ function TableDetailSheet({
   const [editShape, setEditShape] = useState<TableShape>('ROUND');
   const [editServerId, setEditServerId] = useState<string>('NONE');
   const [editCustomerId, setEditCustomerId] = useState<string>('NONE');
+  const [localIp, setLocalIp] = useState<string>('');
   const t = useT();
   const locale = useLocale();
   const { toast } = useToast();
 
+  useEffect(() => {
+    if (open) {
+      fetch('/api/tables/local-ip')
+        .then((res) => res.json())
+        .then((data) => setLocalIp(data.localIp))
+        .catch(() => {});
+    }
+  }, [open]);
+
+  const qrUrl = useMemo(() => {
+    if (!table) return '';
+    if (typeof window === 'undefined') return '';
+    const ip = localIp && localIp !== 'localhost' ? localIp : window.location.hostname;
+    const port = window.location.port ? `:${window.location.port}` : '';
+    return `${window.location.protocol}//${ip}${port}/table/${table.number}`;
+  }, [table, localIp]);
+
   // Sync edit state when table changes
   useEffect(() => {
     if (table) {
-      setEditName(table.name);
-      setEditCapacity(table.capacity);
-      setEditSection(table.section);
-      setEditShape(table.shape);
-      setEditServerId(table.serverId || 'NONE');
-      setEditCustomerId((table as any).customerId || 'NONE');
+      const timer = setTimeout(() => {
+        setEditName(table.name);
+        setEditCapacity(table.capacity);
+        setEditSection(table.section);
+        setEditShape(table.shape);
+        setEditServerId(table.serverId || 'NONE');
+        setEditCustomerId((table as any).customerId || 'NONE');
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [table]);
 
   if (!table) return null;
 
-  const hasActiveOrder = table.orders.length > 0;
-  const orderTotal = hasActiveOrder
+  const hasActiveOrder = (table.orders?.length || 0) > 0;
+  const orderTotal = hasActiveOrder && table.orders
     ? table.orders.reduce((sum, o) => sum + o.totalAmount, 0)
     : 0;
   const SectionIcon = SECTION_ICONS[table.section];
@@ -1301,6 +1468,16 @@ function TableDetailSheet({
                 )}
                 {t.floorPlan.saveChanges}
               </Button>
+
+              <Button
+                variant="destructive"
+                onClick={() => onDeleteTable(table.id)}
+                disabled={updating || hasActiveOrder}
+                className="w-full bg-red-950/40 border-red-900/30 text-red-400 hover:bg-red-900 hover:text-white border mt-2 gap-2"
+              >
+                <Trash2 className="size-4" />
+                {t.floorPlan.deleteTable}
+              </Button>
             </div>
           )}
 
@@ -1439,7 +1616,7 @@ function TableDetailSheet({
           )}
 
           {/* Reservation info */}
-          {table.reservations.length > 0 && (
+          {(table.reservations?.length || 0) > 0 && table.reservations && (
             <>
               <Separator className="bg-zinc-800" />
               <div className="space-y-2">
@@ -1482,6 +1659,101 @@ function TableDetailSheet({
               </div>
             </>
           )}
+
+          {/* QR Code & Self-Ordering */}
+          <>
+            <Separator className="bg-zinc-800" />
+            <div className="space-y-2.5">
+              <h4 className="text-sm font-semibold text-zinc-200 flex items-center gap-2">
+                <QrCode className="size-4 text-emerald-400" />
+                Customer QR Ordering
+              </h4>
+              <Card className="bg-zinc-800/40 border-zinc-700/40 overflow-hidden">
+                <CardContent className="p-3.5 space-y-3 flex flex-col items-center">
+                  <div className="bg-white p-2.5 rounded-lg shadow-md border border-zinc-200">
+                    {/* Dynamic QR code using standard public qr server API */}
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(qrUrl)}&color=000000&bgcolor=ffffff`}
+                      alt={`Table ${table.number} QR Code`}
+                      className="size-40 select-none object-contain"
+                    />
+                  </div>
+                  
+                  <div className="text-center w-full">
+                    <p className="text-[11px] font-medium text-zinc-300">Table {table.number} Ordering URL</p>
+                    <p className="text-[10px] text-zinc-500 break-all select-all font-mono mt-0.5">
+                      {qrUrl}
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2 w-full pt-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 text-[11px] h-8 border-zinc-700 hover:bg-zinc-800 text-zinc-300 gap-1.5"
+                      onClick={() => {
+                        navigator.clipboard.writeText(qrUrl);
+                        toast({
+                          title: "Link Copied",
+                          description: `Copied Table ${table.number} ordering link to clipboard.`,
+                        });
+                      }}
+                    >
+                      <Copy className="size-3" />
+                      Copy Link
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 text-[11px] h-8 border-zinc-700 hover:bg-zinc-800 text-zinc-300 gap-1.5"
+                      onClick={() => {
+                        window.open(qrUrl, '_blank');
+                      }}
+                    >
+                      <ExternalLink className="size-3" />
+                      Open Page
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-[11px] h-8 w-8 p-0 border-zinc-700 hover:bg-zinc-800 text-zinc-300 shrink-0"
+                      title="Print QR Code"
+                      onClick={() => {
+                        const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrUrl)}`;
+                        const printWindow = window.open('', '_blank');
+                        if (printWindow) {
+                          printWindow.document.write(`
+                            <html>
+                              <head>
+                                <title>Print Table ${table.number} QR</title>
+                                <style>
+                                  body { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif; }
+                                  .container { text-align: center; border: 2px solid #000; padding: 30px; border-radius: 15px; }
+                                  h1 { margin-bottom: 5px; font-size: 28px; }
+                                  p { font-size: 16px; color: #555; margin-top: 0; margin-bottom: 20px; }
+                                  img { width: 250px; height: 250px; }
+                                </style>
+                              </head>
+                              <body onload="window.print(); window.close();">
+                                <div class="container">
+                                  <h1>The Gilded Fork</h1>
+                                  <p>Scan to Order &middot; Table ${table.number}</p>
+                                  <img src="${qrImgUrl}" />
+                                </div>
+                              </body>
+                            </html>
+                          `);
+                          printWindow.document.close();
+                        }
+                      }}
+                    >
+                      <Printer className="size-3.5" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </>
         </div>
 
         {/* Quick Actions */}
@@ -1513,6 +1785,17 @@ function TableDetailSheet({
                 {t.floorPlan.clearTable}
               </Button>
             </div>
+            {isLayoutEditable && (
+              <Button
+                variant="destructive"
+                onClick={() => onDeleteTable(table.id)}
+                disabled={updating || hasActiveOrder}
+                className="w-full bg-red-950/40 border-red-900/30 text-red-400 hover:bg-red-900 hover:text-white border mt-2 gap-2"
+              >
+                <Trash2 className="size-4" />
+                {t.floorPlan.deleteTable}
+              </Button>
+            )}
           </div>
         </SheetFooter>
       </SheetContent>
@@ -1629,9 +1912,83 @@ export function FloorPlan() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('sections');
   const [isLayoutEditable, setIsLayoutEditable] = useState(false);
+  const [isAddingTable, setIsAddingTable] = useState(false);
   const t = useT();
   const locale = useLocale();
   const { toast } = useToast();
+
+  /* Create new table */
+  async function handleAddTable() {
+    setIsAddingTable(true);
+    try {
+      const activeTabSection = activeSection === 'ALL' ? 'MAIN' : activeSection;
+      const res = await fetch('/api/tables', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ section: activeTabSection, shape: 'ROUND', capacity: 4 }),
+      });
+      if (!res.ok) throw new Error('Failed to add table');
+      const newTable = await res.json();
+      
+      setTables((prev) => [...prev, newTable]);
+
+      toast({
+        title: 'Table Added Successfully',
+        description: `${newTable.name} has been added to ${newTable.section} dining area.`,
+      });
+
+      // Emit socket status-change
+      const socket = getSocket();
+      if (socket?.connected) {
+        socket.emit('table:status-change', {
+          tableId: newTable.id,
+          status: newTable.status,
+          updatedBy: user?.name || 'Staff Member',
+        });
+      }
+    } catch {
+      toast({
+        title: 'Failed to create table',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsAddingTable(false);
+    }
+  }
+
+  /* Delete table */
+  async function handleDeleteTable(tableId: string) {
+    try {
+      const res = await fetch(`/api/tables?id=${tableId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Failed to delete table');
+      
+      setTables((prev) => prev.filter((tbl) => tbl.id !== tableId));
+      setSelectedTable(null);
+      setSheetOpen(false);
+
+      toast({
+        title: 'Table Deleted Successfully',
+        description: 'The table has been removed from the floor layout.',
+      });
+
+      // Emit socket status-change
+      const socket = getSocket();
+      if (socket?.connected) {
+        socket.emit('table:status-change', {
+          tableId,
+          status: 'FREE',
+          updatedBy: user?.name || 'Staff Member',
+        });
+      }
+    } catch {
+      toast({
+        title: 'Failed to delete table',
+        variant: 'destructive',
+      });
+    }
+  }
 
   /* Fetch tables */
   const fetchTables = useCallback(async (showLoader = false) => {
@@ -1692,9 +2049,14 @@ export function FloorPlan() {
 
   /* Initial fetch + auto-refresh */
   useEffect(() => {
-    fetchTables(true);
+    const timer = setTimeout(() => {
+      fetchTables(true);
+    }, 0);
     const interval = setInterval(() => fetchTables(false), REFRESH_INTERVAL);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
   }, []);
 
   /* Real-time socket sync for floor plan tables */
@@ -1735,8 +2097,11 @@ export function FloorPlan() {
     if (selectedTableId) {
       const tbl = tables.find((tb) => tb.id === selectedTableId);
       if (tbl) {
-        setSelectedTable(tbl);
-        setSheetOpen(true);
+        const timer = setTimeout(() => {
+          setSelectedTable(tbl);
+          setSheetOpen(true);
+        }, 0);
+        return () => clearTimeout(timer);
       }
     }
   }, [selectedTableId, tables]);
@@ -1902,6 +2267,44 @@ export function FloorPlan() {
       // Silent success - no toast for position saves (fires frequently during drag)
     } catch {
       toast({ title: t.floorPlan.positionSaveFailed, variant: 'destructive' });
+      // Revert if saving fails
+      await fetchTables(false);
+    }
+  }
+
+  /* Floor view: size change handler */
+  async function handleTableSizeChange(tableId: string, width: number, height: number) {
+    const roundedW = Math.round(width);
+    const roundedH = Math.round(height);
+
+    // Optimistic update
+    setTables((prev) =>
+      prev.map((tbl) => (tbl.id === tableId ? { ...tbl, width: roundedW, height: roundedH } : tbl))
+    );
+    setSelectedTable((prev) =>
+      prev && prev.id === tableId ? { ...prev, width: roundedW, height: roundedH } : prev
+    );
+
+    try {
+      const res = await fetch('/api/tables', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: tableId, width: roundedW, height: roundedH }),
+      });
+      if (!res.ok) throw new Error('Failed to save size');
+
+      // Emit socket status-change
+      const socket = getSocket();
+      if (socket?.connected) {
+        const tableStatus = tables.find(t => t.id === tableId)?.status || 'FREE';
+        socket.emit('table:status-change', {
+          tableId,
+          status: tableStatus,
+          updatedBy: user?.name || 'Staff Member',
+        });
+      }
+    } catch {
+      toast({ title: t.floorPlan.failedToUpdateTable, variant: 'destructive' });
       // Revert if saving fails
       await fetchTables(false);
     }
@@ -2169,29 +2572,47 @@ export function FloorPlan() {
 
           {/* Edit Layout Button (Only visible in Floor View) */}
           {viewMode === 'floor' && (
-            <Button
-              variant={isLayoutEditable ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setIsLayoutEditable(!isLayoutEditable)}
-              className={cn(
-                'gap-2 transition-all duration-200',
-                isLayoutEditable 
-                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
-                  : 'border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100'
+            <div className="flex items-center gap-2">
+              {isLayoutEditable && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddTable}
+                  disabled={isAddingTable}
+                  className="border-zinc-700 text-emerald-400 hover:bg-zinc-800 gap-1.5 h-9"
+                >
+                  {isAddingTable ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Plus className="size-3.5" />
+                  )}
+                  <span>Add Table</span>
+                </Button>
               )}
-            >
-              {isLayoutEditable ? (
-                <>
-                  <CheckCircle2 className="size-4 text-white" />
-                  <span>{t.floorPlan.doneEditing}</span>
-                </>
-              ) : (
-                <>
-                  <Pencil className="size-4 text-amber-400 animate-pulse" />
-                  <span>{t.floorPlan.editLayout}</span>
-                </>
-              )}
-            </Button>
+              <Button
+                variant={isLayoutEditable ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setIsLayoutEditable(!isLayoutEditable)}
+                className={cn(
+                  'gap-2 transition-all duration-200',
+                  isLayoutEditable 
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
+                    : 'border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100'
+                )}
+              >
+                {isLayoutEditable ? (
+                  <>
+                    <CheckCircle2 className="size-4 text-white" />
+                    <span>{t.floorPlan.doneEditing}</span>
+                  </>
+                ) : (
+                  <>
+                    <Pencil className="size-4 text-amber-400 animate-pulse" />
+                    <span>{t.floorPlan.editLayout}</span>
+                  </>
+                )}
+              </Button>
+            </div>
           )}
 
           <Button
@@ -2296,6 +2717,7 @@ export function FloorPlan() {
           selectedTableId={selectedTable?.id ?? null}
           onSelectTable={handleSelectTable}
           onTablePositionChange={handleTablePositionChange}
+          onTableSizeChange={handleTableSizeChange}
           onCapacityChange={handleCapacityChange}
           onServerChange={handleServerChange}
           staff={staff}
@@ -2313,8 +2735,10 @@ export function FloorPlan() {
         }}
         onStatusChange={handleStatusChange}
         onTableUpdate={handleTableUpdate}
+        onDeleteTable={handleDeleteTable}
         staff={staff}
         customers={customers}
+        isLayoutEditable={isLayoutEditable}
       />
     </div>
   );

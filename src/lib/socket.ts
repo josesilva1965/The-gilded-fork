@@ -3,10 +3,25 @@
 import { io, Socket } from 'socket.io-client';
 
 let socket: Socket | null = null;
+let socketUrl: string | null = null;
+
+function getSocketUrl(): string {
+  if (typeof window === 'undefined') return 'http://localhost:3003';
+  // Connect directly to the socket server port — works on localhost and LAN (iPad, etc.)
+  // without needing Caddy's XTransformPort proxy.
+  return `http://${window.location.hostname}:3003`;
+}
 
 export function getSocket(): Socket {
-  if (!socket) {
-    socket = io('/?XTransformPort=3003', {
+  const url = getSocketUrl();
+  // Recreate if URL changed (e.g. after hot reload from old proxy URL)
+  if (!socket || socketUrl !== url) {
+    if (socket) {
+      socket.disconnect();
+      socket.removeAllListeners();
+    }
+    socketUrl = url;
+    socket = io(url, {
       transports: ['websocket', 'polling'],
       autoConnect: false,
       reconnection: true,

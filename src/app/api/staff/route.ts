@@ -32,6 +32,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Email already in use' }, { status: 400 });
     }
 
+    const existingRoleUser = await db.user.findFirst({
+      where: { role },
+      select: { tipPointValue: true },
+    });
+    const defaultTipPointValue = existingRoleUser ? existingRoleUser.tipPointValue : (role === 'ADMIN' ? 0 : role === 'MANAGER' ? 1.5 : role === 'BAR' ? 1.2 : 1.0);
+
     const user = await db.user.create({
       data: {
         name,
@@ -39,6 +45,7 @@ export async function POST(req: Request) {
         role,
         pin,
         hourlyRate: hourlyRate ? parseFloat(hourlyRate) : 0,
+        tipPointValue: defaultTipPointValue,
         phone,
       },
     });
@@ -69,7 +76,14 @@ export async function PUT(req: Request) {
     const updateData: any = {};
     if (name !== undefined) updateData.name = name;
     if (email !== undefined) updateData.email = email;
-    if (role !== undefined) updateData.role = role;
+    if (role !== undefined) {
+      updateData.role = role;
+      const existingRoleUser = await db.user.findFirst({
+        where: { role },
+        select: { tipPointValue: true },
+      });
+      updateData.tipPointValue = existingRoleUser ? existingRoleUser.tipPointValue : (role === 'ADMIN' ? 0 : role === 'MANAGER' ? 1.5 : role === 'BAR' ? 1.2 : 1.0);
+    }
     if (pin !== undefined) updateData.pin = pin;
     if (hourlyRate !== undefined) updateData.hourlyRate = parseFloat(hourlyRate) || 0;
     if (phone !== undefined) updateData.phone = phone;

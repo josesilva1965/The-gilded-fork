@@ -79,6 +79,10 @@ io.on("connection", (socket) => {
     io.to("role:MANAGER").emit("inventory:low-stock-alert", data);
   });
 
+  socket.on("inventory:change", () => {
+    io.emit("inventory:updated");
+  });
+
   // ===== STAFF EVENTS =====
   socket.on("staff:clock-in", (data: any) => {
     io.to("role:ADMIN").emit("staff:clock-update", data);

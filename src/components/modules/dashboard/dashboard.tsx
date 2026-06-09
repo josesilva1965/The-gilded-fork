@@ -100,6 +100,16 @@ interface ActivityItem {
   type: 'order' | 'reservation' | 'clock_in' | 'clock_out';
   description: string;
   time: string;
+  createdAt?: string;
+  metadata?: {
+    tableName?: string;
+    creatorName?: string;
+    totalAmount?: number;
+    guestName?: string;
+    partySize?: number;
+    reservationTime?: string;
+    userName?: string;
+  };
 }
 
 interface LowStockItem {
@@ -190,6 +200,45 @@ const ACTIVITY_COLORS: Record<string, string> = {
   clock_in: 'text-emerald-400 bg-emerald-500/10',
   clock_out: 'text-zinc-400 bg-zinc-500/10',
 };
+
+function getActivityDescription(activity: ActivityItem, t: any, locale: string): string {
+  if (!activity.metadata) return activity.description;
+
+  const { type, metadata } = activity;
+  if (type === 'order') {
+    return t.dashboard.activityOrderPlaced
+      .replace('{table}', metadata.tableName || '')
+      .replace('{creator}', metadata.creatorName || '')
+      .replace('{amount}', formatCurrencyByLocale(metadata.totalAmount || 0, locale as any));
+  } else if (type === 'reservation') {
+    return t.dashboard.activityReservation
+      .replace('{guest}', metadata.guestName || '')
+      .replace('{partySize}', String(metadata.partySize || 0))
+      .replace('{time}', metadata.reservationTime || '');
+  } else if (type === 'clock_in') {
+    return t.dashboard.activityClockIn
+      .replace('{user}', metadata.userName || '');
+  }
+  return activity.description;
+}
+
+function getActivityTimeAgo(activity: ActivityItem, t: any): string {
+  if (!activity.createdAt) return activity.time;
+
+  const now = Date.now();
+  const then = new Date(activity.createdAt).getTime();
+  const diffMs = now - then;
+  const diffMin = Math.floor(diffMs / 60000);
+
+  if (diffMin < 1) return t.dashboard.now;
+  if (diffMin < 60) return t.dashboard.minAgo.replace('{min}', String(diffMin));
+  
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return t.dashboard.hoursAgo.replace('{hours}', String(diffHours));
+
+  const diffDays = Math.floor(diffHours / 24);
+  return t.dashboard.daysAgo.replace('{days}', String(diffDays));
+}
 
 /* ─── Custom Tooltip ─── */
 
@@ -798,11 +847,11 @@ export function Dashboard() {
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="text-xs text-zinc-300 truncate">
-                              {activity.description}
+                              {getActivityDescription(activity, t, locale)}
                             </p>
                             <p className="text-[10px] text-zinc-600 flex items-center gap-1">
                               <Clock className="size-2.5" />
-                              {activity.time}
+                              {getActivityTimeAgo(activity, t)}
                             </p>
                           </div>
                         </motion.div>

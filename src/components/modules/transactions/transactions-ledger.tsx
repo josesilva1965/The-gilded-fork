@@ -94,7 +94,10 @@ export function TransactionsLedger() {
   }, [period, typeFilter, searchQuery, t.dashboard.failedToLoad]);
 
   useEffect(() => {
-    fetchTransactions();
+    const timer = setTimeout(() => {
+      fetchTransactions();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [fetchTransactions]);
 
   // Locale-specific tax config

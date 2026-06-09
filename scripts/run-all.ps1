@@ -35,5 +35,5 @@ Start-Process powershell -ArgumentList "-NoExit", "-Command", "
 "
 
 # Step 4: Start Next.js development server in the current window
-Write-Host "[Next.js] Launching Next.js Development Server on http://localhost:3000 ..." -ForegroundColor Emerald
-npx next dev -p 3000
+Write-Host "[Next.js] Launching Next.js Development Server on http://0.0.0.0:3000 (accessible on local network)..." -ForegroundColor Emerald
+npx next dev -H 0.0.0.0 -p 3000

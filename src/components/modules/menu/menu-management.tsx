@@ -194,7 +194,6 @@ export function MenuManagement() {
                       <div key={item.id} className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden group hover:border-emerald-500/50 transition-colors">
                         <div className="h-32 bg-zinc-950 relative">
                           {item.imageUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
                             <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
                           ) : (
                             <div className="flex items-center justify-center h-full text-zinc-700">
@@ -203,7 +202,7 @@ export function MenuManagement() {
                           )}
                           <div className="absolute top-2 right-2 flex gap-1">
                             <Badge className="bg-zinc-900/80 text-emerald-400 border-emerald-900/50 backdrop-blur-md">
-                              ${item.price.toFixed(2)}
+                              {currencySymbol}{item.price.toFixed(2)}
                             </Badge>
                           </div>
                         </div>
@@ -313,7 +312,6 @@ export function MenuManagement() {
                   </div>
                   {editingItem.imageUrl && (
                     <div className="mt-2 h-32 w-full rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={editingItem.imageUrl} alt="Preview" className="w-full h-full object-cover" />
                     </div>
                   )}

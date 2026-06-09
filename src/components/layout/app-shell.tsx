@@ -23,23 +23,59 @@ import {
 import { useAuthStore, ROLE_COLORS } from '@/stores/auth-store';
 import { useAppStore } from '@/stores/app-store';
 import { useT, useLocale } from '@/stores/locale-store';
+import { useBranding } from '@/stores/branding-store';
 import { useLocaleConfig } from '@/stores/locale-store';
 import { Sidebar, MobileSidebar } from '@/components/layout/sidebar';
 import { TopBar } from '@/components/layout/top-bar';
-import { FloorPlan } from '@/components/modules/floor-plan/floor-plan';
-import { KitchenDisplay } from '@/components/modules/kds/kitchen-display';
-import { Dashboard } from '@/components/modules/dashboard/dashboard';
-import { CRMGuests } from '@/components/modules/crm/crm-guests';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { POSSystem } from '@/components/modules/pos/pos-system';
-import { Inventory } from '@/components/modules/inventory/inventory';
-import { Reservations } from '@/components/modules/reservations/reservations';
-import { StaffManagement } from '@/components/modules/staff/staff-management';
-import { TransactionsLedger } from '@/components/modules/transactions/transactions-ledger';
-import { MenuManagement } from '@/components/modules/menu/menu-management';
-import { Settings } from '@/components/modules/admin/settings';
+import dynamic from 'next/dynamic';
+
+const FloorPlan = dynamic(() => import('@/components/modules/floor-plan/floor-plan').then((m) => m.FloorPlan), {
+  ssr: false,
+  loading: () => <div className="h-full flex items-center justify-center text-zinc-500 py-12">Loading Floor Plan...</div>,
+});
+const KitchenDisplay = dynamic(() => import('@/components/modules/kds/kitchen-display').then((m) => m.KitchenDisplay), {
+  ssr: false,
+  loading: () => <div className="h-full flex items-center justify-center text-zinc-500 py-12">Loading KDS...</div>,
+});
+const Dashboard = dynamic(() => import('@/components/modules/dashboard/dashboard').then((m) => m.Dashboard), {
+  ssr: false,
+  loading: () => <div className="h-full flex items-center justify-center text-zinc-500 py-12">Loading Dashboard...</div>,
+});
+const CRMGuests = dynamic(() => import('@/components/modules/crm/crm-guests').then((m) => m.CRMGuests), {
+  ssr: false,
+  loading: () => <div className="h-full flex items-center justify-center text-zinc-500 py-12">Loading Guests...</div>,
+});
+const POSSystem = dynamic(() => import('@/components/modules/pos/pos-system').then((m) => m.POSSystem), {
+  ssr: false,
+  loading: () => <div className="h-full flex items-center justify-center text-zinc-500 py-12">Loading POS...</div>,
+});
+const Inventory = dynamic(() => import('@/components/modules/inventory/inventory').then((m) => m.Inventory), {
+  ssr: false,
+  loading: () => <div className="h-full flex items-center justify-center text-zinc-500 py-12">Loading Inventory...</div>,
+});
+const Reservations = dynamic(() => import('@/components/modules/reservations/reservations').then((m) => m.Reservations), {
+  ssr: false,
+  loading: () => <div className="h-full flex items-center justify-center text-zinc-500 py-12">Loading Reservations...</div>,
+});
+const StaffManagement = dynamic(() => import('@/components/modules/staff/staff-management').then((m) => m.StaffManagement), {
+  ssr: false,
+  loading: () => <div className="h-full flex items-center justify-center text-zinc-500 py-12">Loading Staff Management...</div>,
+});
+const TransactionsLedger = dynamic(() => import('@/components/modules/transactions/transactions-ledger').then((m) => m.TransactionsLedger), {
+  ssr: false,
+  loading: () => <div className="h-full flex items-center justify-center text-zinc-500 py-12">Loading Transactions Ledger...</div>,
+});
+const MenuManagement = dynamic(() => import('@/components/modules/menu/menu-management').then((m) => m.MenuManagement), {
+  ssr: false,
+  loading: () => <div className="h-full flex items-center justify-center text-zinc-500 py-12">Loading Menu Management...</div>,
+});
+const Settings = dynamic(() => import('@/components/modules/admin/settings').then((m) => m.Settings), {
+  ssr: false,
+  loading: () => <div className="h-full flex items-center justify-center text-zinc-500 py-12">Loading Settings...</div>,
+});
 import { useSocketSync } from '@/hooks/use-socket-sync';
 
 // Force hot reload
@@ -117,6 +153,7 @@ function RoleSelectionScreen() {
   const login = useAuthStore((s) => s.login);
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const t = useT();
+  const { logoText, logoIconType, logoEmoji, logoUrl, restaurantName } = useBranding();
 
   function handleRoleSelect(role: string) {
     setSelectedRole(role);
@@ -134,9 +171,9 @@ function RoleSelectionScreen() {
   const roles = ['ADMIN', 'MANAGER', 'KITCHEN', 'BAR', 'FOH'];
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-zinc-955 p-4">
       {/* Subtle background pattern */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-900 via-zinc-950 to-zinc-950" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-900 via-zinc-955 to-zinc-955" />
       <div className="absolute inset-0 opacity-[0.015]" style={{
         backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
       }} />
@@ -147,15 +184,24 @@ function RoleSelectionScreen() {
         transition={{ duration: 0.5, ease: 'easeOut' }}
         className="relative z-10 w-full max-w-lg"
       >
-        <Card className="bg-zinc-900 border-zinc-800 shadow-2xl shadow-black/50">
+        <Card className="bg-zinc-900 border-zinc-800 shadow-2xl shadow-black/50 animate-in zoom-in-95 duration-350">
           <CardHeader className="text-center pb-2">
             <div className="flex items-center justify-center mb-4">
-              <div className="flex items-center justify-center w-14 h-14 rounded-xl bg-emerald-600 text-white shadow-lg shadow-emerald-600/25">
-                <Utensils className="size-7" />
+              <div className={cn(
+                "flex items-center justify-center w-20 h-20 rounded-2xl text-white shadow-lg overflow-hidden shrink-0",
+                logoIconType === 'url' && logoUrl ? "" : "bg-emerald-600 shadow-emerald-600/25"
+              )}>
+                {logoIconType === 'emoji' ? (
+                  <span className="text-4xl">{logoEmoji}</span>
+                ) : logoIconType === 'url' && logoUrl ? (
+                  <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-2xl font-bold tracking-wider">{logoText || 'GF'}</span>
+                )}
               </div>
             </div>
             <CardTitle className="text-2xl font-bold text-zinc-100 tracking-tight">
-              {t.auth.restaurantName}
+              {restaurantName || t.auth.restaurantName}
             </CardTitle>
             <CardDescription className="text-zinc-500 text-sm">
               {t.auth.managementSystem}
@@ -295,6 +341,16 @@ function MainLayout() {
   const currentView = useAppStore((s) => s.currentView);
   const t = useT();
   const localeConfig = useLocaleConfig();
+
+  // Collapse sidebar by default on tablet-sized viewports (< 1024px) to maximize workspace
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      const state = useAppStore.getState();
+      if (state.sidebarOpen) {
+        state.toggleSidebar();
+      }
+    }
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col bg-zinc-950">

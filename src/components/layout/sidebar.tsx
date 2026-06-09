@@ -17,12 +17,18 @@ import {
 import { useAuthStore, ROLE_COLORS } from '@/stores/auth-store';
 import { useAppStore } from '@/stores/app-store';
 import { useT, useLocale } from '@/stores/locale-store';
+import { useBranding } from '@/stores/branding-store';
 import { NAV_ITEMS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '@/components/ui/tooltip';
 
 const ICON_MAP: Record<string, LucideIcon> = {
   LayoutDashboard,
@@ -74,6 +80,7 @@ export function Sidebar() {
   const setView = useAppStore((s) => s.setView);
   const sidebarOpen = useAppStore((s) => s.sidebarOpen);
   const t = useT();
+  const { logoText, logoIconType, logoEmoji, logoUrl, restaurantName } = useBranding();
 
   const filteredItems = useMemo(() => {
     if (!user) return [];
@@ -91,13 +98,22 @@ export function Sidebar() {
     >
       {/* Logo / Restaurant Name */}
       <div className="flex items-center gap-3 px-4 h-16 border-b border-zinc-800 shrink-0">
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-600 text-white font-bold text-sm shrink-0">
-          GF
+        <div className={cn(
+          "flex items-center justify-center w-10 h-10 rounded-lg text-white font-bold text-sm shrink-0 overflow-hidden",
+          logoIconType === 'url' && logoUrl ? "" : "bg-emerald-600"
+        )}>
+          {logoIconType === 'emoji' ? (
+            <span className="text-xl">{logoEmoji}</span>
+          ) : logoIconType === 'url' && logoUrl ? (
+            <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-xs font-bold tracking-wider">{logoText || 'GF'}</span>
+          )}
         </div>
         {sidebarOpen && (
           <div className="overflow-hidden">
             <h1 className="text-sm font-semibold text-zinc-100 truncate">
-              {t.auth.restaurantName}
+              {restaurantName || t.auth.restaurantName}
             </h1>
             <p className="text-[10px] text-zinc-500 truncate">{t.auth.managementSystem}</p>
           </div>
@@ -110,13 +126,13 @@ export function Sidebar() {
           {filteredItems.map((item) => {
             const Icon = getIcon(item.icon);
             const isActive = currentView === item.view;
-            return (
+            const buttonEl = (
               <Button
                 key={item.view}
                 variant="ghost"
                 onClick={() => setView(item.view)}
                 className={cn(
-                  'justify-start gap-3 h-10 px-3 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors',
+                  'justify-start gap-3 h-10 px-3 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors w-full',
                   isActive &&
                     'bg-emerald-600/15 text-emerald-400 hover:bg-emerald-600/20 hover:text-emerald-400',
                   !sidebarOpen && 'justify-center px-0'
@@ -144,6 +160,19 @@ export function Sidebar() {
                 )}
               </Button>
             );
+
+            return sidebarOpen ? (
+              buttonEl
+            ) : (
+              <Tooltip key={item.view} delayDuration={0}>
+                <TooltipTrigger asChild>
+                  {buttonEl}
+                </TooltipTrigger>
+                <TooltipContent side="right" className="bg-zinc-950 border border-zinc-800 text-zinc-200">
+                  {getNavLabel(item.view, t)}
+                </TooltipContent>
+              </Tooltip>
+            );
           })}
         </nav>
       </ScrollArea>
@@ -168,18 +197,33 @@ export function Sidebar() {
             </div>
           </div>
         )}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={logout}
-          className={cn(
-            'w-full text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 gap-2',
-            !sidebarOpen && 'px-0 justify-center'
-          )}
-        >
-          <ArrowLeftRight className="size-3.5" />
-          {sidebarOpen && <span className="text-xs">{t.auth.switchRole}</span>}
-        </Button>
+        {sidebarOpen ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={logout}
+            className="w-full text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 gap-2"
+          >
+            <ArrowLeftRight className="size-3.5" />
+            <span className="text-xs">{t.auth.switchRole}</span>
+          </Button>
+        ) : (
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={logout}
+                className="w-full text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 justify-center px-0 h-9"
+              >
+                <ArrowLeftRight className="size-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="bg-zinc-950 border border-zinc-800 text-zinc-200">
+              {t.auth.switchRole}
+            </TooltipContent>
+          </Tooltip>
+        )}
       </div>
     </aside>
   );
@@ -198,6 +242,7 @@ export function MobileSidebar({
   const currentView = useAppStore((s) => s.currentView);
   const setView = useAppStore((s) => s.setView);
   const t = useT();
+  const { logoText, logoIconType, logoEmoji, logoUrl, restaurantName } = useBranding();
 
   const filteredItems = useMemo(() => {
     if (!user) return [];
@@ -223,12 +268,21 @@ export function MobileSidebar({
 
       {/* Logo */}
       <div className="flex items-center gap-3 px-4 h-16 border-b border-zinc-800 shrink-0">
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-600 text-white font-bold text-sm shrink-0">
-          GF
+        <div className={cn(
+          "flex items-center justify-center w-10 h-10 rounded-lg text-white font-bold text-sm shrink-0 overflow-hidden",
+          logoIconType === 'url' && logoUrl ? "" : "bg-emerald-600"
+        )}>
+          {logoIconType === 'emoji' ? (
+            <span className="text-xl">{logoEmoji}</span>
+          ) : logoIconType === 'url' && logoUrl ? (
+            <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-xs font-bold tracking-wider">{logoText || 'GF'}</span>
+          )}
         </div>
         <div className="overflow-hidden">
           <h1 className="text-sm font-semibold text-zinc-100 truncate">
-            {t.auth.restaurantName}
+            {restaurantName || t.auth.restaurantName}
           </h1>
           <p className="text-[10px] text-zinc-500 truncate">{t.auth.managementSystem}</p>
         </div>

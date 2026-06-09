@@ -100,6 +100,13 @@ export interface Translations {
     topSellingItems: string;
     recentActivity: string;
     noRecentActivity: string;
+    activityOrderPlaced: string;
+    activityReservation: string;
+    activityClockIn: string;
+    minAgo: string;
+    hoursAgo: string;
+    daysAgo: string;
+    now: string;
     costBreakdown: string;
     laborCost: string;
     foodCost: string;
@@ -174,6 +181,8 @@ export interface Translations {
     statusDirty: string;
     // Edit table
     editTable: string;
+    addTable: string;
+    deleteTable: string;
     tableName: string;
     capacity: string;
     assignServer: string;
@@ -630,8 +639,67 @@ export interface Translations {
     language: string;
     customTaxRate: string;
     resetToDefault: string;
+    brandingTitle: string;
+    brandingDesc: string;
+    systemTheme: string;
+    darkTheme: string;
+    lightTheme: string;
+    primaryColorAccent: string;
+    restaurantIdentity: string;
+    restaurantName: string;
+    logoDisplayType: string;
+    logoInitials: string;
+    logoEmoji: string;
+    logoUrlLabel: string;
+    logoUploadOrUrl: string;
+    logoSelectFile: string;
+    logoClearImage: string;
+    saveBranding: string;
+    resetBranding: string;
+    staffPinConfig: string;
+    staffPinDesc: string;
+    showPin: string;
+    hidePin: string;
+    setPin: string;
+    roleMultipliersTitle: string;
+    roleMultipliersDesc: string;
   };
 
+  tableOrder: {
+    premiumSelfService: string;
+    searchPlaceholder: string;
+    noItemsFound: string;
+    liveBillTracker: string;
+    dishesInPrep: string;
+    noActiveOrders: string;
+    addItemsToOrder: string;
+    tableBillTotal: string;
+    modifierTitle: string;
+    notesTitle: string;
+    addToCart: string;
+    reviewOrder: string;
+    cartTitle: string;
+    specialRequests: string;
+    placeOrderBtn: string;
+    orderSubmitted: string;
+    orderFailed: string;
+    prepStatusOrdered: string;
+    prepStatusPreparing: string;
+    prepStatusReady: string;
+    prepStatusServed: string;
+    modifierRequired: string;
+    modifierOptional: string;
+    browseMenu: string;
+    trackOrders: string;
+    guestsSeated: string;
+    viewCart: string;
+    popularBadge: string;
+    modifiersRequiredBadge: string;
+    extrasTitle: string;
+    itemAddedToCart: string;
+    cartEmpty: string;
+    placedBySelf: string;
+  };
 
   footer: {
     copyright: string;
@@ -731,6 +799,13 @@ export const enGB: Translations = {
     topSellingItems: 'Top Selling Items',
     recentActivity: 'Recent Activity',
     noRecentActivity: 'No recent activity',
+    activityOrderPlaced: 'Order placed at {table} by {creator} — {amount}',
+    activityReservation: 'Reservation for {guest} — {partySize} guests at {time}',
+    activityClockIn: '{user} clocked in',
+    minAgo: '{min} min ago',
+    hoursAgo: '{hours}h ago',
+    daysAgo: '{days}d ago',
+    now: 'Just now',
     costBreakdown: 'Cost Breakdown',
     laborCost: 'Labor Cost',
     foodCost: 'Food Cost',
@@ -800,6 +875,8 @@ export const enGB: Translations = {
     statusBillRequested: 'Bill Requested',
     statusDirty: 'Needs Cleaning',
     editTable: 'Edit Table',
+    addTable: 'Add Table',
+    deleteTable: 'Delete Table',
     tableName: 'Table Name',
     capacity: 'Capacity',
     assignServer: 'Assign Server',
@@ -1229,7 +1306,66 @@ export const enGB: Translations = {
     localizationDesc: 'Configure your region, language, and override default tax rates.',
     language: 'Language & Region',
     customTaxRate: 'Custom Tax Rate (%)',
-    resetToDefault: 'Reset to Default'
+    resetToDefault: 'Reset to Default',
+    brandingTitle: 'Branding & Visual Themes',
+    brandingDesc: 'Customize the restaurant identity, color theme, and logos globally.',
+    systemTheme: 'System Theme',
+    darkTheme: 'Dark Theme',
+    lightTheme: 'Light Theme',
+    primaryColorAccent: 'Primary Color Accent',
+    restaurantIdentity: 'Restaurant Identity & Logo',
+    restaurantName: 'Restaurant Name',
+    logoDisplayType: 'Logo Display Type',
+    logoInitials: 'Logo Text Initials (max 4 chars)',
+    logoEmoji: 'Logo Emoji',
+    logoUrlLabel: 'Logo Image URL',
+    logoUploadOrUrl: 'Or upload local image',
+    logoSelectFile: 'Select local file',
+    logoClearImage: 'Clear Image',
+    saveBranding: 'Save Branding',
+    resetBranding: 'Reset to Defaults',
+    staffPinConfig: 'Staff PIN Configuration',
+    staffPinDesc: 'Configure and attribute numeric 4-digit PINs for employee clock-ins.',
+    showPin: 'Show PIN',
+    hidePin: 'Hide PIN',
+    setPin: 'Set PIN',
+    roleMultipliersTitle: 'Role Multipliers for Tips',
+    roleMultipliersDesc: 'Configure point weights for tip distribution by staff role.',
+  },
+  tableOrder: {
+    premiumSelfService: 'Premium Self-Service',
+    searchPlaceholder: 'Search menu items...',
+    noItemsFound: 'No items found',
+    liveBillTracker: 'Live Bill & Status Tracker',
+    dishesInPrep: 'Dishes In Preparation',
+    noActiveOrders: 'No active orders yet',
+    addItemsToOrder: 'Add items below to start your order.',
+    tableBillTotal: 'Table Bill Total',
+    modifierTitle: 'Customize Item',
+    notesTitle: 'Kitchen notes (allergies, requests...)',
+    addToCart: 'Add to Order',
+    reviewOrder: 'Review Order',
+    cartTitle: 'Your Table Cart',
+    specialRequests: 'Special requests...',
+    placeOrderBtn: 'Submit Order to Kitchen',
+    orderSubmitted: 'Order submitted to kitchen successfully!',
+    orderFailed: 'Failed to place order. Please try again.',
+    prepStatusOrdered: 'Ordered',
+    prepStatusPreparing: 'Preparing',
+    prepStatusReady: 'Ready',
+    prepStatusServed: 'Served',
+    modifierRequired: 'Required selection',
+    modifierOptional: 'Optional modifier',
+    browseMenu: 'Browse Menu',
+    trackOrders: 'Track Orders',
+    guestsSeated: 'Guests Seated:',
+    viewCart: 'View Cart',
+    popularBadge: 'Popular',
+    modifiersRequiredBadge: 'Required',
+    extrasTitle: 'Select Extras',
+    itemAddedToCart: 'Item added to cart',
+    cartEmpty: 'Your cart is empty',
+    placedBySelf: 'Guest Order',
   },
   footer: {
     copyright: 'The Gilded Fork',
@@ -1329,6 +1465,13 @@ export const ptPT: Translations = {
     topSellingItems: 'Itens Mais Vendidos',
     recentActivity: 'Atividade Recente',
     noRecentActivity: 'Sem atividade recente',
+    activityOrderPlaced: 'Pedido efetuado em {table} por {creator} — {amount}',
+    activityReservation: 'Reserva para {guest} — {partySize} clientes às {time}',
+    activityClockIn: '{user} iniciou o turno',
+    minAgo: 'há {min} min',
+    hoursAgo: 'há {hours}h',
+    daysAgo: 'há {days}d',
+    now: 'Agora mesmo',
     costBreakdown: 'Distribuição de Custos',
     laborCost: 'Custo de Mão de Obra',
     foodCost: 'Custo de Alimentos',
@@ -1398,6 +1541,8 @@ export const ptPT: Translations = {
     statusBillRequested: 'Conta Pedida',
     statusDirty: 'Necessita Limpeza',
     editTable: 'Editar Mesa',
+    addTable: 'Adicionar Mesa',
+    deleteTable: 'Eliminar Mesa',
     tableName: 'Nome da Mesa',
     capacity: 'Capacidade',
     assignServer: 'Atribuir Empregado',
@@ -1827,7 +1972,66 @@ export const ptPT: Translations = {
     localizationDesc: 'Configure sua região, idioma e substitua as taxas de imposto padrão.',
     language: 'Idioma e Região',
     customTaxRate: 'Taxa de Imposto Personalizada (%)',
-    resetToDefault: 'Redefinir Padrão'
+    resetToDefault: 'Redefinir Padrão',
+    brandingTitle: 'Marca e Temas Visuais',
+    brandingDesc: 'Personalize a identidade do restaurante, tema de cores e logótipos globalmente.',
+    systemTheme: 'Tema do Sistema',
+    darkTheme: 'Tema Escuro',
+    lightTheme: 'Tema Claro',
+    primaryColorAccent: 'Cor de Destaque Principal',
+    restaurantIdentity: 'Identidade e Logótipo do Restaurante',
+    restaurantName: 'Nome do Restaurante',
+    logoDisplayType: 'Tipo de Exibição do Logótipo',
+    logoInitials: 'Iniciais do Logótipo (máx 4 caracteres)',
+    logoEmoji: 'Emoji do Logótipo',
+    logoUrlLabel: 'URL da Imagem do Logótipo',
+    logoUploadOrUrl: 'Ou carregar imagem local',
+    logoSelectFile: 'Selecionar ficheiro local',
+    logoClearImage: 'Limpar Imagem',
+    saveBranding: 'Guardar Marca',
+    resetBranding: 'Repor Predefinições',
+    staffPinConfig: 'Configuração de PIN do Pessoal',
+    staffPinDesc: 'Configure e atribua PINs numéricos de 4 dígitos para registo de entrada dos funcionários.',
+    showPin: 'Mostrar PIN',
+    hidePin: 'Ocultar PIN',
+    setPin: 'Definir PIN',
+    roleMultipliersTitle: 'Multiplicadores de Tipos de Papéis para Gorjetas',
+    roleMultipliersDesc: 'Configure pesos de pontos para distribuição de gorjetas por papel de funcionário.',
+  },
+  tableOrder: {
+    premiumSelfService: 'Self-Service Premium',
+    searchPlaceholder: 'Pesquisar itens do menu...',
+    noItemsFound: 'Nenhum item encontrado',
+    liveBillTracker: 'Conta e Acompanhamento em Tempo Real',
+    dishesInPrep: 'Pratos em Preparação',
+    noActiveOrders: 'Ainda sem pedidos ativos',
+    addItemsToOrder: 'Adicione itens abaixo para iniciar o seu pedido.',
+    tableBillTotal: 'Total da Conta da Mesa',
+    modifierTitle: 'Personalizar Item',
+    notesTitle: 'Notas para a cozinha (alergias, pedidos...)',
+    addToCart: 'Adicionar ao Pedido',
+    reviewOrder: 'Rever Pedido',
+    cartTitle: 'Carrinho da Mesa',
+    specialRequests: 'Pedidos especiais...',
+    placeOrderBtn: 'Enviar Pedido para a Cozinha',
+    orderSubmitted: 'Pedido enviado para a cozinha com sucesso!',
+    orderFailed: 'Falha ao efetuar o pedido. Tente novamente.',
+    prepStatusOrdered: 'Enviado',
+    prepStatusPreparing: 'A Preparar',
+    prepStatusReady: 'Pronto',
+    prepStatusServed: 'Servido',
+    modifierRequired: 'Seleção obrigatória',
+    modifierOptional: 'Opcional',
+    browseMenu: 'Ver Menu',
+    trackOrders: 'Acompanhar Pedidos',
+    guestsSeated: 'Clientes Sentados:',
+    viewCart: 'Ver Carrinho',
+    popularBadge: 'Popular',
+    modifiersRequiredBadge: 'Obrigatório',
+    extrasTitle: 'Selecionar Extras',
+    itemAddedToCart: 'Item adicionado ao carrinho',
+    cartEmpty: 'O seu carrinho está vazio',
+    placedBySelf: 'Pedido do Cliente',
   },
   footer: {
     copyright: 'The Gilded Fork',
@@ -1927,6 +2131,13 @@ export const frFR: Translations = {
     topSellingItems: 'Articles les Plus Vendus',
     recentActivity: 'Activité Récente',
     noRecentActivity: 'Aucune activité récente',
+    activityOrderPlaced: 'Commande passée à la {table} par {creator} — {amount}',
+    activityReservation: 'Réservation pour {guest} — {partySize} personnes à {time}',
+    activityClockIn: '{user} a pris son service',
+    minAgo: 'il y a {min} min',
+    hoursAgo: 'il y a {hours}h',
+    daysAgo: 'il y a {days}d',
+    now: "À l'instant",
     costBreakdown: 'Répartition des Coûts',
     laborCost: 'Coût Main-d\'œuvre',
     foodCost: 'Coût Alimentaire',
@@ -1996,6 +2207,8 @@ export const frFR: Translations = {
     statusBillRequested: 'Note Demandée',
     statusDirty: 'À Nettoyer',
     editTable: 'Modifier la Table',
+    addTable: 'Ajouter une Table',
+    deleteTable: 'Supprimer la Table',
     tableName: 'Nom de la Table',
     capacity: 'Capacité',
     assignServer: 'Assigner un Serveur',
@@ -2425,7 +2638,66 @@ export const frFR: Translations = {
     localizationDesc: 'Configurez votre région, langue et remplacez les taux de taxes par défaut.',
     language: 'Langue et Région',
     customTaxRate: 'Taux de Taxe Personnalisé (%)',
-    resetToDefault: 'Réinitialiser'
+    resetToDefault: 'Réinitialiser',
+    brandingTitle: 'Image de marque et thèmes visuels',
+    brandingDesc: "Personnalisez l'identité du restaurant, le thème de couleur et les logos à l'échelle globale.",
+    systemTheme: 'Thème du système',
+    darkTheme: 'Thème sombre',
+    lightTheme: 'Thème clair',
+    primaryColorAccent: 'Couleur d\'accentuation principale',
+    restaurantIdentity: 'Identité et logo du restaurant',
+    restaurantName: 'Nom du restaurant',
+    logoDisplayType: 'Type d\'affichage du logo',
+    logoInitials: 'Initiales du logo (max 4 caractères)',
+    logoEmoji: 'Emoji du logo',
+    logoUrlLabel: 'URL de l\'image du logo',
+    logoUploadOrUrl: 'Ou charger une image locale',
+    logoSelectFile: 'Sélectionner un fichier local',
+    logoClearImage: 'Effacer l\'image',
+    saveBranding: 'Enregistrer la marque',
+    resetBranding: 'Réinitialiser aux valeurs par défaut',
+    staffPinConfig: 'Configuration du code PIN du personnel',
+    staffPinDesc: 'Configurez et attribuez des codes PIN numériques à 4 chiffres pour les pointages des employés.',
+    showPin: 'Afficher le code PIN',
+    hidePin: 'Masquer le code PIN',
+    setPin: 'Définir le code PIN',
+    roleMultipliersTitle: 'Multiplicateurs de rôle pour les pourboires',
+    roleMultipliersDesc: 'Configurez les poids des points pour la répartition des pourboires par rôle.',
+  },
+  tableOrder: {
+    premiumSelfService: 'Self-service Premium',
+    searchPlaceholder: 'Rechercher dans le menu...',
+    noItemsFound: 'Aucun article trouvé',
+    liveBillTracker: 'Suivi de la facture et des plats',
+    dishesInPrep: 'Plats en cours de préparation',
+    noActiveOrders: 'Aucune commande active pour le moment',
+    addItemsToOrder: 'Ajoutez des articles ci-dessous pour commencer votre commande.',
+    tableBillTotal: 'Total de la facture de la table',
+    modifierTitle: "Personnaliser l'article",
+    notesTitle: 'Remarques pour la cuisine (allergies, demandes...)',
+    addToCart: 'Ajouter à la commande',
+    reviewOrder: 'Vérifier la commande',
+    cartTitle: 'Panier de votre table',
+    specialRequests: 'Demandes spéciales...',
+    placeOrderBtn: 'Envoyer la commande en cuisine',
+    orderSubmitted: 'Commande envoyée en cuisine avec succès !',
+    orderFailed: "Échec de l'envoi de la commande. Veuillez réessayer.",
+    prepStatusOrdered: 'Commandé',
+    prepStatusPreparing: 'En préparation',
+    prepStatusReady: 'Prêt',
+    prepStatusServed: 'Servi',
+    modifierRequired: 'Sélection requise',
+    modifierOptional: 'Optionnel',
+    browseMenu: 'Parcourir le menu',
+    trackOrders: 'Suivre les commandes',
+    guestsSeated: 'Clients assis :',
+    viewCart: 'Voir le panier',
+    popularBadge: 'Populaire',
+    modifiersRequiredBadge: 'Requis',
+    extrasTitle: 'Sélectionner des suppléments',
+    itemAddedToCart: 'Article ajouté au panier',
+    cartEmpty: 'Votre panier est vide',
+    placedBySelf: 'Commande client',
   },
   footer: {
     copyright: 'The Gilded Fork',
@@ -2525,6 +2797,13 @@ export const esES: Translations = {
     topSellingItems: 'Artículos Más Vendidos',
     recentActivity: 'Actividad Reciente',
     noRecentActivity: 'Sin actividad reciente',
+    activityOrderPlaced: 'Pedido realizado en {table} por {creator} — {amount}',
+    activityReservation: 'Reserva para {guest} — {partySize} personas a las {time}',
+    activityClockIn: '{user} inició turno',
+    minAgo: 'hace {min} min',
+    hoursAgo: 'hace {hours}h',
+    daysAgo: 'hace {days}d',
+    now: 'Ahora mismo',
     costBreakdown: 'Desglose de Costes',
     laborCost: 'Coste Laboral',
     foodCost: 'Coste de Alimentos',
@@ -2594,6 +2873,8 @@ export const esES: Translations = {
     statusBillRequested: 'Cuenta Solicitada',
     statusDirty: 'Necesita Limpieza',
     editTable: 'Editar Mesa',
+    addTable: 'Añadir Mesa',
+    deleteTable: 'Eliminar Mesa',
     tableName: 'Nombre de la Mesa',
     capacity: 'Capacidad',
     assignServer: 'Asignar Camarero',
@@ -3023,7 +3304,66 @@ export const esES: Translations = {
     localizationDesc: 'Configure su región, idioma y sobreescriba los impuestos por defecto.',
     language: 'Idioma y Región',
     customTaxRate: 'Tasa de Impuesto Personalizada (%)',
-    resetToDefault: 'Restablecer por Defecto'
+    resetToDefault: 'Restablecer por Defecto',
+    brandingTitle: 'Identidad y Temas Visuales',
+    brandingDesc: 'Personalice la identidad del restaurante, el tema de colores y los logotipos de forma global.',
+    systemTheme: 'Tema del Sistema',
+    darkTheme: 'Tema Oscuro',
+    lightTheme: 'Tema Claro',
+    primaryColorAccent: 'Color de Acento Principal',
+    restaurantIdentity: 'Identidad y Logotipo del Restaurante',
+    restaurantName: 'Nombre del Restaurante',
+    logoDisplayType: 'Tipo de Visualización del Logotipo',
+    logoInitials: 'Iniciales del Logotipo (máx 4 caracteres)',
+    logoEmoji: 'Emoji del Logotipo',
+    logoUrlLabel: 'URL de la Imagen del Logotipo',
+    logoUploadOrUrl: 'O subir imagen local',
+    logoSelectFile: 'Seleccionar archivo local',
+    logoClearImage: 'Limpar Imagen',
+    saveBranding: 'Guardar Identidad',
+    resetBranding: 'Restablecer por Defecto',
+    staffPinConfig: 'Configuración del PIN del Personal',
+    staffPinDesc: 'Configure y atribuya PINs numéricos de 4 dígitos para el registro de entrada de los empleados.',
+    showPin: 'Mostrar PIN',
+    hidePin: 'Ocultar PIN',
+    setPin: 'Establecer PIN',
+    roleMultipliersTitle: 'Multiplicadores de Rol para Propinas',
+    roleMultipliersDesc: 'Configure el peso de los puntos para la distribución de propinas por rol de empleado.',
+  },
+  tableOrder: {
+    premiumSelfService: 'Autoservicio Premium',
+    searchPlaceholder: 'Buscar artículos del menú...',
+    noItemsFound: 'No se encontraron artículos',
+    liveBillTracker: 'Seguimiento de la cuenta y estado en vivo',
+    dishesInPrep: 'Platos en preparación',
+    noActiveOrders: 'Aún no hay pedidos activos',
+    addItemsToOrder: 'Añada artículos a continuación para iniciar su pedido.',
+    tableBillTotal: 'Total de la cuenta de la mesa',
+    modifierTitle: 'Personalizar artículo',
+    notesTitle: 'Notas para la cocina (alergias, peticiones...)',
+    addToCart: 'Añadir al pedido',
+    reviewOrder: 'Revisar pedido',
+    cartTitle: 'Carrito de la mesa',
+    specialRequests: 'Peticiones especiales...',
+    placeOrderBtn: 'Enviar pedido a la cocina',
+    orderSubmitted: '¡Pedido enviado a la cocina con éxito!',
+    orderFailed: 'Error al realizar el pedido. Por favor, inténtelo de nuevo.',
+    prepStatusOrdered: 'Pedido',
+    prepStatusPreparing: 'Preparando',
+    prepStatusReady: 'Listo',
+    prepStatusServed: 'Servido',
+    modifierRequired: 'Selección obligatoria',
+    modifierOptional: 'Opcional',
+    browseMenu: 'Ver menú',
+    trackOrders: 'Seguimiento de pedidos',
+    guestsSeated: 'Clientes sentados:',
+    viewCart: 'Ver carrito',
+    popularBadge: 'Popular',
+    modifiersRequiredBadge: 'Obligatorio',
+    extrasTitle: 'Seleccionar extras',
+    itemAddedToCart: 'Artículo añadido al carrito',
+    cartEmpty: 'Su carrito está vacío',
+    placedBySelf: 'Pedido de cliente',
   },
   footer: {
     copyright: 'The Gilded Fork',

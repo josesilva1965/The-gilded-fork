@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { notifyStockChange } from '@/lib/socket-server';
 
 export async function GET() {
   try {
@@ -49,6 +50,12 @@ export async function POST(request: Request) {
         },
       });
     }
+    notifyStockChange({
+      name: ingredient.name,
+      currentStock: ingredient.currentStock,
+      minStock: ingredient.minStock,
+      unit: ingredient.unit,
+    });
     return NextResponse.json(ingredient);
   } catch (error) {
     console.error('Error creating ingredient:', error);
@@ -96,6 +103,12 @@ export async function PATCH(request: Request) {
         },
       });
     }
+    notifyStockChange({
+      name: ingredient.name,
+      currentStock: ingredient.currentStock,
+      minStock: ingredient.minStock,
+      unit: ingredient.unit,
+    });
     return NextResponse.json(ingredient);
   } catch (error) {
     console.error('Error updating ingredient:', error);

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { notifyStockChange } from '@/lib/socket-server';
 
 export async function PATCH(request: Request) {
   try {
@@ -33,7 +34,7 @@ export async function PATCH(request: Request) {
         });
         for (const ri of recipeItems) {
           const deductQty = ri.quantity * item.quantity;
-          await db.ingredient.update({
+          const updatedIngredient = await db.ingredient.update({
             where: { id: ri.ingredientId },
             data: { currentStock: { decrement: deductQty } },
           });
@@ -44,6 +45,12 @@ export async function PATCH(request: Request) {
               reason: 'ORDER',
               referenceId: item.orderId,
             },
+          });
+          notifyStockChange({
+            name: updatedIngredient.name,
+            currentStock: updatedIngredient.currentStock,
+            minStock: updatedIngredient.minStock,
+            unit: updatedIngredient.unit,
           });
         }
       }

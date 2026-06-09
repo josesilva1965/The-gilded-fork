@@ -81,6 +81,9 @@ model RestaurantTable {
   // Relations
   reservations Reservation[]
   orders       Order[]
+
+  @@index([serverId])
+  @@index([customerId])
 }
 
 // ============================================================
@@ -110,6 +113,10 @@ model Reservation {
   completedAt    DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  @@index([tableId])
+  @@index([customerId])
+  @@index([reservationDate])
 }
 
 // ============================================================
@@ -155,6 +162,8 @@ model MenuItem {
   wastageLogs WastageLog[]
   topSellingItems TopSellingItem[]
   extras      MenuItemExtra[]
+
+  @@index([categoryId])
 }
 
 // ============================================================
@@ -184,6 +193,8 @@ model Ingredient {
   wastageLogs  WastageLog[]
   stockLedger  StockLedger[]
   purchaseOrderItems PurchaseOrderItem[]
+
+  @@index([vendorId])
 }
 
 model RecipeItem {
@@ -195,6 +206,9 @@ model RecipeItem {
   quantity      Float    // Amount of ingredient needed per 1 menu item
   isOptional    Boolean  @default(false)
   notes         String?
+
+  @@index([menuItemId])
+  @@index([ingredientId])
 }
 
 model StockLedger {
@@ -206,6 +220,9 @@ model StockLedger {
   referenceId   String?  // Order ID, PO ID, Wastage ID etc
   notes         String?
   createdAt     DateTime @default(now())
+
+  @@index([ingredientId])
+  @@index([createdAt])
 }
 
 model WastageLog {
@@ -221,6 +238,10 @@ model WastageLog {
   reporter      User     @relation(fields: [reportedBy], references: [id])
   value         Float    @default(0) // Cost value of wastage
   createdAt     DateTime @default(now())
+
+  @@index([ingredientId])
+  @@index([menuItemId])
+  @@index([reportedBy])
 }
 
 // ============================================================
@@ -262,6 +283,8 @@ model PurchaseOrder {
 
   // Relations
   items       PurchaseOrderItem[]
+
+  @@index([vendorId])
 }
 
 model PurchaseOrderItem {
@@ -274,6 +297,9 @@ model PurchaseOrderItem {
   unitPrice     Float
   totalPrice    Float
   notes         String?
+
+  @@index([purchaseOrderId])
+  @@index([ingredientId])
 }
 
 // ============================================================
@@ -305,6 +331,11 @@ model Order {
   // Relations
   items        OrderItem[]
   payments     Payment[]
+
+  @@index([tableId])
+  @@index([createdBy])
+  @@index([customerId])
+  @@index([createdAt])
 }
 
 model OrderItem {
@@ -326,6 +357,10 @@ model OrderItem {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   extras      OrderItemExtra[]
+
+  @@index([orderId])
+  @@index([menuItemId])
+  @@index([createdAt])
 }
 
 model Payment {
@@ -338,6 +373,9 @@ model Payment {
   tipAmount   Float    @default(0)
   reference   String?  // Transaction reference
   createdAt   DateTime @default(now())
+
+  @@index([orderId])
+  @@index([createdAt])
 }
 
 // ============================================================
@@ -369,6 +407,10 @@ model ShiftAssignment {
   notes         String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+  @@index([shiftTemplateId])
+  @@index([date])
 }
 
 model ClockLog {
@@ -378,6 +420,9 @@ model ClockLog {
   action    String   // IN, OUT, BREAK_START, BREAK_END
   timestamp DateTime @default(now())
   note      String?
+
+  @@index([userId])
+  @@index([timestamp])
 }
 
 // ============================================================
@@ -418,6 +463,9 @@ model CustomerFavorite {
   menuItemId String
   menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
   createdAt  DateTime @default(now())
+
+  @@index([customerId])
+  @@index([menuItemId])
 }
 
 model CustomerVisit {
@@ -430,6 +478,9 @@ model CustomerVisit {
   totalSpend Float    @default(0)
   orderId    String?
   notes      String?
+
+  @@index([customerId])
+  @@index([visitDate])
 }
 
 // ============================================================
@@ -461,6 +512,9 @@ model TopSellingItem {
   quantity    Int      @default(0)
   revenue     Float    @default(0)
   createdAt   DateTime @default(now())
+
+  @@index([menuItemId])
+  @@index([date])
 }
 
 model MenuItemExtra {
@@ -475,6 +529,8 @@ model MenuItemExtra {
   updatedAt  DateTime @updatedAt
 
   orderItemExtras OrderItemExtra[]
+
+  @@index([menuItemId])
 }
 
 model OrderItemExtra {
@@ -486,4 +542,7 @@ model OrderItemExtra {
   name            String
   price           Float
   createdAt       DateTime      @default(now())
+
+  @@index([orderItemId])
+  @@index([menuItemExtraId])
 }

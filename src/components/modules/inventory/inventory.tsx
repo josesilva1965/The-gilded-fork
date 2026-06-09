@@ -471,16 +471,19 @@ function EditStockDialog({
 
   useEffect(() => {
     if (ingredient && open) {
-      setName(ingredient.name);
-      setUnit(ingredient.unit);
-      setCategory(ingredient.category || 'OTHER');
-      setStorageLocation(ingredient.storageLocation || 'DRY_STORAGE');
-      setVendorId(ingredient.vendorId || 'none');
-      setCurrentStock(ingredient.currentStock.toString());
-      setMinStock(ingredient.minStock.toString());
-      setMaxStock(ingredient.maxStock.toString());
-      setCostPerUnit(ingredient.costPerUnit.toString());
-      setAdjustQty('');
+      const timer = setTimeout(() => {
+        setName(ingredient.name);
+        setUnit(ingredient.unit);
+        setCategory(ingredient.category || 'OTHER');
+        setStorageLocation(ingredient.storageLocation || 'DRY_STORAGE');
+        setVendorId(ingredient.vendorId || 'none');
+        setCurrentStock(ingredient.currentStock.toString());
+        setMinStock(ingredient.minStock.toString());
+        setMaxStock(ingredient.maxStock.toString());
+        setCostPerUnit(ingredient.costPerUnit.toString());
+        setAdjustQty('');
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [ingredient, open]);
 
@@ -667,15 +670,18 @@ function AddProductDialog({
 
   useEffect(() => {
     if (open) {
-      setName('');
-      setUnit('');
-      setCategory('OTHER');
-      setStorageLocation('DRY_STORAGE');
-      setVendorId('none');
-      setCurrentStock('0');
-      setMinStock('5');
-      setMaxStock('20');
-      setCostPerUnit('0');
+      const timer = setTimeout(() => {
+        setName('');
+        setUnit('');
+        setCategory('OTHER');
+        setStorageLocation('DRY_STORAGE');
+        setVendorId('none');
+        setCurrentStock('0');
+        setMinStock('5');
+        setMaxStock('20');
+        setCostPerUnit('0');
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [open]);
 
@@ -838,8 +844,11 @@ function LogWastageDialog({
 
   useEffect(() => {
     if (!open) {
-      setSearchTerm('');
-      setPopoverOpen(false);
+      const timer = setTimeout(() => {
+        setSearchTerm('');
+        setPopoverOpen(false);
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [open]);
 

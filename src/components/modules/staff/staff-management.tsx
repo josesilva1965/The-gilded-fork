@@ -29,6 +29,7 @@ import {
   Plus,
   Pencil,
   Loader2,
+  HelpCircle,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
@@ -1692,7 +1693,10 @@ function TipsTab({ staff }: { staff: StaffUser[] }) {
   }, []);
 
   useEffect(() => {
-    fetchTips();
+    const timer = setTimeout(() => {
+      fetchTips();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [fetchTips]);
 
   const totalTipPoints = useMemo(
@@ -1745,6 +1749,22 @@ function TipsTab({ staff }: { staff: StaffUser[] }) {
         </CardContent>
       </Card>
 
+      {/* Explanation Banner */}
+      <div className="bg-zinc-900/30 border border-zinc-800/80 rounded-xl p-4 flex gap-3 text-xs text-zinc-400 leading-relaxed shadow-sm">
+        <HelpCircle className="size-5 text-emerald-500 shrink-0 mt-0.5" />
+        <div className="space-y-1.5">
+          <p className="font-semibold text-zinc-200">How Tip Shares are Calculated</p>
+          <p>
+            Tips are distributed using a point-weighted hourly system:
+          </p>
+          <ul className="list-disc pl-4 space-y-1 text-zinc-500">
+            <li><strong>Points Earned:</strong> Hours Worked × Role Multiplier (e.g., Manager: 1.5x, Bartender: 1.2x, Server: 1.0x, Busboy: 0.5x).</li>
+            <li><strong>Point Value:</strong> Total Tip Pool / Sum of all staff points.</li>
+            <li><strong>Staff Share:</strong> Individual points × Point Value.</li>
+          </ul>
+        </div>
+      </div>
+
       {/* Distribution Table */}
       <Card className="bg-zinc-900 border-zinc-800">
         <CardHeader className="pb-3">
@@ -1780,33 +1800,46 @@ function TipsTab({ staff }: { staff: StaffUser[] }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {calculatedShares.map((d) => (
-                    <TableRow key={d.userId} className="border-zinc-800/50 hover:bg-zinc-800/30">
-                      <TableCell>
-                        <span className="text-sm text-zinc-200 font-medium">{d.name}</span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={cn('text-[10px] border', ROLE_BADGE_COLORS[d.role] || ROLE_BADGE_COLORS.FOH)}
-                        >
-                          {d.role}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center text-xs text-zinc-400 font-mono">
-                        {d.hoursWorked.toFixed(1)}h
-                      </TableCell>
-                      <TableCell className="text-center text-xs text-zinc-400 font-mono">
-                        {d.tipPointValue.toFixed(1)}
-                      </TableCell>
-                      <TableCell className="text-center text-xs text-amber-400 font-mono font-medium">
-                        {d.tipPoints.toFixed(1)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <span className="text-sm font-bold text-emerald-400">{fmtCur(d.share)}</span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {calculatedShares.map((d) => {
+                    const pointRate = totalTipPoints > 0 ? tipPoolAmount / totalTipPoints : 0;
+                    return (
+                      <TableRow key={d.userId} className="border-zinc-800/50 hover:bg-zinc-800/30">
+                        <TableCell>
+                          <div>
+                            <p className="text-sm text-zinc-200 font-medium">{d.name}</p>
+                            <p className="text-[10px] text-zinc-500 mt-0.5">
+                              Worked {d.hoursWorked.toFixed(1)}h with {d.tipPointValue.toFixed(1)}x {d.role} weight
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={cn('text-[10px] border', ROLE_BADGE_COLORS[d.role] || ROLE_BADGE_COLORS.FOH)}
+                          >
+                            {d.role}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-center text-xs text-zinc-400 font-mono">
+                          {d.hoursWorked.toFixed(1)}h
+                        </TableCell>
+                        <TableCell className="text-center text-xs text-zinc-400 font-mono">
+                          {d.tipPointValue.toFixed(1)}
+                        </TableCell>
+                        <TableCell className="text-center text-xs text-amber-400 font-mono font-medium">
+                          {d.tipPoints.toFixed(1)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div>
+                            <p className="text-sm font-bold text-emerald-400">{fmtCur(d.share)}</p>
+                            <p className="text-[10px] text-zinc-500 mt-0.5 font-mono">
+                              {d.tipPoints.toFixed(1)} pts × {fmtCur(pointRate)}/pt
+                            </p>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </ScrollArea>
@@ -1884,7 +1917,10 @@ export function StaffManagement() {
   }, [addNotification]);
 
   useEffect(() => {
-    fetchStaff();
+    const timer = setTimeout(() => {
+      fetchStaff();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [fetchStaff]);
 
   // Auto-refresh every 30s

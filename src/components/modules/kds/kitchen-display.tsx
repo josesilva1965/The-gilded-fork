@@ -944,7 +944,7 @@ export function KitchenDisplay() {
     ];
 
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-[calc(100vh-250px)] min-h-[400px]">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 h-[calc(100vh-250px)] min-h-[400px]">
         {columns.map((col) => {
           const isOver = draggedOverColumn === col.id;
           return (
@@ -999,8 +999,11 @@ export function KitchenDisplay() {
   const showBar = role === 'BAR' || role === 'ADMIN' || role === 'MANAGER';
 
   useEffect(() => {
-    if (role === 'KITCHEN') setActiveTab('kitchen');
-    else if (role === 'BAR') setActiveTab('bar');
+    const timer = setTimeout(() => {
+      if (role === 'KITCHEN') setActiveTab('kitchen');
+      else if (role === 'BAR') setActiveTab('bar');
+    }, 0);
+    return () => clearTimeout(timer);
   }, [role]);
 
   const loadOrders = useCallback(async () => {
@@ -1036,13 +1039,18 @@ export function KitchenDisplay() {
   }, []);
 
   useEffect(() => {
-    loadOrders();
-    loadProductionStats();
+    const timer = setTimeout(() => {
+      loadOrders();
+      loadProductionStats();
+    }, 0);
     const interval = setInterval(() => {
         loadOrders();
         loadProductionStats();
     }, 15000);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
   }, [loadOrders, loadProductionStats]);
 
   // Listen for real-time WebSocket events to update KDS instantly

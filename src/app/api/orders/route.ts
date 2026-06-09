@@ -61,9 +61,28 @@ export async function POST(request: Request) {
       tableId = quickBarTable.id;
     }
 
+    let creatorId = createdBy;
+    if (!creatorId || creatorId === 'self-service') {
+      let selfServiceUser = await db.user.findFirst({
+        where: { email: 'self-service@thebar.com' }
+      });
+      if (!selfServiceUser) {
+        selfServiceUser = await db.user.create({
+          data: {
+            email: 'self-service@thebar.com',
+            name: 'Table Self-Service',
+            role: 'FOH',
+            pin: '0000',
+            active: true,
+          }
+        });
+      }
+      creatorId = selfServiceUser.id;
+    }
+
     // Early validation for required fields
-    if (!tableId || !createdBy || !items || !Array.isArray(items) || items.length === 0) {
-      console.error('[POST /api/orders] Missing required fields:', { tableId, createdBy, itemsLength: items?.length });
+    if (!tableId || !creatorId || !items || !Array.isArray(items) || items.length === 0) {
+      console.error('[POST /api/orders] Missing required fields:', { tableId, creatorId, itemsLength: items?.length });
       return NextResponse.json({ error: 'Missing required fields: tableId, createdBy, and items are required' }, { status: 400 });
     }
 
@@ -73,10 +92,10 @@ export async function POST(request: Request) {
       console.error('[POST /api/orders] Table not found:', tableId);
       return NextResponse.json({ error: `Table ${tableId} not found` }, { status: 400 });
     }
-    const userExists = await db.user.findUnique({ where: { id: createdBy } });
+    const userExists = await db.user.findUnique({ where: { id: creatorId } });
     if (!userExists) {
-      console.error('[POST /api/orders] User not found:', createdBy);
-      return NextResponse.json({ error: `User ${createdBy} not found` }, { status: 400 });
+      console.error('[POST /api/orders] User not found:', creatorId);
+      return NextResponse.json({ error: `User ${creatorId} not found` }, { status: 400 });
     }
 
     // Resolve customerId: must be null or a valid Customer.id
@@ -88,9 +107,15 @@ export async function POST(request: Request) {
       }
     }
 
+    const menuItemIds = items.map((i: any) => i.menuItemId);
+    const menuItems = await db.menuItem.findMany({
+      where: { id: { in: menuItemIds } },
+    });
+    const menuItemMap = new Map(menuItems.map((m) => [m.id, m]));
+
     let subtotal = 0;
     for (const item of items) {
-      const menuItem = await db.menuItem.findUnique({ where: { id: item.menuItemId } });
+      const menuItem = menuItemMap.get(item.menuItemId);
       if (!menuItem) throw new Error(`Menu item ${item.menuItemId} not found`);
       const itemExtrasCost = item.extras?.reduce((sum: number, ext: any) => sum + ext.price, 0) || 0;
       subtotal += (menuItem.price + itemExtrasCost) * item.quantity;
@@ -105,7 +130,7 @@ export async function POST(request: Request) {
     const order = await db.order.create({
       data: {
         tableId,
-        createdBy,
+        createdBy: creatorId,
         type: type || 'DINE_IN',
         guestCount: guestCount || 1,
         subtotal,
@@ -285,9 +310,15 @@ export async function PATCH(request: Request) {
     }
 
     // Calculate new subtotal
+    const menuItemIds = items.map((i: any) => i.menuItemId);
+    const menuItems = await db.menuItem.findMany({
+      where: { id: { in: menuItemIds } },
+    });
+    const menuItemMap = new Map(menuItems.map((m) => [m.id, m]));
+
     let subtotal = 0;
     for (const item of items) {
-      const menuItem = await db.menuItem.findUnique({ where: { id: item.menuItemId } });
+      const menuItem = menuItemMap.get(item.menuItemId);
       if (!menuItem) throw new Error(`Menu item ${item.menuItemId} not found`);
       const itemExtrasCost = item.extras?.reduce((sum: number, ext: any) => sum + ext.price, 0) || 0;
       subtotal += (menuItem.price + itemExtrasCost) * item.quantity;
@@ -309,11 +340,15 @@ export async function PATCH(request: Request) {
       .map((oi) => oi.id)
       .filter((dbId) => !incomingIds.includes(dbId));
 
+    const operations: any[] = [];
+
     // Delete removed items
     if (idsToDelete.length > 0) {
-      await db.orderItem.deleteMany({
-        where: { id: { in: idsToDelete } },
-      });
+      operations.push(
+        db.orderItem.deleteMany({
+          where: { id: { in: idsToDelete } },
+        })
+      );
     }
 
     // Upsert remaining / new items
@@ -322,79 +357,87 @@ export async function PATCH(request: Request) {
       const itemExtrasCost = validExtras.reduce((sum: number, ext: any) => sum + ext.price, 0);
       if (item.id) {
         // Update existing item
-        await db.orderItem.update({
-          where: { id: item.id },
-          data: {
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            totalPrice: (item.unitPrice + itemExtrasCost) * item.quantity,
-            seatNumber: item.seatNumber || null,
-            station: item.station || 'KITCHEN',
-            notes: item.notes || null,
-            extras: {
-              deleteMany: {},
-              create: validExtras.map((ext: any) => ({
-                menuItemExtraId: ext.id || null,
-                name: ext.name,
-                price: ext.price
-              }))
-            }
-          },
-        });
+        operations.push(
+          db.orderItem.update({
+            where: { id: item.id },
+            data: {
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              totalPrice: (item.unitPrice + itemExtrasCost) * item.quantity,
+              seatNumber: item.seatNumber || null,
+              station: item.station || 'KITCHEN',
+              notes: item.notes || null,
+              extras: {
+                deleteMany: {},
+                create: validExtras.map((ext: any) => ({
+                  menuItemExtraId: ext.id || null,
+                  name: ext.name,
+                  price: ext.price
+                }))
+              }
+            },
+          })
+        );
       } else {
         // Create new item
-        await db.orderItem.create({
-          data: {
-            orderId: id,
-            menuItemId: item.menuItemId,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            totalPrice: (item.unitPrice + itemExtrasCost) * item.quantity,
-            seatNumber: item.seatNumber || null,
-            station: item.station || 'KITCHEN',
-            notes: item.notes || null,
-            status: 'PENDING',
-            extras: validExtras.length > 0 ? {
-              create: validExtras.map((ext: any) => ({
-                menuItemExtraId: ext.id || null,
-                name: ext.name,
-                price: ext.price
-              }))
-            } : undefined
-          },
-        });
+        operations.push(
+          db.orderItem.create({
+            data: {
+              orderId: id,
+              menuItemId: item.menuItemId,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              totalPrice: (item.unitPrice + itemExtrasCost) * item.quantity,
+              seatNumber: item.seatNumber || null,
+              station: item.station || 'KITCHEN',
+              notes: item.notes || null,
+              status: 'PENDING',
+              extras: validExtras.length > 0 ? {
+                create: validExtras.map((ext: any) => ({
+                  menuItemExtraId: ext.id || null,
+                  name: ext.name,
+                  price: ext.price
+                }))
+              } : undefined
+            },
+          })
+        );
       }
     }
 
-    // Update the main order
-    const updatedOrder = await db.order.update({
-      where: { id },
-      data: {
-        tableId,
-        type: type || 'DINE_IN',
-        guestCount: guestCount || 1,
-        subtotal,
-        taxAmount,
-        totalAmount,
-        notes,
-        customerId: resolvedCustomerId,
-      },
-      include: {
-        items: { include: { menuItem: true, extras: true } },
-        table: true,
-        creator: { select: { id: true, name: true } },
-        customer: true,
-      },
-    });
+    // Run all write operations in a single database transaction
+    const txResults = await db.$transaction([
+      ...operations,
+      db.order.update({
+        where: { id },
+        data: {
+          tableId,
+          type: type || 'DINE_IN',
+          guestCount: guestCount || 1,
+          subtotal,
+          taxAmount,
+          totalAmount,
+          notes,
+          customerId: resolvedCustomerId,
+        },
+        include: {
+          items: { include: { menuItem: true, extras: true } },
+          table: true,
+          creator: { select: { id: true, name: true } },
+          customer: true,
+        },
+      }),
+      db.restaurantTable.update({
+        where: { id: tableId },
+        data: { 
+          status: 'ORDER_PLACED',
+          customerId: resolvedCustomerId,
+        },
+      }),
+    ]);
 
-    // Make sure table status is set
-    await db.restaurantTable.update({
-      where: { id: tableId },
-      data: { 
-        status: 'ORDER_PLACED',
-        customerId: resolvedCustomerId,
-      },
-    });
+    // The updatedOrder is the second-to-last transaction result (order update)
+    const updatedOrder = txResults[txResults.length - 2];
 
     return NextResponse.json(updatedOrder);
   } catch (error) {

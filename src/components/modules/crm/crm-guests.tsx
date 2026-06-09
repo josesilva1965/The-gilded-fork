@@ -766,7 +766,10 @@ export function CRMGuests() {
   }, []);
 
   useEffect(() => {
-    fetchCustomers(true);
+    const timer = setTimeout(() => {
+      fetchCustomers(true);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [fetchCustomers]);
 
   /* Handle sort click */

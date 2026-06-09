@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
+import { generateId } from '@/lib/generate-id';
 import {
   Plus,
   Minus,
@@ -424,7 +425,7 @@ export function POSSystem() {
         return [
           ...prev,
           {
-            tempId: crypto.randomUUID(),
+            tempId: generateId(),
             menuItemId: menuItem.id,
             name: menuItem.name,
             price: menuItem.price,
@@ -505,6 +506,7 @@ export function POSSystem() {
         const err = await res.json();
         throw new Error(err.error || `Failed to ${isEditing ? 'update' : 'create'} order`);
       }
+      const order = await res.json();
       
       // Emit socket updates
       const socket = getSocket();
@@ -515,10 +517,7 @@ export function POSSystem() {
             status: 'IN_PROGRESS',
           });
         } else {
-          socket.emit('order:created', {
-            tableId: targetTableId,
-            createdBy: user.name,
-          });
+          socket.emit('order:created', order);
         }
       }
 
@@ -689,13 +688,19 @@ export function POSSystem() {
     if (selectedOrderId && activeOrders.length > 0) {
       const orderToEdit = activeOrders.find(o => o.id === selectedOrderId);
       if (orderToEdit && (!editingOrder || editingOrder.id !== selectedOrderId)) {
-        handleEditOrder(orderToEdit);
-        selectOrderStore(null); // Clear after loading
+        const timer = setTimeout(() => {
+          handleEditOrder(orderToEdit);
+          selectOrderStore(null); // Clear after loading
+        }, 0);
+        return () => clearTimeout(timer);
       }
     } else if (selectedTableIdFromStore && !editingOrder) {
-      setSelectedTableId(selectedTableIdFromStore);
-      selectTableStore(null); // Clear after loading
-      setActiveTab('new-order');
+      const timer = setTimeout(() => {
+        setSelectedTableId(selectedTableIdFromStore);
+        selectTableStore(null); // Clear after loading
+        setActiveTab('new-order');
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [selectedOrderId, selectedTableIdFromStore, activeOrders, editingOrder, handleEditOrder, selectOrderStore, selectTableStore]);
 
@@ -765,14 +770,20 @@ export function POSSystem() {
   const [hasInitializedBartender, setHasInitializedBartender] = useState(false);
   useEffect(() => {
     if (user?.role === 'BAR' && categories.length > 0 && !hasInitializedBartender && quickBarTableId) {
-      setSelectedTableId(quickBarTableId);
-      const firstDrinksCat = sortedCategories.find(isDrinksCategory);
-      if (firstDrinksCat) {
-        setSelectedCategoryId(firstDrinksCat.id);
-      }
-      setHasInitializedBartender(true);
+      const timer = setTimeout(() => {
+        setSelectedTableId(quickBarTableId);
+        const firstDrinksCat = sortedCategories.find(isDrinksCategory);
+        if (firstDrinksCat) {
+          setSelectedCategoryId(firstDrinksCat.id);
+        }
+        setHasInitializedBartender(true);
+      }, 0);
+      return () => clearTimeout(timer);
     } else if (user?.role !== 'BAR' && hasInitializedBartender) {
-      setHasInitializedBartender(false);
+      const timer = setTimeout(() => {
+        setHasInitializedBartender(false);
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [user?.role, categories, sortedCategories, hasInitializedBartender, quickBarTableId]);
 
@@ -807,7 +818,6 @@ export function POSSystem() {
           )}
           {item.imageUrl && (
             <div className="aspect-[4/3] w-full overflow-hidden bg-zinc-950 relative">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" />
               <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-transparent opacity-60"></div>
             </div>
@@ -1150,7 +1160,7 @@ export function POSSystem() {
 
         {/* ─── NEW ORDER TAB ─── */}
         <TabsContent value="new-order" className="flex-1 min-h-0 mt-4">
-          <div className="flex gap-4 h-full min-h-0">
+          <div className="flex flex-col md:flex-row gap-4 h-full min-h-0">
             {/* ─── LEFT PANEL: Menu Browser ─── */}
             <div className="flex-1 flex flex-col min-w-0 min-h-0">
               {/* Search Bar */}
@@ -1227,7 +1237,7 @@ export function POSSystem() {
                     <p className="text-xs text-zinc-600 mt-1">{t.pos.tryDifferentSearch}</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 pb-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 pb-4">
                     {filteredItems.map(renderMenuItem)}
                   </div>
                 )}
@@ -1235,7 +1245,7 @@ export function POSSystem() {
             </div>
 
             {/* ─── RIGHT PANEL: Current Order ─── */}
-            <div className="w-full md:w-[380px] lg:w-[420px] shrink-0 flex flex-col min-h-0">
+            <div className="w-full md:w-[340px] lg:w-[420px] shrink-0 flex flex-col min-h-0">
               <Card className="bg-zinc-900 border-zinc-800 h-fit max-h-full flex flex-col min-h-0">
                 <CardHeader className="pb-3 shrink-0">
                   <CardTitle className="text-base font-semibold text-zinc-100 flex items-center gap-2">

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { generateId } from '@/lib/generate-id';
 
 export type AppView = 
   | 'dashboard'
@@ -41,7 +42,7 @@ export const useAppStore = create<AppState>((set) => ({
   selectTable: (tableId) => set({ selectedTableId: tableId }),
   selectOrder: (orderId) => set({ selectedOrderId: orderId }),
   addNotification: (message, type) => set((s) => ({
-    notifications: [...s.notifications, { id: crypto.randomUUID(), message, type, timestamp: Date.now() }]
+    notifications: [...s.notifications, { id: generateId(), message, type, timestamp: Date.now() }]
   })),
   removeNotification: (id) => set((s) => ({
     notifications: s.notifications.filter((n) => n.id !== id)

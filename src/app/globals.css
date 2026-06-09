@@ -112,6 +112,47 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+html.light, :root:not(.dark) {
+  --color-zinc-955: oklch(0.985 0.002 240);
+  --color-zinc-950: oklch(0.975 0.003 240);
+  --color-zinc-900: oklch(1.0 0 0);
+  --color-zinc-850: oklch(0.96 0.004 240);
+  --color-zinc-800: oklch(0.94 0.005 240);
+  --color-zinc-750: oklch(0.89 0.008 240);
+  --color-zinc-700: oklch(0.89 0.008 240);
+  --color-zinc-600: oklch(0.80 0.012 240);
+  --color-zinc-500: oklch(0.60 0.015 240);
+  --color-zinc-400: oklch(0.48 0.015 240);
+  --color-zinc-300: oklch(0.35 0.015 240);
+  --color-zinc-200: oklch(0.24 0.012 240);
+  --color-zinc-100: oklch(0.15 0.01 240);
+  --color-zinc-50: oklch(0.09 0.005 240);
+
+  --background: oklch(0.975 0.003 240);
+  --foreground: oklch(0.24 0.012 240);
+  --card: oklch(1.0 0 0);
+  --card-foreground: oklch(0.15 0.01 240);
+  --popover: oklch(1.0 0 0);
+  --popover-foreground: oklch(0.15 0.01 240);
+  --primary-foreground: oklch(1.0 0 0);
+  --secondary: oklch(0.94 0.005 240);
+  --secondary-foreground: oklch(0.15 0.01 240);
+  --muted: oklch(0.94 0.005 240);
+  --muted-foreground: oklch(0.48 0.015 240);
+  --accent: oklch(0.94 0.005 240);
+  --accent-foreground: oklch(0.15 0.01 240);
+  --border: oklch(0.89 0.008 240);
+  --input: oklch(0.89 0.008 240);
+  
+  --sidebar: oklch(1.0 0 0);
+  --sidebar-foreground: oklch(0.24 0.012 240);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: oklch(1.0 0 0);
+  --sidebar-accent: oklch(0.94 0.005 240);
+  --sidebar-accent-foreground: oklch(0.15 0.01 240);
+  --sidebar-border: oklch(0.89 0.008 240);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -151,3 +192,20 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: oklch(0.5 0 0 / 50%);
 }
+
+/* Touch and Tablet Optimization Utilities */
+@layer utilities {
+  .no-select {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+  .touch-scroll {
+    -webkit-overflow-scrolling: touch;
+  }
+  .tap-transparent {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+

@@ -9,63 +9,126 @@ export async function GET() {
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
 
-    // Today's snapshot
-    const todaySnapshot = await db.dailySnapshot.findFirst({
-      orderBy: { date: 'desc' },
-    });
+    // Run all independent queries in parallel
+    const [
+      todaySnapshot,
+      weekSnapshots,
+      activeOrders,
+      todayRevenueAgg,
+      yesterdayRevenueAgg,
+      totalTables,
+      occupiedTables,
+      topItems,
+      lowStockCount,
+      lowStockItems,
+      todayShifts,
+      clockedInUsers,
+      recentOrders,
+      recentReservations,
+      recentClockIns,
+      dailyOrders,
+    ] = await Promise.all([
+      db.dailySnapshot.findFirst({
+        orderBy: { date: 'desc' },
+      }),
+      db.dailySnapshot.findMany({
+        orderBy: { date: 'desc' },
+        take: 7,
+      }),
+      db.order.count({
+        where: {
+          status: { not: 'CANCELLED' },
+          paymentStatus: { in: ['PENDING', 'PARTIAL'] },
+        },
+      }),
+      db.order.aggregate({
+        _sum: { totalAmount: true },
+        where: {
+          createdAt: { gte: today },
+          status: { in: ['IN_PROGRESS', 'READY', 'SERVED'] },
+        },
+      }),
+      db.order.aggregate({
+        _sum: { totalAmount: true },
+        where: {
+          createdAt: { gte: yesterday, lt: today },
+          status: { in: ['IN_PROGRESS', 'READY', 'SERVED'] },
+        },
+      }),
+      db.restaurantTable.count({ where: { active: true } }),
+      db.restaurantTable.count({
+        where: { status: { in: ['SEATED', 'ORDER_PLACED', 'APPETIZER', 'MAIN', 'DESSERT', 'BILL_REQUESTED'] } },
+      }),
+      db.orderItem.groupBy({
+        by: ['menuItemId'],
+        _sum: { quantity: true, totalPrice: true },
+        orderBy: { _sum: { quantity: 'desc' } },
+        take: 5,
+      }),
+      db.ingredient.count({
+        where: { currentStock: { lte: db.ingredient.fields.minStock } },
+      }),
+      db.ingredient.findMany({
+        where: { currentStock: { lte: db.ingredient.fields.minStock } },
+        select: { id: true, name: true, currentStock: true, minStock: true, unit: true },
+        orderBy: { currentStock: 'asc' },
+        take: 5,
+      }),
+      db.shiftAssignment.count({
+        where: { date: { gte: today } },
+      }),
+      db.user.findMany({
+        where: { active: true },
+        include: {
+          clockLogs: { orderBy: { timestamp: 'desc' }, take: 1 },
+        },
+      }),
+      db.order.findMany({
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          table: { select: { name: true } },
+          creator: { select: { name: true } },
+        },
+      }),
+      db.reservation.findMany({
+        take: 3,
+        orderBy: { createdAt: 'desc' },
+      }),
+      db.clockLog.findMany({
+        take: 3,
+        orderBy: { timestamp: 'desc' },
+        where: { action: 'IN' },
+        include: { user: { select: { name: true } } },
+      }),
+      db.order.findMany({
+        where: {
+          createdAt: { gte: today },
+        },
+        include: {
+          items: {
+            include: { menuItem: true },
+            orderBy: { createdAt: 'asc' },
+          },
+          table: true,
+          creator: {
+            select: { id: true, name: true, role: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 100, // safety limit to prevent massive payload sizes as the day progresses
+      }),
+    ]);
 
-    // Last 7 days snapshots
-    const weekSnapshots = await db.dailySnapshot.findMany({
-      orderBy: { date: 'desc' },
-      take: 7,
-    });
-
-    // Active orders count
-    const activeOrders = await db.order.count({
-      where: {
-        status: { not: 'CANCELLED' },
-        paymentStatus: { in: ['PENDING', 'PARTIAL'] },
-      },
-    });
-
-    // Today's revenue (from active/completed orders)
-    const todayOrders = await db.order.findMany({
-      where: {
-        createdAt: { gte: today },
-        status: { in: ['IN_PROGRESS', 'READY', 'SERVED'] },
-      },
-    });
-    const todayRevenue = todayOrders.reduce((sum, o) => sum + o.totalAmount, 0);
-
-    // Yesterday's revenue
-    const yesterdayOrders = await db.order.findMany({
-      where: {
-        createdAt: { gte: yesterday, lt: today },
-        status: { in: ['IN_PROGRESS', 'READY', 'SERVED'] },
-      },
-    });
-    const yesterdayRevenue = yesterdayOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+    const todayRevenue = todayRevenueAgg._sum.totalAmount || 0;
+    const yesterdayRevenue = yesterdayRevenueAgg._sum.totalAmount || 0;
 
     // Revenue change %
     const revenueChange = yesterdayRevenue > 0
       ? ((todayRevenue - yesterdayRevenue) / yesterdayRevenue) * 100
       : 0;
 
-    // Table occupancy
-    const totalTables = await db.restaurantTable.count({ where: { active: true } });
-    const occupiedTables = await db.restaurantTable.count({
-      where: { status: { in: ['SEATED', 'ORDER_PLACED', 'APPETIZER', 'MAIN', 'DESSERT', 'BILL_REQUESTED'] } },
-    });
-
-    // Top selling items (from order items)
-    const topItems = await db.orderItem.groupBy({
-      by: ['menuItemId'],
-      _sum: { quantity: true, totalPrice: true },
-      orderBy: { _sum: { quantity: 'desc' } },
-      take: 5,
-    });
-
-    // Get menu item names for top items
+    // Get menu item names for top items (runs after topItems resolves)
     const menuItemIds = topItems.map(t => t.menuItemId).filter(Boolean) as string[];
     const menuItems = await db.menuItem.findMany({
       where: { id: { in: menuItemIds } },
@@ -76,56 +139,25 @@ export async function GET() {
       name: menuItems.find(m => m.id === item.menuItemId)?.name || 'Unknown',
     }));
 
-    // Low stock count
-    const lowStockCount = await db.ingredient.count({
-      where: { currentStock: { lte: db.ingredient.fields.minStock } },
-    });
-
-    // Low stock items (top 5 most critical)
-    const lowStockItems = await db.ingredient.findMany({
-      where: { currentStock: { lte: db.ingredient.fields.minStock } },
-      select: { id: true, name: true, currentStock: true, minStock: true, unit: true },
-      orderBy: { currentStock: 'asc' },
-      take: 5,
-    });
-
-    // Staff on shift today
-    const todayShifts = await db.shiftAssignment.count({
-      where: { date: { gte: today } },
-    });
-
-    // Clocked-in staff
-    const clockedInUsers = await db.user.findMany({
-      where: {
-        clockLogs: {
-          some: {
-            action: 'IN',
-            timestamp: { gte: today },
-          },
-        },
-      },
-      include: {
-        clockLogs: { orderBy: { timestamp: 'desc' }, take: 1 },
-      },
-    });
-
     // Recent Activity Feed
     const recentActivity: Array<{
       id: string;
       type: 'order' | 'reservation' | 'clock_in';
       description: string;
       time: string;
+      createdAt: string;
+      metadata: {
+        tableName?: string;
+        creatorName?: string;
+        totalAmount?: number;
+        guestName?: string;
+        partySize?: number;
+        reservationTime?: string;
+        userName?: string;
+      };
     }> = [];
 
-    // Recent orders
-    const recentOrders = await db.order.findMany({
-      take: 5,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        table: { select: { name: true } },
-        creator: { select: { name: true } },
-      },
-    });
+    // Map recent orders to activity list
     for (const order of recentOrders) {
       const timeAgo = getTimeAgo(order.createdAt);
       recentActivity.push({
@@ -133,14 +165,16 @@ export async function GET() {
         type: 'order',
         description: `Order placed at ${order.table.name} by ${order.creator.name} — $${order.totalAmount.toFixed(2)}`,
         time: timeAgo,
+        createdAt: order.createdAt.toISOString(),
+        metadata: {
+          tableName: order.table.name,
+          creatorName: order.creator.name,
+          totalAmount: order.totalAmount,
+        },
       });
     }
 
-    // Recent reservations
-    const recentReservations = await db.reservation.findMany({
-      take: 3,
-      orderBy: { createdAt: 'desc' },
-    });
+    // Map recent reservations to activity list
     for (const res of recentReservations) {
       const timeAgo = getTimeAgo(res.createdAt);
       recentActivity.push({
@@ -148,16 +182,16 @@ export async function GET() {
         type: 'reservation',
         description: `Reservation for ${res.guestName} — ${res.partySize} guests at ${res.reservationTime}`,
         time: timeAgo,
+        createdAt: res.createdAt.toISOString(),
+        metadata: {
+          guestName: res.guestName,
+          partySize: res.partySize,
+          reservationTime: res.reservationTime,
+        },
       });
     }
 
-    // Recent clock-ins
-    const recentClockIns = await db.clockLog.findMany({
-      take: 3,
-      orderBy: { timestamp: 'desc' },
-      where: { action: 'IN' },
-      include: { user: { select: { name: true } } },
-    });
+    // Map recent clock-ins to activity list
     for (const log of recentClockIns) {
       const timeAgo = getTimeAgo(log.timestamp);
       recentActivity.push({
@@ -165,29 +199,15 @@ export async function GET() {
         type: 'clock_in',
         description: `${log.user.name} clocked in`,
         time: timeAgo,
+        createdAt: log.timestamp.toISOString(),
+        metadata: {
+          userName: log.user.name,
+        },
       });
     }
 
-    // Sort activity by most recent (approximate using string)
-    recentActivity.sort((a, b) => a.time.localeCompare(b.time));
-
-    // Fetch all orders created today (for Live Order Monitor)
-    const dailyOrders = await db.order.findMany({
-      where: {
-        createdAt: { gte: today },
-      },
-      include: {
-        items: {
-          include: { menuItem: true },
-          orderBy: { createdAt: 'asc' },
-        },
-        table: true,
-        creator: {
-          select: { id: true, name: true, role: true },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    // Sort activity by actual date (newest first)
+    recentActivity.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     return NextResponse.json({
       todaySnapshot,
@@ -203,7 +223,7 @@ export async function GET() {
       lowStockCount,
       lowStockItems,
       todayShifts,
-      clockedIn: clockedInUsers.length,
+      clockedIn: clockedInUsers.filter((u) => u.clockLogs[0]?.action === 'IN').length,
       recentActivity,
       dailyOrders,
     });

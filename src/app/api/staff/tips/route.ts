@@ -7,18 +7,13 @@ export async function GET() {
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
 
-    // Get all active staff with their clock logs for today
+    // Get all active staff with their recent clock logs to calculate sessions
     const staff = await db.user.findMany({
       where: { active: true },
       include: {
         clockLogs: {
-          where: {
-            timestamp: {
-              gte: startOfDay,
-              lt: endOfDay,
-            },
-          },
-          orderBy: { timestamp: 'asc' },
+          orderBy: { timestamp: 'desc' },
+          take: 20,
         },
       },
       orderBy: { name: 'asc' },
@@ -38,23 +33,47 @@ export async function GET() {
     for (const user of staff) {
       if (user.clockLogs.length === 0) continue;
 
-      // Calculate total hours worked today
-      let totalMinutes = 0;
-      let inTime: Date | null = null;
+      // Chronological order
+      const logs = [...user.clockLogs].reverse();
 
-      for (const log of user.clockLogs) {
+      // Group logs into sessions [IN, OUT]
+      const sessions: { inTime: Date; outTime: Date }[] = [];
+      let currentInLog: (typeof user.clockLogs)[0] | null = null;
+
+      for (const log of logs) {
         if (log.action === 'IN') {
-          inTime = new Date(log.timestamp);
-        } else if (log.action === 'OUT' && inTime) {
-          const outTime = new Date(log.timestamp);
-          totalMinutes += (outTime.getTime() - inTime.getTime()) / 60000;
-          inTime = null;
+          currentInLog = log;
+        } else if (log.action === 'OUT') {
+          if (currentInLog) {
+            sessions.push({
+              inTime: new Date(currentInLog.timestamp),
+              outTime: new Date(log.timestamp),
+            });
+            currentInLog = null;
+          }
         }
       }
 
-      // Still clocked in — count up to now
-      if (inTime) {
-        totalMinutes += (Date.now() - inTime.getTime()) / 60000;
+      // If still clocked in
+      if (currentInLog) {
+        sessions.push({
+          inTime: new Date(currentInLog.timestamp),
+          outTime: new Date(),
+        });
+      }
+
+      // Calculate overlap with today [startOfDay, endOfDay]
+      let totalMinutes = 0;
+      for (const session of sessions) {
+        const sessionStart = session.inTime;
+        const sessionEnd = session.outTime;
+
+        const overlapStart = sessionStart > startOfDay ? sessionStart : startOfDay;
+        const overlapEnd = sessionEnd < endOfDay ? sessionEnd : endOfDay;
+
+        if (overlapStart < overlapEnd) {
+          totalMinutes += (overlapEnd.getTime() - overlapStart.getTime()) / 60000;
+        }
       }
 
       const hoursWorked = totalMinutes / 60;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -143,6 +143,24 @@ function formatTime12(time: string): string {
   return `${hour}:${m.toString().padStart(2, '0')} ${ampm}`;
 }
 
+function parseTimeToMinutes(timeStr: string): number {
+  const [h, m] = timeStr.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function timesOverlap(
+  time1: string,
+  duration1: number,
+  time2: string,
+  duration2: number
+): boolean {
+  const start1 = parseTimeToMinutes(time1);
+  const end1 = start1 + duration1;
+  const start2 = parseTimeToMinutes(time2);
+  const end2 = start2 + duration2;
+  return start1 < end2 && start2 < end1;
+}
+
 /* ─── Status Badge Component ─── */
 function StatusBadge({ status }: { status: ReservationStatus }) {
   const t = useT();
@@ -192,10 +210,14 @@ function getSectionLabels(t: any): Record<string, string> {
 /* ─── Table Seating Grid Component ─── */
 function TableSeatingGrid({
   tables,
+  focusedReservation,
   onTableClick,
+  onClearFocus,
 }: {
   tables: TableData[];
+  focusedReservation: ReservationData | null;
   onTableClick: (table: TableData) => void;
+  onClearFocus?: () => void;
 }) {
   const t = useT();
   const sections: TableSection[] = ['MAIN', 'BAR', 'PATIO', 'VIP'];
@@ -237,10 +259,27 @@ function TableSeatingGrid({
   return (
     <Card className="bg-zinc-900 border-zinc-800 h-full flex flex-col">
       <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-semibold flex items-center gap-2 text-zinc-100">
-          <Armchair className="size-4 text-emerald-400" />
-          {t.reservations.tablesOverview}
-        </CardTitle>
+        <div className="flex items-center justify-between w-full">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2 text-zinc-100">
+            <Armchair className="size-4 text-emerald-400" />
+            {t.reservations.tablesOverview}
+          </CardTitle>
+          {focusedReservation && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 text-[10px] px-2 text-zinc-500 hover:text-zinc-350 bg-zinc-800/50 hover:bg-zinc-800"
+              onClick={onClearFocus}
+            >
+              Clear Filter
+            </Button>
+          )}
+        </div>
+        {focusedReservation && (
+          <p className="text-[10px] text-emerald-400 mt-1.5 bg-emerald-950/20 border border-emerald-900/30 rounded p-1.5 leading-snug">
+            Showing free tables for <strong>{focusedReservation.guestName}</strong> at <strong>{formatTime12(focusedReservation.reservationTime)}</strong>
+          </p>
+        )}
       </CardHeader>
       <CardContent className="p-4 pt-0 flex-1 overflow-y-auto max-h-[700px] scrollbar-thin">
         <div className="space-y-6">
@@ -387,12 +426,14 @@ function TimelineReservation({
   onSeat,
   onCancel,
   onNoShow,
+  onFocusReservation,
   isLast,
 }: {
   reservation: ReservationData;
   onSeat: (r: ReservationData) => void;
   onCancel: (r: ReservationData) => void;
   onNoShow: (r: ReservationData) => void;
+  onFocusReservation?: (r: ReservationData) => void;
   isLast: boolean;
 }) {
   const t = useT();
@@ -421,7 +462,11 @@ function TimelineReservation({
         )}>
           {/* Top row: time + status */}
           <div className="flex items-center justify-between gap-2 mb-2">
-            <div className="flex items-center gap-2">
+            <div 
+              className="flex items-center gap-2 cursor-pointer hover:text-emerald-400 transition-colors"
+              onClick={() => onFocusReservation?.(reservation)}
+              title="Click to view free tables for this slot"
+            >
               <Clock className={cn('size-3.5', timeColors.text)} />
               <span className={cn('text-sm font-semibold', timeColors.text)}>
                 {formatTime12(reservation.reservationTime)}
@@ -716,6 +761,7 @@ function NewReservationDialog({
   open,
   onOpenChange,
   tables,
+  reservations,
   customers,
   onSubmit,
   preSelectedTableId = '',
@@ -723,6 +769,7 @@ function NewReservationDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   tables: TableData[];
+  reservations: ReservationData[];
   customers: CustomerData[];
   onSubmit: (data: Record<string, unknown>) => void;
   preSelectedTableId?: string;
@@ -742,16 +789,19 @@ function NewReservationDialog({
 
   useEffect(() => {
     if (open) {
-      setTableId(preSelectedTableId || '');
-      setGuestName('');
-      setGuestPhone('');
-      setGuestEmail('');
-      setPartySize(2);
-      setDate(new Date());
-      setTime('19:00');
-      setNotes('');
-      setSearchQuery('');
-      setShowCustomerSearch(false);
+      const timer = setTimeout(() => {
+        setTableId(preSelectedTableId || '');
+        setGuestName('');
+        setGuestPhone('');
+        setGuestEmail('');
+        setPartySize(2);
+        setDate(new Date());
+        setTime('19:00');
+        setNotes('');
+        setSearchQuery('');
+        setShowCustomerSearch(false);
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [open, preSelectedTableId]);
 
@@ -798,8 +848,44 @@ function NewReservationDialog({
     onOpenChange(false);
   };
 
-  // Filter available tables (free or reserved) with enough capacity
-  const availableTables = tables.filter((tbl) => tbl.status === 'FREE' || tbl.status === 'RESERVED');
+  // Filter available tables based on target reservation date/time overlap
+  const availableTables = useMemo(() => {
+    const targetDateStr = date.toISOString().split('T')[0];
+    const todayDateStr = new Date().toISOString().split('T')[0];
+    const isToday = targetDateStr === todayDateStr;
+
+    // Current time in minutes since midnight
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+    // Proposed reservation slot
+    const targetStart = parseTimeToMinutes(time);
+    const targetEnd = targetStart + 120; // 120 minutes default duration
+
+    // Find other active reservations on the target date that overlap in time
+    const overlappingRes = reservations.filter((r) => {
+      if (r.status === 'CANCELLED' || r.status === 'NO_SHOW') return false;
+      const rDateStr = r.reservationDate.split('T')[0];
+      if (rDateStr !== targetDateStr) return false;
+      return timesOverlap(time, 120, r.reservationTime, r.estimatedDuration || 120);
+    });
+
+    const reservedTableIds = new Set(overlappingRes.map((r) => r.tableId).filter(Boolean));
+
+    return tables.filter((tbl) => {
+      // 1. If the table is reserved via an overlapping reservation on the target date/time, it is not available.
+      if (reservedTableIds.has(tbl.id)) return false;
+
+      // 2. If the reservation is for today, and the slot covers the current time,
+      //    check if the table is currently occupied in real-time (not FREE or RESERVED).
+      if (isToday && targetStart <= nowMinutes && nowMinutes < targetEnd) {
+        const isOccupiedRealTime = tbl.status !== 'FREE' && tbl.status !== 'RESERVED';
+        if (isOccupiedRealTime) return false;
+      }
+
+      return true;
+    });
+  }, [tables, reservations, date, time]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1130,6 +1216,9 @@ export function Reservations() {
   // All Reservations tab state
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [focusedReservation, setFocusedReservation] = useState<ReservationData | null>(null);
+
+
 
   // Fetch reservations
   const { data: reservations = [], isLoading: reservationsLoading, refetch: refetchReservations } = useQuery<ReservationData[]>({
@@ -1150,6 +1239,40 @@ export function Reservations() {
     queryKey: ['customers'],
     queryFn: () => fetch('/api/customers').then((r) => r.json()),
   });
+
+  // Clear focused reservation filter when the selected day changes
+  useEffect(() => {
+    setFocusedReservation(null);
+  }, [selectedDate]);
+
+  // Compute table status based on overlaps with the focused reservation's time slot
+  const tablesWithStatus = useMemo(() => {
+    if (!focusedReservation) return tables;
+
+    const resDateStr = focusedReservation.reservationDate.split('T')[0];
+    const resTime = focusedReservation.reservationTime;
+    const resDuration = focusedReservation.estimatedDuration || 120;
+
+    // Find other overlapping reservations for the same day and time
+    const overlappingRes = reservations.filter((r) => {
+      if (r.id === focusedReservation.id) return false;
+      if (r.status === 'CANCELLED' || r.status === 'NO_SHOW') return false;
+      const rDateStr = r.reservationDate.split('T')[0];
+      if (rDateStr !== resDateStr) return false;
+
+      return timesOverlap(resTime, resDuration, r.reservationTime, r.estimatedDuration || 120);
+    });
+
+    const reservedTableIds = new Set(overlappingRes.map((r) => r.tableId).filter(Boolean));
+
+    return tables.map((tbl) => {
+      const isReserved = reservedTableIds.has(tbl.id);
+      return {
+        ...tbl,
+        status: isReserved ? 'RESERVED' : 'FREE',
+      };
+    });
+  }, [tables, reservations, focusedReservation]);
 
   // Auto-refresh
   useEffect(() => {
@@ -1405,6 +1528,7 @@ export function Reservations() {
                           onSeat={handleSeatGuest}
                           onCancel={handleCancel}
                           onNoShow={handleNoShow}
+                          onFocusReservation={setFocusedReservation}
                           isLast={idx === todayReservations.length - 1}
                         />
                       ))}
@@ -1524,8 +1648,12 @@ export function Reservations() {
                             )}
                           >
                             {/* Time */}
-                            <div className="shrink-0 w-16 text-center">
-                              <p className="text-sm font-semibold text-zinc-300">{formatTime12(r.reservationTime)}</p>
+                            <div 
+                              className="shrink-0 w-16 text-center cursor-pointer hover:text-emerald-400 transition-colors"
+                              onClick={() => setFocusedReservation(r)}
+                              title="Click to view free tables for this slot"
+                            >
+                              <p className="text-sm font-semibold text-zinc-305">{formatTime12(r.reservationTime)}</p>
                             </div>
 
                             {/* Info */}
@@ -1602,8 +1730,10 @@ export function Reservations() {
         </div>
         <div className="lg:col-span-1 h-full">
           <TableSeatingGrid
-            tables={tables}
+            tables={tablesWithStatus}
+            focusedReservation={focusedReservation}
             onTableClick={handleTableClick}
+            onClearFocus={() => setFocusedReservation(null)}
           />
         </div>
       </div>
@@ -1613,6 +1743,7 @@ export function Reservations() {
         open={newResOpen}
         onOpenChange={setNewResOpen}
         tables={tables}
+        reservations={reservations}
         customers={customers}
         onSubmit={handleNewReservation}
         preSelectedTableId={preSelectedTableId}
