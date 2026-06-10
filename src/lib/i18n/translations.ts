@@ -701,6 +701,32 @@ export interface Translations {
     placedBySelf: string;
   };
 
+  menuManagement: {
+    title: string;
+    editDesc: string;
+    searchPlaceholder: string;
+    noItemsFound: string;
+    editItem: string;
+    editItemDesc: string;
+    itemName: string;
+    basePrice: string;
+    image: string;
+    imagePlaceholder: string;
+    upload: string;
+    uploading: string;
+    optionalExtras: string;
+    addExtra: string;
+    extraPlaceholder: string;
+    noExtras: string;
+    createOne: string;
+    saving: string;
+    saveChanges: string;
+    toastUpdated: string;
+    toastFailed: string;
+    toastUploaded: string;
+    toastUploadFailed: string;
+  };
+
   footer: {
     copyright: string;
     version: string;
@@ -1366,6 +1392,31 @@ export const enGB: Translations = {
     itemAddedToCart: 'Item added to cart',
     cartEmpty: 'Your cart is empty',
     placedBySelf: 'Guest Order',
+  },
+  menuManagement: {
+    title: 'Menu Management',
+    editDesc: 'Edit menu items, images, and optional extras.',
+    searchPlaceholder: 'Search items...',
+    noItemsFound: 'No menu items found matching',
+    editItem: 'Edit {name}',
+    editItemDesc: 'Update the menu item details, image, and optional extras.',
+    itemName: 'Item Name',
+    basePrice: 'Base Price',
+    image: 'Image',
+    imagePlaceholder: 'https://... or upload local',
+    upload: 'Upload',
+    uploading: 'Uploading...',
+    optionalExtras: 'Optional Extras (Additions)',
+    addExtra: 'Add Extra',
+    extraPlaceholder: 'Extra name (e.g. Extra Cheese)',
+    noExtras: 'No optional extras configured.',
+    createOne: 'Create one now',
+    saving: 'Saving...',
+    saveChanges: 'Save Changes',
+    toastUpdated: 'Menu item updated successfully',
+    toastFailed: 'Failed to update menu item',
+    toastUploaded: 'Image uploaded successfully',
+    toastUploadFailed: 'Failed to upload image',
   },
   footer: {
     copyright: 'The Gilded Fork',
@@ -2033,6 +2084,31 @@ export const ptPT: Translations = {
     cartEmpty: 'O seu carrinho está vazio',
     placedBySelf: 'Pedido do Cliente',
   },
+  menuManagement: {
+    title: 'Gestão do Menu',
+    editDesc: 'Edite itens do menu, imagens e extras opcionais.',
+    searchPlaceholder: 'Pesquisar itens...',
+    noItemsFound: 'Nenhum item de menu encontrado correspondente a',
+    editItem: 'Editar {name}',
+    editItemDesc: 'Atualize os detalhes do item do menu, imagem e extras opcionais.',
+    itemName: 'Nome do Item',
+    basePrice: 'Preço Base',
+    image: 'Imagem',
+    imagePlaceholder: 'https://... ou carregar local',
+    upload: 'Carregar',
+    uploading: 'A carregar...',
+    optionalExtras: 'Extras Opcionais (Adições)',
+    addExtra: 'Adicionar Extra',
+    extraPlaceholder: 'Nome do extra (ex. Queijo Extra)',
+    noExtras: 'Nenhum extra opcional configurado.',
+    createOne: 'Criar um agora',
+    saving: 'A guardar...',
+    saveChanges: 'Guardar Alterações',
+    toastUpdated: 'Item de menu atualizado com sucesso',
+    toastFailed: 'Falha ao atualizar item de menu',
+    toastUploaded: 'Imagem carregada com sucesso',
+    toastUploadFailed: 'Falha ao carregar imagem',
+  },
   footer: {
     copyright: 'The Gilded Fork',
     version: 'Sistema de Gestão de Restaurante v1.0',
@@ -2699,6 +2775,31 @@ export const frFR: Translations = {
     cartEmpty: 'Votre panier est vide',
     placedBySelf: 'Commande client',
   },
+  menuManagement: {
+    title: 'Gestion du Menu',
+    editDesc: 'Modifiez les éléments du menu, les images et les suppléments optionnels.',
+    searchPlaceholder: 'Rechercher des éléments...',
+    noItemsFound: 'Aucun élément de menu correspondant trouvé pour',
+    editItem: 'Modifier {name}',
+    editItemDesc: 'Mettez à jour les détails de l\'élément du menu, l\'image et les suppléments optionnels.',
+    itemName: 'Nom de l\'élément',
+    basePrice: 'Prix de Base',
+    image: 'Image',
+    imagePlaceholder: 'https://... ou charger en local',
+    upload: 'Téléverser',
+    uploading: 'Téléversement...',
+    optionalExtras: 'Suppléments Optionnels (Ajouts)',
+    addExtra: 'Ajouter un Supplément',
+    extraPlaceholder: 'Nom du supplément (ex. Supplément Fromage)',
+    noExtras: 'Aucun supplément optionnel configuré.',
+    createOne: 'Créer maintenant',
+    saving: 'Enregistrement...',
+    saveChanges: 'Enregistrer les Modifications',
+    toastUpdated: 'Élément du menu mis à jour avec succès',
+    toastFailed: 'Échec de la mise à jour de l\'élément du menu',
+    toastUploaded: 'Image téléversée avec succès',
+    toastUploadFailed: 'Échec du téléversement de l\'image',
+  },
   footer: {
     copyright: 'The Gilded Fork',
     version: 'Système de Gestion de Restaurant v1.0',
@@ -3364,6 +3465,31 @@ export const esES: Translations = {
     itemAddedToCart: 'Artículo añadido al carrito',
     cartEmpty: 'Su carrito está vacío',
     placedBySelf: 'Pedido de cliente',
+  },
+  menuManagement: {
+    title: 'Gestión del Menú',
+    editDesc: 'Edite elementos del menú, imágenes y extras opcionales.',
+    searchPlaceholder: 'Buscar artículos...',
+    noItemsFound: 'No se encontraron elementos de menú que coincidan con',
+    editItem: 'Editar {name}',
+    editItemDesc: 'Actualice los detalles del elemento del menú, la imagen y los extras opcionales.',
+    itemName: 'Nombre del Artículo',
+    basePrice: 'Precio Base',
+    image: 'Imagen',
+    imagePlaceholder: 'https://... o subir local',
+    upload: 'Subir',
+    uploading: 'Subiendo...',
+    optionalExtras: 'Extras Opcionales (Adiciones)',
+    addExtra: 'Añadir Extra',
+    extraPlaceholder: 'Nombre del extra (ej. Queso Extra)',
+    noExtras: 'No hay extras opcionales configurados.',
+    createOne: 'Crear uno ahora',
+    saving: 'Guardando...',
+    saveChanges: 'Guardar Cambios',
+    toastUpdated: 'Elemento del menú actualizado con éxito',
+    toastFailed: 'Error al actualizar el elemento del menú',
+    toastUploaded: 'Imagen subida con éxito',
+    toastUploadFailed: 'Error al subir la imagen',
   },
   footer: {
     copyright: 'The Gilded Fork',

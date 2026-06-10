@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Pencil, Trash2, Loader2, Save, Image as ImageIcon, Search, UploadCloud } from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
-import { useLocaleConfig } from '@/stores/locale-store';
+import { useLocaleConfig, useT } from '@/stores/locale-store';
 import { useRef } from 'react';
 
 interface MenuItemExtra {
@@ -47,6 +47,7 @@ export function MenuManagement() {
   const queryClient = useQueryClient();
   const addNotification = useAppStore((s) => s.addNotification);
   const { currencySymbol } = useLocaleConfig();
+  const t = useT();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [editingItem, setEditingItem] = useState<MenuItemData | null>(null);
@@ -85,11 +86,11 @@ export function MenuManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['menu'] });
-      addNotification('Menu item updated successfully', 'success');
+      addNotification(t.menuManagement.toastUpdated, 'success');
       setIsDialogOpen(false);
     },
     onError: () => {
-      addNotification('Failed to update menu item', 'error');
+      addNotification(t.menuManagement.toastFailed, 'error');
     },
   });
 
@@ -115,9 +116,9 @@ export function MenuManagement() {
       if (editingItem) {
         setEditingItem({ ...editingItem, imageUrl: data.url });
       }
-      addNotification('Image uploaded successfully', 'success');
+      addNotification(t.menuManagement.toastUploaded, 'success');
     } catch (err) {
-      addNotification('Failed to upload image', 'error');
+      addNotification(t.menuManagement.toastUploadFailed, 'error');
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -159,15 +160,15 @@ export function MenuManagement() {
     <div className="h-full flex flex-col gap-4 animate-in fade-in duration-300">
       <div className="flex items-center justify-between shrink-0">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-100 tracking-tight">Menu Management</h1>
-          <p className="text-sm text-zinc-400">Edit menu items, images, and optional extras.</p>
+          <h1 className="text-2xl font-bold text-zinc-100 tracking-tight">{t.menuManagement.title}</h1>
+          <p className="text-sm text-zinc-400">{t.menuManagement.editDesc}</p>
         </div>
         <div className="relative w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-zinc-500" />
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search items..."
+            placeholder={t.menuManagement.searchPlaceholder}
             className="pl-9 bg-zinc-900 border-zinc-800 text-zinc-100 focus:border-emerald-600"
           />
         </div>
@@ -208,10 +209,10 @@ export function MenuManagement() {
                         </div>
                         <div className="p-3">
                           <h3 className="text-sm font-semibold text-zinc-100 truncate">{item.name}</h3>
-                          <p className="text-xs text-zinc-500 truncate mb-3">{item.description || 'No description'}</p>
+                          <p className="text-xs text-zinc-500 truncate mb-3">{item.description || ''}</p>
                           <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-800">
                             <span className="text-[10px] text-zinc-500 font-medium">
-                              {item.extras?.length || 0} Optional Extras
+                              {item.extras?.length || 0} {t.menuManagement.optionalExtras}
                             </span>
                             <Button 
                               size="sm" 
@@ -220,7 +221,7 @@ export function MenuManagement() {
                               onClick={() => handleEditClick(item)}
                             >
                               <Pencil className="size-3 mr-1.5" />
-                              Edit Item
+                              {t.common.edit}
                             </Button>
                           </div>
                         </div>
@@ -232,7 +233,7 @@ export function MenuManagement() {
               {filteredCategories.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-12 text-zinc-500">
                   <Search className="size-8 mb-4 text-zinc-700" />
-                  <p>No menu items found matching &quot;{searchQuery}&quot;</p>
+                  <p>{t.menuManagement.noItemsFound} &quot;{searchQuery}&quot;</p>
                 </div>
               )}
             </div>
@@ -245,10 +246,10 @@ export function MenuManagement() {
           <DialogHeader className="p-6 pb-4 border-b border-zinc-800 shrink-0">
             <DialogTitle className="text-zinc-100 flex items-center gap-2">
               <Pencil className="size-4 text-emerald-400" />
-              Edit {editingItem?.name}
+              {t.menuManagement.editItem.replace('{name}', editingItem?.name || '')}
             </DialogTitle>
             <DialogDescription className="text-zinc-400">
-              Update the menu item details, image, and optional extras.
+              {t.menuManagement.editItemDesc}
             </DialogDescription>
           </DialogHeader>
 
@@ -257,7 +258,7 @@ export function MenuManagement() {
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Item Name</label>
+                    <label className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">{t.menuManagement.itemName}</label>
                     <Input 
                       value={editingItem.name} 
                       onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
@@ -265,7 +266,7 @@ export function MenuManagement() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Base Price ({currencySymbol})</label>
+                    <label className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">{t.menuManagement.basePrice} ({currencySymbol})</label>
                     <Input 
                       type="number"
                       value={editingItem.price} 
@@ -276,7 +277,7 @@ export function MenuManagement() {
                 </div>
                 
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Description</label>
+                  <label className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">{t.common.description}</label>
                   <Input 
                     value={editingItem.description || ''} 
                     onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })}
@@ -285,12 +286,12 @@ export function MenuManagement() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Image</label>
+                  <label className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">{t.menuManagement.image}</label>
                   <div className="flex items-center gap-2">
                     <Input 
                       value={editingItem.imageUrl || ''} 
                       onChange={(e) => setEditingItem({ ...editingItem, imageUrl: e.target.value })}
-                      placeholder="https://... or upload local"
+                      placeholder={t.menuManagement.imagePlaceholder}
                       className="bg-zinc-900 border-zinc-800 text-zinc-100 h-10 flex-1"
                     />
                     <Button 
@@ -300,7 +301,7 @@ export function MenuManagement() {
                       disabled={isUploading}
                     >
                       {isUploading ? <Loader2 className="size-4 animate-spin mr-2" /> : <UploadCloud className="size-4 mr-2" />}
-                      {isUploading ? 'Uploading...' : 'Upload'}
+                      {isUploading ? t.menuManagement.uploading : t.menuManagement.upload}
                     </Button>
                     <input 
                       type="file" 
@@ -319,10 +320,10 @@ export function MenuManagement() {
 
                 <div className="pt-4 border-t border-zinc-800/80">
                   <div className="flex items-center justify-between mb-4">
-                    <label className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Optional Extras (Additions)</label>
+                    <label className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">{t.menuManagement.optionalExtras}</label>
                     <Button size="sm" variant="outline" className="h-7 text-[10px] px-2.5 border-emerald-900/50 text-emerald-400 hover:bg-emerald-900/20" onClick={handleAddExtra}>
                       <Plus className="size-3 mr-1" />
-                      Add Extra
+                      {t.menuManagement.addExtra}
                     </Button>
                   </div>
                   
@@ -333,7 +334,7 @@ export function MenuManagement() {
                           <Input 
                             value={extra.name}
                             onChange={(e) => handleUpdateExtra(index, 'name', e.target.value)}
-                            placeholder="Extra name (e.g. Extra Cheese)"
+                            placeholder={t.menuManagement.extraPlaceholder}
                             className="bg-zinc-950 border-zinc-800 text-zinc-200 h-9 text-sm"
                           />
                           <div className="relative w-28 shrink-0">
@@ -359,9 +360,9 @@ export function MenuManagement() {
                     </div>
                   ) : (
                     <div className="py-6 flex flex-col items-center justify-center border border-dashed border-zinc-800 rounded-lg bg-zinc-900/20">
-                      <p className="text-xs text-zinc-500">No optional extras configured.</p>
+                      <p className="text-xs text-zinc-500">{t.menuManagement.noExtras}</p>
                       <Button variant="link" className="text-emerald-400 text-xs h-auto py-1 mt-1" onClick={handleAddExtra}>
-                        Create one now
+                        {t.menuManagement.createOne}
                       </Button>
                     </div>
                   )}
@@ -372,7 +373,7 @@ export function MenuManagement() {
           
           <DialogFooter className="p-4 border-t border-zinc-800 shrink-0">
             <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800">
-              Cancel
+              {t.common.cancel}
             </Button>
             <Button 
               className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
@@ -380,7 +381,7 @@ export function MenuManagement() {
               disabled={updateMutation.isPending}
             >
               {updateMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-              {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+              {updateMutation.isPending ? t.menuManagement.saving : t.menuManagement.saveChanges}
             </Button>
           </DialogFooter>
         </DialogContent>
