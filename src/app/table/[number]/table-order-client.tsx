@@ -24,7 +24,9 @@ import {
   Check,
   CheckCircle2,
   Trash2,
-  ListOrdered
+  ListOrdered,
+  Download,
+  Info
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -47,6 +49,7 @@ import { getSocket } from '@/lib/socket';
 import { cn } from '@/lib/utils';
 import { useT, useLocale } from '@/stores/locale-store';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
+import { usePwaInstall } from '@/hooks/use-pwa-install';
 
 interface MenuItemExtra {
   id: string;
@@ -170,6 +173,17 @@ export function TableOrderClient({ table, menu }: { table: Table; menu: MenuCate
   }, [t]);
   
   // State variables
+  const { isInstallable, isInstalled, install } = usePwaInstall();
+  const [isIOS, setIsIOS] = useState(false);
+  const [showPwaGuide, setShowPwaGuide] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+      setIsIOS(ios);
+    }
+  }, []);
+
   const [cart, setCart] = useState<CartItem[]>([]);
   const [guestCount, setGuestCount] = useState<number>(2);
   const [activeTab, setActiveTab] = useState<'menu' | 'status'>('menu');
@@ -412,9 +426,31 @@ export function TableOrderClient({ table, menu }: { table: Table; menu: MenuCate
         </div>
 
         <div className="flex items-center gap-2">
+          {isInstallable && !isInstalled && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={install}
+              className="h-8 w-8 rounded-lg bg-zinc-900 border-zinc-805 text-primary hover:bg-zinc-800 hover:text-primary shadow-sm shrink-0"
+              title={t.landing.installGuestBtn}
+            >
+              <Download className="size-4" />
+            </Button>
+          )}
+          {!isInstallable && !isInstalled && isIOS && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setShowPwaGuide(true)}
+              className="h-8 w-8 rounded-lg bg-zinc-900 border-zinc-805 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 shadow-sm shrink-0"
+              title={t.landing.pwaInstructionsTitle}
+            >
+              <Download className="size-4" />
+            </Button>
+          )}
           <LanguageSwitcher variant="flag-only" />
           <Badge className="bg-zinc-900 border-zinc-800 text-zinc-300 gap-1.5 h-8 px-3 text-xs font-semibold rounded-lg shadow-sm">
-            <Users className="size-3.5 text-emerald-500" />
+            <Users className="size-3.5 text-emerald-550" />
             <span>{currentTable.name}</span>
           </Badge>
         </div>
@@ -1034,6 +1070,30 @@ export function TableOrderClient({ table, menu }: { table: Table; menu: MenuCate
               </div>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* PWA IOS Installation Guide Dialog */}
+      <Dialog open={showPwaGuide} onOpenChange={setShowPwaGuide}>
+        <DialogContent className="bg-zinc-900 border-zinc-800 text-zinc-100 max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold text-zinc-100 flex items-center gap-2">
+              <Download className="size-4 text-emerald-500" />
+              {t.landing.pwaInstructionsTitle}
+            </DialogTitle>
+            <DialogDescription className="text-zinc-400 text-xs pt-2">
+              {t.landing.pwaInstructionsIOS}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end pt-2">
+            <Button 
+              size="sm" 
+              onClick={() => setShowPwaGuide(false)}
+              className="bg-primary text-primary-foreground text-xs font-bold rounded-lg px-4 h-8"
+            >
+              {t.common.close}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -727,6 +727,26 @@ export interface Translations {
     toastUploadFailed: string;
   };
 
+  landing: {
+    welcome: string;
+    tagline: string;
+    guestSectionTitle: string;
+    guestSectionDesc: string;
+    viewMenuBtn: string;
+    selectTableLabel: string;
+    selectTablePlaceholder: string;
+    installGuestBtn: string;
+    installGuestDesc: string;
+    staffSectionTitle: string;
+    staffSectionDesc: string;
+    goToManagementBtn: string;
+    installStaffBtn: string;
+    installStaffDesc: string;
+    pwaInstructionsTitle: string;
+    pwaInstructionsIOS: string;
+    pwaInstructionsInstalled: string;
+  };
+
   footer: {
     copyright: string;
     version: string;
@@ -1417,6 +1437,25 @@ export const enGB: Translations = {
     toastFailed: 'Failed to update menu item',
     toastUploaded: 'Image uploaded successfully',
     toastUploadFailed: 'Failed to upload image',
+  },
+  landing: {
+    welcome: 'Welcome to',
+    tagline: 'Experience premium dining with interactive self-service ordering at your table.',
+    guestSectionTitle: 'For Our Guests',
+    guestSectionDesc: 'Browse the menu, customize your order, and submit it directly to the kitchen.',
+    viewMenuBtn: 'Browse Menu & Order',
+    selectTableLabel: 'Select Your Table',
+    selectTablePlaceholder: 'Choose a table...',
+    installGuestBtn: 'Install Guest Web App',
+    installGuestDesc: 'Add the Gilded Fork to your home screen for instant table ordering.',
+    staffSectionTitle: 'For Staff & Operations',
+    staffSectionDesc: 'Access POS orders, KDS kitchen display, floor plan layout, CRM, and system settings.',
+    goToManagementBtn: 'Go to Management App',
+    installStaffBtn: 'Install Staff Pad App',
+    installStaffDesc: 'Install the full management suite on service tablets and pads.',
+    pwaInstructionsTitle: 'Installation Guide',
+    pwaInstructionsIOS: 'On iOS, tap the Share button and select "Add to Home Screen".',
+    pwaInstructionsInstalled: 'App is already installed and ready on this device.',
   },
   footer: {
     copyright: 'The Gilded Fork',
@@ -2109,6 +2148,25 @@ export const ptPT: Translations = {
     toastUploaded: 'Imagem carregada com sucesso',
     toastUploadFailed: 'Falha ao carregar imagem',
   },
+  landing: {
+    welcome: 'Bem-vindo ao',
+    tagline: 'Experimente um serviço premium com pedidos interativos diretamente na sua mesa.',
+    guestSectionTitle: 'Para os Nossos Clientes',
+    guestSectionDesc: 'Navegue pelo menu, personalize o seu pedido e envie-o diretamente para a cozinha.',
+    viewMenuBtn: 'Ver Menu e Pedir',
+    selectTableLabel: 'Selecione a Sua Mesa',
+    selectTablePlaceholder: 'Escolha uma mesa...',
+    installGuestBtn: 'Instalar App do Cliente',
+    installGuestDesc: 'Adicione o Gilded Fork ao seu ecrã principal para pedidos rápidos na mesa.',
+    staffSectionTitle: 'Para Funcionários e Operações',
+    staffSectionDesc: 'Aceda aos pedidos do POS, ecrã de cozinha KDS, planta de sala, CRM e definições.',
+    goToManagementBtn: 'Ir para App de Gestão',
+    installStaffBtn: 'Instalar App no Tablet',
+    installStaffDesc: 'Instale a suite de gestão completa nos tablets de serviço.',
+    pwaInstructionsTitle: 'Guia de Instalação',
+    pwaInstructionsIOS: 'No iOS, toque no botão Partilhar e selecione "Adicionar ao Ecrã Principal".',
+    pwaInstructionsInstalled: 'A aplicação já está instalada e pronta neste dispositivo.',
+  },
   footer: {
     copyright: 'The Gilded Fork',
     version: 'Sistema de Gestão de Restaurante v1.0',
@@ -2800,6 +2858,25 @@ export const frFR: Translations = {
     toastUploaded: 'Image téléversée avec succès',
     toastUploadFailed: 'Échec du téléversement de l\'image',
   },
+  landing: {
+    welcome: 'Bienvenue au',
+    tagline: 'Vivez une expérience culinaire premium avec commande interactive directement à votre table.',
+    guestSectionTitle: 'Pour Nos Clients',
+    guestSectionDesc: 'Parcourez le menu, personnalisez votre commande et envoyez-la directement en cuisine.',
+    viewMenuBtn: 'Parcourir le Menu et Commander',
+    selectTableLabel: 'Sélectionnez Votre Table',
+    selectTablePlaceholder: 'Choisissez une table...',
+    installGuestBtn: 'Installer l\'Application Client',
+    installGuestDesc: 'Ajoutez The Gilded Fork à votre écran d\'accueil pour commander rapidement à table.',
+    staffSectionTitle: 'Pour le Personnel et les Opérations',
+    staffSectionDesc: 'Accédez aux commandes POS, à l\'écran de cuisine KDS, au plan de salle, au CRM et aux paramètres.',
+    goToManagementBtn: 'Aller à l\'Application de Gestion',
+    installStaffBtn: 'Installer l\'App sur Tablette',
+    installStaffDesc: 'Installez la suite de gestion complète sur les tablettes de service.',
+    pwaInstructionsTitle: 'Guide d\'Installation',
+    pwaInstructionsIOS: 'Sur iOS, appuyez sur le bouton Partager et sélectionnez "Sur l\'écran d\'accueil".',
+    pwaInstructionsInstalled: 'L\'application est déjà installée et prête sur cet appareil.',
+  },
   footer: {
     copyright: 'The Gilded Fork',
     version: 'Système de Gestion de Restaurant v1.0',
@@ -3490,6 +3567,25 @@ export const esES: Translations = {
     toastFailed: 'Error al actualizar el elemento del menú',
     toastUploaded: 'Imagen subida con éxito',
     toastUploadFailed: 'Error al subir la imagen',
+  },
+  landing: {
+    welcome: 'Bienvenido a',
+    tagline: 'Disfrute de una experiencia gastronómica premium con pedidos interactivos en su mesa.',
+    guestSectionTitle: 'Para Nuestros Clientes',
+    guestSectionDesc: 'Explore el menú, personalice su pedido y envíelo directamente a la cocina.',
+    viewMenuBtn: 'Ver Menú y Pedir',
+    selectTableLabel: 'Seleccione Su Mesa',
+    selectTablePlaceholder: 'Elija una mesa...',
+    installGuestBtn: 'Instalar App del Cliente',
+    installGuestDesc: 'Añada The Gilded Fork a su pantalla de inicio para realizar pedidos rápidos en la mesa.',
+    staffSectionTitle: 'Para el Personal y Operaciones',
+    staffSectionDesc: 'Acceda a pedidos POS, pantalla de cocina KDS, plano de sala, CRM y configuración del sistema.',
+    goToManagementBtn: 'Ir a la App de Gestión',
+    installStaffBtn: 'Instalar App en la Tableta',
+    installStaffDesc: 'Instale la suite de gestión completa en las tabletas de servicio.',
+    pwaInstructionsTitle: 'Guía de Instalación',
+    pwaInstructionsIOS: 'En iOS, pulse el botón Compartir y seleccione "Añadir a la pantalla de inicio".',
+    pwaInstructionsInstalled: 'La aplicación ya está instalada y lista en este dispositivo.',
   },
   footer: {
     copyright: 'The Gilded Fork',
