@@ -536,31 +536,56 @@ export default function LandingPage() {
           )}
         </div>
 
-        {/* Guest PWA Install Button */}
-        {isInstallable && !isInstalled && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-            className="mt-6"
-          >
-            <Button
-              onClick={handleInstall}
-              disabled={installing}
-              className="h-12 px-8 bg-transparent text-[#BC9B6A] border border-[#BC9B6A]/40 hover:bg-[#BC9B6A]/10 hover:border-[#BC9B6A] transition-all font-serif font-bold text-xs uppercase tracking-widest rounded-none shadow-[0_0_20px_rgba(188,155,106,0.08)]"
-            >
-              {installing ? (
-                <Loader2 className="size-4 mr-2 animate-spin" />
-              ) : (
+        {/* Guest PWA Install Button — always visible */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+          className="mt-6 flex flex-col items-center"
+        >
+          {isInstalled ? (
+            <div className="flex items-center gap-2 text-emerald-400 text-[10px] font-bold tracking-widest uppercase">
+              <Check className="size-4" />
+              <span>{t.landing.pwaInstructionsInstalled}</span>
+            </div>
+          ) : isInstallable ? (
+            <>
+              <Button
+                onClick={handleInstall}
+                disabled={installing}
+                className="h-12 px-8 bg-transparent text-[#BC9B6A] border border-[#BC9B6A]/40 hover:bg-[#BC9B6A]/10 hover:border-[#BC9B6A] transition-all font-serif font-bold text-xs uppercase tracking-widest rounded-none shadow-[0_0_20px_rgba(188,155,106,0.08)]"
+              >
+                {installing ? (
+                  <Loader2 className="size-4 mr-2 animate-spin" />
+                ) : (
+                  <Smartphone className="size-4 mr-2" />
+                )}
+                {t.landing.installGuestBtn}
+              </Button>
+              <p className="text-[9px] text-zinc-600 mt-2 tracking-wide font-sans">
+                {t.landing.installGuestDesc}
+              </p>
+            </>
+          ) : (
+            <>
+              <Button
+                onClick={() => {
+                  toast({
+                    title: t.landing.pwaInstructionsTitle,
+                    description: t.landing.pwaInstructionsIOS,
+                  });
+                }}
+                className="h-12 px-8 bg-transparent text-[#BC9B6A] border border-[#BC9B6A]/40 hover:bg-[#BC9B6A]/10 hover:border-[#BC9B6A] transition-all font-serif font-bold text-xs uppercase tracking-widest rounded-none shadow-[0_0_20px_rgba(188,155,106,0.08)]"
+              >
                 <Smartphone className="size-4 mr-2" />
-              )}
-              {t.landing.installGuestBtn}
-            </Button>
-            <p className="text-[9px] text-zinc-600 mt-2 tracking-wide font-sans">
-              {t.landing.installGuestDesc}
-            </p>
-          </motion.div>
-        )}
+                {t.landing.installGuestBtn}
+              </Button>
+              <p className="text-[9px] text-zinc-600 mt-2 tracking-wide font-sans">
+                {t.landing.installGuestDesc}
+              </p>
+            </>
+          )}
+        </motion.div>
 
         {/* Address Card */}
         <div className="mt-8 p-6 w-full max-w-md border border-[#BC9B6A]/20 bg-zinc-950/40 backdrop-blur-md rounded-none text-left flex flex-col gap-4">
