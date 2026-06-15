@@ -587,6 +587,8 @@ export default function LandingPage() {
           </div>
         </div>
 
+        </div>
+
         {/* Right Side Column - Coastal Delicacies (Desktop only) */}
         <div className="hidden xl:block w-72 shrink-0 self-center">
           <motion.div
