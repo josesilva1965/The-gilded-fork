@@ -20,14 +20,22 @@ import {
   ChevronRight,
   BookOpen,
   Map,
-  ArrowRight
+  ArrowRight,
+  Compass,
+  Utensils
 } from 'lucide-react';
 import { useBranding } from '@/stores/branding-store';
 import { useT, useLocale } from '@/stores/locale-store';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
 import { usePwaInstall } from '@/hooks/use-pwa-install';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -39,7 +47,6 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { TABLE_STATUS_COLORS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
 interface TableInfo {
@@ -67,7 +74,6 @@ interface Reservation {
   status: string;
 }
 
-// 30-minute reservation time slots
 const TIME_SLOTS = [
   '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00',
   '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00', '22:30'
@@ -77,7 +83,6 @@ function getTableCoords(table: TableInfo) {
   let width = table.width;
   let height = table.height;
 
-  // If width/height are grid-based (<= 10), default to pixel sizes
   if (!width || width <= 10) {
     width = table.shape === 'RECTANGLE' ? 140 : 110;
   }
@@ -85,7 +90,6 @@ function getTableCoords(table: TableInfo) {
     height = table.shape === 'RECTANGLE' ? 70 : 110;
   }
 
-  // If coordinates are already absolute pixels (e.g., > 10), keep them as is
   if (table.x > 10 || table.y > 10) {
     return { x: table.x, y: table.y, w: width, h: height };
   }
@@ -106,7 +110,6 @@ function getTableCoords(table: TableInfo) {
   let posX = zone.x + paddingX + (table.x * colWidth);
   let posY = zone.y + paddingY + (table.y * rowHeight);
 
-  // Keep it bounded
   posX = Math.round(Math.min(posX, zone.x + zone.w - width - 20));
   posY = Math.round(Math.min(posY, zone.y + zone.h - height - 20));
 
@@ -119,11 +122,14 @@ export default function LandingPage() {
   const activeLocale = useLocale();
   const { toast } = useToast();
   
-  const { logoText, logoIconType, logoEmoji, logoUrl, restaurantName, brandColor } = useBranding();
+  const { logoText, logoIconType, logoEmoji, logoUrl, restaurantName } = useBranding();
   const { isInstallable, isInstalled, install } = usePwaInstall();
 
-  // State management
-  const [activeTab, setActiveTab] = useState<'plan' | 'reserve'>('plan');
+  // Dialog Overlay Visibility States
+  const [isReserveOpen, setIsReserveOpen] = useState(false);
+  const [isPlanOpen, setIsPlanOpen] = useState(false);
+
+  // Core Data States
   const [tables, setTables] = useState<TableInfo[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -131,7 +137,7 @@ export default function LandingPage() {
   const [isIOS, setIsIOS] = useState(false);
   const [installing, setInstalling] = useState(false);
 
-  // 3D Parallax Rotation State
+  // Logo 3D Tilt Effect State
   const [rotate, setRotate] = useState({ x: 0, y: 0 });
 
   // Reservation Form State
@@ -183,7 +189,7 @@ export default function LandingPage() {
     loadData();
   }, []);
 
-  // Calculate table availability based on chosen Date & Time
+  // Calculate table availability for the chosen Date & Time
   const tableAvailability = useMemo(() => {
     if (!resDate || !resTime) return {};
 
@@ -193,12 +199,10 @@ export default function LandingPage() {
 
     const availabilityMap: Record<string, { available: boolean; reason?: string }> = {};
 
-    // Default all active tables as available
     tables.forEach(table => {
       availabilityMap[table.id] = { available: true };
     });
 
-    // Check reservations for overlaps
     reservations.forEach(res => {
       if (!res.tableId || res.status === 'CANCELLED') return;
 
@@ -209,7 +213,6 @@ export default function LandingPage() {
       const resDateTime = new Date(`${resDateOnly}T${resTimeStr}:00`);
       const resTimeMs = resDateTime.getTime();
 
-      // If existing reservation is within a 2-hour window, the table is blocked
       const diff = Math.abs(selectionTimeMs - resTimeMs);
       if (diff < twoHoursMs) {
         availabilityMap[res.tableId] = { 
@@ -222,7 +225,7 @@ export default function LandingPage() {
     return availabilityMap;
   }, [tables, reservations, resDate, resTime]);
 
-  // Handle 3D Parallax Tilt
+  // Handle 3D Parallax Tilt for Brand Logo Card
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const card = e.currentTarget;
     const rect = card.getBoundingClientRect();
@@ -231,9 +234,8 @@ export default function LandingPage() {
     const mouseX = e.clientX - rect.left - width / 2;
     const mouseY = e.clientY - rect.top - height / 2;
     
-    // Tilt limit to 12 degrees
-    const rX = -(mouseY / height) * 12;
-    const rY = (mouseX / width) * 12;
+    const rX = -(mouseY / height) * 15;
+    const rY = (mouseX / width) * 15;
     setRotate({ x: rX, y: rY });
   };
 
@@ -241,10 +243,27 @@ export default function LandingPage() {
     setRotate({ x: 0, y: 0 });
   };
 
+  // Fixed browse menu logic (never disabled)
   const handleBrowseMenu = () => {
-    const table = tables.find(t => t.id === selectedTableId);
-    if (!table) return;
-    router.push(`/table/${table.number}`);
+    if (selectedTableId) {
+      const table = tables.find(t => t.id === selectedTableId);
+      if (table) {
+        router.push(`/table/${table.number}`);
+        return;
+      }
+    }
+    
+    // Fallback: browse using the first active table
+    const firstTable = tables.length > 0 ? tables[0] : null;
+    if (firstTable) {
+      router.push(`/table/${firstTable.number}?preview=true`);
+      toast({
+        title: 'Entering Menu Preview',
+        description: `Browsing menu as guest. Select Table ${firstTable.number} or select another table on the plan to start ordering.`,
+      });
+    } else {
+      router.push('/table/1?preview=true');
+    }
   };
 
   const handleCreateReservation = async (e: React.FormEvent) => {
@@ -261,7 +280,6 @@ export default function LandingPage() {
     setSubmittingRes(true);
 
     try {
-      // Find an available table if 'any' is selected
       let assignedTableId = resTableId === 'any' ? null : resTableId;
       if (resTableId === 'any') {
         const availableTable = tables.find(table => {
@@ -273,7 +291,6 @@ export default function LandingPage() {
         }
       }
 
-      // Convert date to ISO string
       const dateIso = new Date(`${resDate}T12:00:00.000Z`).toISOString();
 
       const res = await fetch('/api/reservations', {
@@ -295,18 +312,18 @@ export default function LandingPage() {
       if (!res.ok) throw new Error('Failed to save reservation');
       
       toast({
-        title: 'Success!',
-        description: 'Your reservation has been booked and confirmed.',
+        title: 'Booking Confirmed!',
+        description: 'Your reservation has been booked and confirmed successfully.',
       });
 
-      // Reset form
+      // Reset form & Close Dialog
       setResName('');
       setResPhone('');
       setResEmail('');
       setResNotes('');
       setResTableId('any');
+      setIsReserveOpen(false);
       
-      // Reload reservations
       loadData();
     } catch (err) {
       console.error(err);
@@ -347,7 +364,7 @@ export default function LandingPage() {
   const renderLogo = () => {
     if (logoIconType === 'emoji') {
       return (
-        <span className="text-6xl sm:text-7xl filter drop-shadow-[0_10px_15px_var(--color-emerald-500)] animate-bounce-slow">
+        <span className="text-7xl sm:text-8xl filter drop-shadow-[0_10px_20px_rgba(188,155,106,0.4)] animate-bounce-slow select-none">
           {logoEmoji}
         </span>
       );
@@ -357,471 +374,485 @@ export default function LandingPage() {
         <img 
           src={logoUrl} 
           alt={restaurantName} 
-          className="h-20 w-auto object-contain filter drop-shadow-[0_10px_15px_var(--color-emerald-500)]" 
+          className="h-28 w-auto object-contain filter drop-shadow-[0_10px_20px_rgba(188,155,106,0.3)]" 
         />
       );
     }
     return (
-      <div className="flex items-center justify-center h-20 w-20 rounded-3xl bg-primary/20 border-2 border-primary text-primary font-black text-3xl tracking-widest shadow-[0_0_30px_rgba(16,185,129,0.3)] select-none">
+      <div className="flex items-center justify-center h-24 w-24 rounded-3xl bg-[#005d2f]/10 border-2 border-[#BC9B6A] text-[#BC9B6A] font-serif font-bold text-4xl tracking-widest shadow-[0_0_40px_rgba(188,155,106,0.2)] select-none">
         {logoText || 'GF'}
       </div>
     );
   };
 
-  return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans relative flex flex-col justify-between overflow-x-hidden selection:bg-primary selection:text-primary-foreground">
-      {/* Dynamic 3D ambient glows */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[600px] bg-[radial-gradient(circle_at_top,_var(--color-emerald-500)_0%,_transparent_60%)] opacity-[0.08] pointer-events-none z-0" />
-      <div className="absolute top-[35%] left-[20%] w-[300px] h-[300px] bg-primary/10 rounded-full blur-3xl pointer-events-none animate-pulse-slow" />
-      <div className="absolute bottom-[20%] right-[10%] w-[400px] h-[400px] bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+  const activeTableName = useMemo(() => {
+    const selected = tables.find(t => t.id === selectedTableId);
+    return selected ? selected.name : null;
+  }, [tables, selectedTableId]);
 
-      {/* Header */}
-      <header className="relative z-10 max-w-7xl w-full mx-auto px-6 py-6 flex items-center justify-between border-b border-zinc-900/60">
+  return (
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans relative flex flex-col justify-between overflow-x-hidden selection:bg-[#BC9B6A] selection:text-zinc-950">
+      
+      {/* Premium Ambient Backgrounds */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[600px] bg-[radial-gradient(circle_at_top,_rgba(0,93,47,0.15)_0%,_transparent_70%)] opacity-[0.8] pointer-events-none z-0" />
+      <div className="absolute top-[20%] left-[10%] w-[350px] h-[350px] bg-[#005d2f]/5 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[20%] right-[5%] w-[450px] h-[450px] bg-[#BC9B6A]/5 rounded-full blur-[140px] pointer-events-none" />
+
+      {/* Centered S&W Header Layout */}
+      <header className="relative z-10 max-w-7xl w-full mx-auto px-6 py-8 flex flex-col items-center gap-6 border-b border-[#BC9B6A]/10">
         <div className="flex items-center gap-3">
           {logoIconType === 'url' && logoUrl ? (
-            <img src={logoUrl} alt="logo" className="h-8 w-auto object-contain" />
+            <img src={logoUrl} alt="logo" className="h-9 w-auto object-contain" />
           ) : (
-            <span className="text-xl font-black text-primary tracking-wider">{logoText || 'GF'}</span>
+            <span className="font-serif font-black text-xl text-[#BC9B6A] tracking-widest">{logoText || 'GF'}</span>
           )}
-          <span className="font-extrabold text-sm tracking-tight text-zinc-300">
+          <div className="h-4 w-px bg-[#BC9B6A]/30" />
+          <span className="font-serif font-medium text-base tracking-widest uppercase text-zinc-200">
             {restaurantName}
           </span>
         </div>
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            onClick={() => router.push('/management')}
-            className="text-xs font-bold text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 border border-zinc-850 rounded-xl px-4 h-9"
-          >
-            Staff Portal
-          </Button>
+        
+        {/* Decorative thin line layout */}
+        <div className="w-16 h-px bg-[#BC9B6A]/40" />
+
+        {/* Global Controls */}
+        <div className="flex items-center gap-6 text-[10px] uppercase font-bold tracking-widest text-[#BC9B6A]">
           <LanguageSwitcher variant="flag-only" />
         </div>
       </header>
 
-      {/* Hero & Interactive Area */}
-      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-6 py-12 flex flex-col lg:grid lg:grid-cols-12 gap-12 items-center justify-center">
+      {/* Main Luxury Hero Area */}
+      <main className="relative z-10 flex-1 max-w-5xl w-full mx-auto px-6 py-16 flex flex-col items-center justify-center text-center gap-12">
         
-        {/* Left Side: 3D Animated Hero & Address */}
-        <div className="lg:col-span-5 flex flex-col items-center lg:items-start text-center lg:text-left gap-8">
-          
-          {/* Glowing Prominent Logo */}
-          <div className="relative group">
-            <div className="absolute inset-0 bg-primary/20 blur-3xl group-hover:bg-primary/35 transition-all rounded-full" />
-            <motion.div 
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: 'spring', stiffness: 100 }}
-              className="relative z-10 p-2"
-            >
-              {renderLogo()}
-            </motion.div>
-          </div>
-
-          {/* Heading Description */}
-          <div className="space-y-4 max-w-lg">
-            <motion.h1 
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-4xl sm:text-5xl font-black tracking-tight text-zinc-100 leading-tight"
-            >
-              Welcome to <br />
-              <span className="bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
-                {restaurantName}
-              </span>
-            </motion.h1>
-            <p className="text-sm sm:text-base text-zinc-400 font-medium leading-relaxed">
-              {t.landing.tagline}
-            </p>
-          </div>
-
-          {/* Interactive Dynamic Location Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="w-full max-w-md p-5 rounded-2xl bg-zinc-900/40 border border-zinc-850 backdrop-blur-md shadow-lg flex flex-col gap-4 text-left"
-          >
-            <div className="flex gap-3">
-              <div className="p-2 h-9 w-9 rounded-lg bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0">
-                <MapPin className="size-4.5" />
-              </div>
-              <div>
-                <h3 className="text-xs font-black uppercase text-zinc-400 tracking-wider">Our Address</h3>
-                <p className="text-xs font-semibold text-zinc-200 mt-1">{getAddress(activeLocale)}</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4 border-t border-zinc-900/80 pt-4 text-[10px] text-zinc-500 font-semibold">
-              <div className="flex items-center gap-1.5">
-                <Phone className="size-3.5 text-primary shrink-0" />
-                <span>+351 210 987 654</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Mail className="size-3.5 text-primary shrink-0" />
-                <span>info@gildedfork.com</span>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-
-        {/* Right Side: Interactive Tabs UI with 3D Tilt Card */}
-        <div className="lg:col-span-7 w-full max-w-2xl">
-          <motion.div
+        {/* Brand Logo & Presentation */}
+        <div className="flex flex-col items-center gap-6">
+          <div 
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
             style={{
-              transform: `perspective(1000px) rotateX(${rotate.x}deg) rotateY(${rotate.y}deg)`,
+              transform: `perspective(800px) rotateX(${rotate.x}deg) rotateY(${rotate.y}deg)`,
               transition: 'transform 0.15s ease-out',
             }}
-            className="w-full bg-zinc-900/40 border border-zinc-800 backdrop-blur-md shadow-2xl rounded-3xl overflow-hidden"
+            className="cursor-default"
           >
-            {/* Header Tabs */}
-            <div className="grid grid-cols-2 border-b border-zinc-850 p-2 bg-zinc-950/20">
-              <button
-                onClick={() => setActiveTab('plan')}
-                className={cn(
-                  "py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2",
-                  activeTab === 'plan' 
-                    ? "bg-zinc-800 text-zinc-100 shadow-inner" 
-                    : "text-zinc-500 hover:text-zinc-350"
-                )}
-              >
-                <Map className="size-4" />
-                <span>Interactive Table Plan</span>
-              </button>
-              <button
-                onClick={() => setActiveTab('reserve')}
-                className={cn(
-                  "py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2",
-                  activeTab === 'reserve' 
-                    ? "bg-zinc-800 text-zinc-100 shadow-inner" 
-                    : "text-zinc-500 hover:text-zinc-355"
-                )}
-              >
-                <Calendar className="size-4" />
-                <span>Book Table Online</span>
-              </button>
+            {renderLogo()}
+          </div>
+          
+          <div className="space-y-4 max-w-2xl mt-4">
+            <h1 className="font-serif text-5xl sm:text-6xl font-bold tracking-tight text-zinc-100 leading-tight">
+              {restaurantName}
+            </h1>
+            <h2 className="font-serif text-lg sm:text-xl italic text-[#BC9B6A] font-medium tracking-wide">
+              {t.landing.tagline}
+            </h2>
+          </div>
+        </div>
+
+        {/* Dynamic Navigation CTAs */}
+        <div className="flex flex-col sm:flex-row items-center gap-5 w-full max-w-lg mt-4">
+          <Button
+            onClick={() => setIsReserveOpen(true)}
+            className="w-full sm:flex-1 h-14 bg-[#005d2f] text-[#F1F6E7] border border-[#BC9B6A] hover:bg-[#005d2f]/90 transition-all font-serif font-bold text-sm uppercase tracking-wider rounded-none shadow-[0_4px_15px_rgba(0,93,47,0.25)]"
+          >
+            <Calendar className="size-4.5 mr-2 text-[#BC9B6A]" />
+            Book a Table
+          </Button>
+
+          <Button
+            onClick={() => setIsPlanOpen(true)}
+            className="w-full sm:flex-1 h-14 bg-transparent text-[#BC9B6A] border border-[#BC9B6A] hover:bg-[#BC9B6A]/10 transition-all font-serif font-bold text-sm uppercase tracking-wider rounded-none"
+          >
+            <Map className="size-4.5 mr-2" />
+            {activeTableName ? `Table: ${activeTableName}` : 'Select Table & Order'}
+          </Button>
+        </div>
+
+        {/* Direct Menu Preview Trigger */}
+        <div className="flex flex-col items-center gap-2">
+          <button
+            onClick={handleBrowseMenu}
+            className="font-serif text-sm tracking-widest uppercase font-semibold text-[#BC9B6A] hover:text-[#BC9B6A]/80 transition-colors flex items-center gap-1.5 border-b border-dashed border-[#BC9B6A] pb-1"
+          >
+            <span>Browse Menu & Order</span>
+            <ChevronRight className="size-4" />
+          </button>
+          {activeTableName && (
+            <p className="text-[10px] text-emerald-400 font-semibold tracking-wider uppercase">
+              Selected: {activeTableName} (unlocked for order placement)
+            </p>
+          )}
+        </div>
+
+        {/* Address Card */}
+        <div className="mt-8 p-6 w-full max-w-md border border-[#BC9B6A]/20 bg-zinc-950/40 backdrop-blur-md rounded-none text-left flex flex-col gap-4">
+          <div className="flex gap-4">
+            <div className="p-2.5 h-10 w-10 border border-[#BC9B6A]/30 text-[#BC9B6A] flex items-center justify-center shrink-0">
+              <MapPin className="size-4.5" />
             </div>
-
-            {/* Tab Contents */}
-            <div className="p-6 sm:p-8 min-h-[440px] flex flex-col justify-between">
-              
-              {/* Plan Tab */}
-              {activeTab === 'plan' && (
-                <div className="space-y-6 flex-1 flex flex-col justify-between">                  <div className="space-y-4">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <div>
-                        <h2 className="text-base font-bold text-zinc-100">Visual Restaurant Layout</h2>
-                        <p className="text-[10px] text-zinc-500 mt-0.5">Click a table on the layout or choose from the list.</p>
-                      </div>
-                      
-                      {/* Map Status Legends */}
-                      <div className="flex gap-3 text-[9px] font-bold text-zinc-400">
-                        <div className="flex items-center gap-1">
-                          <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                          <span>Free</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="h-2 w-2 rounded-full bg-amber-500" />
-                          <span>Seated</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="h-2 w-2 rounded-full bg-sky-500" />
-                          <span>Reserved</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Table Select Dropdown Fallback */}
-                    <div className="space-y-1">
-                      <Select value={selectedTableId} onValueChange={setSelectedTableId}>
-                        <SelectTrigger className="h-10 px-4 bg-zinc-950/40 border-zinc-800 rounded-xl text-zinc-200 text-xs font-semibold focus:ring-primary/40 focus:ring-offset-0">
-                          <SelectValue placeholder="Select table from list..." />
-                        </SelectTrigger>
-                        <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200">
-                          {tables.map((table) => (
-                            <SelectItem 
-                              key={table.id} 
-                              value={table.id}
-                              className="text-xs font-medium focus:bg-zinc-800 focus:text-zinc-100 cursor-pointer"
-                            >
-                              {table.name} ({table.capacity} seats) — {table.status === 'FREE' ? '🟢 Free' : table.status === 'RESERVED' ? '🔵 Reserved' : '🟡 Occupied'}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Floor Plan Viewport - Scrollable on mobile with a fixed canvas size */}
-                    <div className="w-full overflow-x-auto overflow-y-hidden border border-zinc-855 rounded-2xl bg-zinc-950 p-1 shadow-inner scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
-                      <div className="relative w-[800px] h-[533px] shrink-0 bg-[radial-gradient(zinc-900_1px,transparent_1px)] bg-[size:16px_16px] overflow-hidden rounded-xl">
-                        {/* Section Grid Dividers */}
-                        <div className="absolute top-1/2 left-0 w-full border-t border-dashed border-zinc-900/60 pointer-events-none z-0" />
-                        <div className="absolute left-1/2 top-0 h-full border-l border-dashed border-zinc-900/60 pointer-events-none z-0" />
-                        
-                        {/* Section Labels */}
-                        <div className="absolute top-3.5 left-4 text-[9px] font-black uppercase text-zinc-700 tracking-widest pointer-events-none select-none z-0">
-                          {t.floorPlan.mainDining}
-                        </div>
-                        <div className="absolute top-3.5 right-4 text-[9px] font-black uppercase text-zinc-700 tracking-widest pointer-events-none select-none z-0">
-                          {t.floorPlan.bar}
-                        </div>
-                        <div className="absolute bottom-3.5 left-4 text-[9px] font-black uppercase text-zinc-700 tracking-widest pointer-events-none select-none z-0">
-                          {t.floorPlan.patio}
-                        </div>
-                        <div className="absolute bottom-3.5 right-4 text-[9px] font-black uppercase text-zinc-700 tracking-widest pointer-events-none select-none z-0">
-                          {t.floorPlan.vip}
-                        </div>
-
-                      {loading ? (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-zinc-500 text-xs">
-                          <Loader2 className="size-6 animate-spin text-primary" />
-                          <span>Loading floor map...</span>
-                        </div>
-                      ) : tables.length > 0 ? (
-                        tables.map((table) => {
-                          const isFree = table.status === 'FREE';
-                          const isSelected = selectedTableId === table.id;
-                          
-                          // Style based on table shape
-                          const isRound = table.shape === 'ROUND';
-
-                          // Absolute position percent calculations translating grid coordinates if needed
-                          const coords = getTableCoords(table);
-                          const left = `${(coords.x / 1200) * 100}%`;
-                          const top = `${(coords.y / 800) * 100}%`;
-                          const width = `${(coords.w / 1200) * 100}%`;
-                          const height = `${(coords.h / 800) * 100}%`;
-
-                          return (
-                            <button
-                              key={table.id}
-                              onClick={() => setSelectedTableId(table.id)}
-                              style={{ left, top, width, height }}
-                              className={cn(
-                                "absolute text-[9px] font-black border flex flex-col items-center justify-center transition-all p-1 select-none focus:outline-none z-10",
-                                isRound ? "rounded-full" : "rounded-lg",
-                                isSelected 
-                                  ? "bg-primary/20 border-primary text-primary shadow-[0_0_15px_var(--color-emerald-500)] scale-[1.03] z-20" 
-                                  : isFree
-                                    ? "bg-emerald-950/10 border-emerald-500/40 text-emerald-400 hover:border-emerald-400 hover:bg-emerald-950/20"
-                                    : table.status === 'RESERVED'
-                                      ? "bg-sky-955/10 border-sky-500/40 text-sky-400 hover:border-sky-400 hover:bg-sky-955/20"
-                                      : "bg-amber-955/10 border-amber-500/40 text-amber-400 hover:border-amber-450 hover:bg-amber-955/20"
-                              )}
-                            >
-                              <span className="truncate max-w-full leading-none">{table.name}</span>
-                              <span className="text-[8px] opacity-75 font-normal mt-0.5">({table.capacity}p)</span>
-                            </button>
-                          );
-                        })
-                      ) : (
-                        <div className="absolute inset-0 flex items-center justify-center text-zinc-650 text-xs font-semibold">
-                          No tables found.
-                        </div>
-                      )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4 pt-4 border-t border-zinc-850">
-                    <Button
-                      disabled={!selectedTableId}
-                      onClick={handleBrowseMenu}
-                      className="w-full h-11 bg-primary text-primary-foreground hover:bg-primary/95 text-xs font-bold rounded-xl transition-all shadow-lg shadow-primary/15 group disabled:opacity-40 disabled:bg-zinc-900 disabled:text-zinc-500 disabled:border-zinc-850 disabled:shadow-none disabled:pointer-events-none"
-                    >
-                      <span>{t.landing.viewMenuBtn}</span>
-                      <ArrowRight className="size-4 ml-1.5 transition-transform group-hover:translate-x-0.5" />
-                    </Button>
-
-                    {/* Guest App PWA Installer */}
-                    {isInstallable && !isInstalled && (
-                      <Button
-                        variant="outline"
-                        onClick={handleInstall}
-                        disabled={installing}
-                        className="w-full h-9 rounded-xl border-zinc-800 hover:bg-zinc-850 text-zinc-300 text-[10px] font-bold"
-                      >
-                        {installing ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : <Download className="size-3.5 mr-1.5" />}
-                        {t.landing.installGuestBtn}
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Reserve Tab */}
-              {activeTab === 'reserve' && (
-                <form onSubmit={handleCreateReservation} className="space-y-5 flex-1 flex flex-col justify-between">
-                  <div className="space-y-4">
-                    <div>
-                      <h2 className="text-base font-bold text-zinc-100">Book Your Table</h2>
-                      <p className="text-[10px] text-zinc-500 mt-0.5">Dynamic table check confirms booking instantly.</p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      {/* Name */}
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{t.reservations.guestName}</label>
-                        <Input
-                          type="text"
-                          required
-                          placeholder="Marco Rossi"
-                          value={resName}
-                          onChange={e => setResName(e.target.value)}
-                          className="bg-zinc-950/40 border-zinc-800 h-9 rounded-lg text-xs placeholder:text-zinc-600 focus-visible:ring-primary/45"
-                        />
-                      </div>
-                      
-                      {/* Phone */}
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{t.reservations.phone}</label>
-                        <Input
-                          type="tel"
-                          placeholder="+351 912 345 678"
-                          value={resPhone}
-                          onChange={e => setResPhone(e.target.value)}
-                          className="bg-zinc-950/40 border-zinc-800 h-9 rounded-lg text-xs placeholder:text-zinc-600 focus-visible:ring-primary/45"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-4">
-                      {/* Date */}
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{t.reservations.date}</label>
-                        <Input
-                          type="date"
-                          required
-                          value={resDate}
-                          onChange={e => setResDate(e.target.value)}
-                          className="bg-zinc-950/40 border-zinc-800 h-9 rounded-lg text-xs focus-visible:ring-primary/45"
-                        />
-                      </div>
-
-                      {/* Time Slot */}
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{t.reservations.time}</label>
-                        <Select value={resTime} onValueChange={setResTime}>
-                          <SelectTrigger className="bg-zinc-950/40 border-zinc-800 h-9 rounded-lg text-xs text-zinc-200">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200 text-xs">
-                            {TIME_SLOTS.map(slot => (
-                              <SelectItem key={slot} value={slot} className="cursor-pointer">
-                                {slot}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {/* Party Size */}
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{t.reservations.partySize}</label>
-                        <Select value={resGuests} onValueChange={setResGuests}>
-                          <SelectTrigger className="bg-zinc-950/40 border-zinc-800 h-9 rounded-lg text-xs text-zinc-200">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200 text-xs">
-                            {[1, 2, 3, 4, 5, 6, 8, 10, 12].map(n => (
-                              <SelectItem key={n} value={n.toString()} className="cursor-pointer">
-                                {n} {n === 1 ? 'Guest' : 'Guests'}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      {/* Email */}
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Email (Optional)</label>
-                        <Input
-                          type="email"
-                          placeholder="client@gildedfork.com"
-                          value={resEmail}
-                          onChange={e => setResEmail(e.target.value)}
-                          className="bg-zinc-950/40 border-zinc-800 h-9 rounded-lg text-xs placeholder:text-zinc-600 focus-visible:ring-primary/45"
-                        />
-                      </div>
-
-                      {/* Preferred Available Table Select */}
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Table (Optional)</label>
-                        <Select value={resTableId} onValueChange={setResTableId}>
-                          <SelectTrigger className="bg-zinc-950/40 border-zinc-800 h-9 rounded-lg text-xs text-zinc-200">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200 text-xs">
-                            <SelectItem value="any" className="cursor-pointer font-bold">Auto Assign Table</SelectItem>
-                            {tables.map(table => {
-                              const avail = tableAvailability[table.id];
-                              const isAvailable = avail ? avail.available : true;
-                              return (
-                                <SelectItem 
-                                  key={table.id} 
-                                  value={table.id}
-                                  disabled={!isAvailable}
-                                  className="cursor-pointer"
-                                >
-                                  {table.name} ({table.capacity}p) {isAvailable ? '' : '— ❌ Occupied'}
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    {/* Special Notes */}
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{t.reservations.notes}</label>
-                      <Textarea
-                        placeholder="Allergies, high chair, window table, birthday..."
-                        value={resNotes}
-                        onChange={e => setResNotes(e.target.value)}
-                        className="bg-zinc-950/40 border-zinc-800 rounded-lg text-xs placeholder:text-zinc-650 h-16 min-h-16 max-h-16 focus-visible:ring-primary/45"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="pt-4 border-t border-zinc-850">
-                    <Button
-                      type="submit"
-                      disabled={submittingRes}
-                      className="w-full h-11 bg-primary text-primary-foreground hover:bg-primary/95 text-xs font-bold rounded-xl transition-all shadow-lg shadow-primary/15"
-                    >
-                      {submittingRes ? (
-                        <>
-                          <Loader2 className="size-4 mr-2 animate-spin" />
-                          Booking...
-                        </>
-                      ) : (
-                        'Book Online Reservation'
-                      )}
-                    </Button>
-                  </div>
-                </form>
-              )}
-
+            <div>
+              <h3 className="text-[9px] font-black uppercase text-zinc-500 tracking-widest font-sans">Our Address</h3>
+              <p className="font-serif text-sm text-[#F1F6E7] mt-1 tracking-wide">{getAddress(activeLocale)}</p>
             </div>
-          </motion.div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4 border-t border-[#BC9B6A]/10 pt-4 text-[9px] uppercase font-bold tracking-widest text-[#BC9B6A]">
+            <div className="flex items-center gap-2">
+              <Phone className="size-3.5 shrink-0" />
+              <span>+351 210 987 654</span>
+            </div>
+            <div className="flex items-center gap-2 justify-end">
+              <Mail className="size-3.5 shrink-0" />
+              <span>info@gildedfork.com</span>
+            </div>
+          </div>
         </div>
 
       </main>
 
+      {/* ============================================================ */}
+      {/* 1. RESERVATION CARD OVERLAY MODAL */}
+      {/* ============================================================ */}
+      <Dialog open={isReserveOpen} onOpenChange={setIsReserveOpen}>
+        <DialogContent className="max-w-xl bg-zinc-900 border-[#BC9B6A]/30 text-zinc-100 rounded-none p-6 sm:p-8">
+          <DialogHeader className="text-center sm:text-left">
+            <DialogTitle className="font-serif text-2xl font-bold tracking-wide text-zinc-100">
+              Book Your Table
+            </DialogTitle>
+            <DialogDescription className="text-xs text-zinc-500 mt-1 font-sans">
+              Instant verification. Reserve online seamlessly.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCreateReservation} className="space-y-6 mt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {/* Name */}
+              <div className="flex flex-col gap-1.5 text-left">
+                <label className="text-[9px] font-black uppercase tracking-widest text-[#BC9B6A] font-sans">
+                  {t.reservations.guestName}
+                </label>
+                <Input
+                  type="text"
+                  required
+                  placeholder="Marco Rossi"
+                  value={resName}
+                  onChange={e => setResName(e.target.value)}
+                  className="bg-transparent border-t-0 border-x-0 border-b border-zinc-800 focus:border-[#BC9B6A] focus-visible:ring-0 rounded-none px-0 h-10 text-xs placeholder:text-zinc-700"
+                />
+              </div>
+              
+              {/* Phone */}
+              <div className="flex flex-col gap-1.5 text-left">
+                <label className="text-[9px] font-black uppercase tracking-widest text-[#BC9B6A] font-sans">
+                  {t.reservations.phone}
+                </label>
+                <Input
+                  type="tel"
+                  placeholder="+351 912 345 678"
+                  value={resPhone}
+                  onChange={e => setResPhone(e.target.value)}
+                  className="bg-transparent border-t-0 border-x-0 border-b border-zinc-800 focus:border-[#BC9B6A] focus-visible:ring-0 rounded-none px-0 h-10 text-xs placeholder:text-zinc-700"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              {/* Date */}
+              <div className="flex flex-col gap-1.5 text-left">
+                <label className="text-[9px] font-black uppercase tracking-widest text-[#BC9B6A] font-sans">
+                  {t.reservations.date}
+                </label>
+                <Input
+                  type="date"
+                  required
+                  value={resDate}
+                  onChange={e => setResDate(e.target.value)}
+                  className="bg-transparent border-t-0 border-x-0 border-b border-zinc-800 focus:border-[#BC9B6A] focus-visible:ring-0 rounded-none px-0 h-10 text-xs"
+                />
+              </div>
+
+              {/* Time Slot */}
+              <div className="flex flex-col gap-1.5 text-left">
+                <label className="text-[9px] font-black uppercase tracking-widest text-[#BC9B6A] font-sans">
+                  {t.reservations.time}
+                </label>
+                <Select value={resTime} onValueChange={setResTime}>
+                  <SelectTrigger className="bg-transparent border-t-0 border-x-0 border-b border-zinc-800 focus:border-[#BC9B6A] focus:ring-0 rounded-none px-0 h-10 text-xs text-zinc-300">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200 text-xs">
+                    {TIME_SLOTS.map(slot => (
+                      <SelectItem key={slot} value={slot} className="cursor-pointer">
+                        {slot}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Party Size */}
+              <div className="flex flex-col gap-1.5 text-left">
+                <label className="text-[9px] font-black uppercase tracking-widest text-[#BC9B6A] font-sans">
+                  {t.reservations.partySize}
+                </label>
+                <Select value={resGuests} onOpenChange={() => {}} onValueChange={setResGuests}>
+                  <SelectTrigger className="bg-transparent border-t-0 border-x-0 border-b border-zinc-800 focus:border-[#BC9B6A] focus:ring-0 rounded-none px-0 h-10 text-xs text-zinc-300">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200 text-xs">
+                    {[1, 2, 3, 4, 5, 6, 8, 10, 12].map(n => (
+                      <SelectItem key={n} value={n.toString()} className="cursor-pointer">
+                        {n} {n === 1 ? 'Guest' : 'Guests'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {/* Email */}
+              <div className="flex flex-col gap-1.5 text-left">
+                <label className="text-[9px] font-black uppercase tracking-widest text-[#BC9B6A] font-sans">
+                  Email (Optional)
+                </label>
+                <Input
+                  type="email"
+                  placeholder="client@gildedfork.com"
+                  value={resEmail}
+                  onChange={e => setResEmail(e.target.value)}
+                  className="bg-transparent border-t-0 border-x-0 border-b border-zinc-800 focus:border-[#BC9B6A] focus-visible:ring-0 rounded-none px-0 h-10 text-xs placeholder:text-zinc-700"
+                />
+              </div>
+
+              {/* Preferred Available Table Select */}
+              <div className="flex flex-col gap-1.5 text-left">
+                <label className="text-[9px] font-black uppercase tracking-widest text-[#BC9B6A] font-sans">
+                  Table (Optional)
+                </label>
+                <Select value={resTableId} onValueChange={setResTableId}>
+                  <SelectTrigger className="bg-transparent border-t-0 border-x-0 border-b border-zinc-800 focus:border-[#BC9B6A] focus:ring-0 rounded-none px-0 h-10 text-xs text-zinc-300">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200 text-xs">
+                    <SelectItem value="any" className="cursor-pointer font-bold">Auto Assign Table</SelectItem>
+                    {tables.map(table => {
+                      const avail = tableAvailability[table.id];
+                      const isAvailable = avail ? avail.available : true;
+                      return (
+                        <SelectItem 
+                          key={table.id} 
+                          value={table.id}
+                          disabled={!isAvailable}
+                          className="cursor-pointer"
+                        >
+                          {table.name} ({table.capacity}p) {isAvailable ? '' : '— ❌ Occupied'}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Special Notes */}
+            <div className="flex flex-col gap-1.5 text-left">
+              <label className="text-[9px] font-black uppercase tracking-widest text-[#BC9B6A] font-sans">
+                {t.reservations.notes}
+              </label>
+              <Textarea
+                placeholder="Allergies, high chair, window table, birthday..."
+                value={resNotes}
+                onChange={e => setResNotes(e.target.value)}
+                className="bg-transparent border border-zinc-800 focus:border-[#BC9B6A] rounded-none px-3 py-2 text-xs placeholder:text-zinc-700 h-16 min-h-16 max-h-16"
+              />
+            </div>
+
+            <Button
+              type="submit"
+              disabled={submittingRes}
+              className="w-full h-12 bg-[#005d2f] text-[#F1F6E7] border border-[#BC9B6A] hover:bg-transparent hover:text-[#BC9B6A] transition-all font-serif font-bold text-xs uppercase tracking-widest rounded-none mt-2"
+            >
+              {submittingRes ? (
+                <>
+                  <Loader2 className="size-4 mr-2 animate-spin" />
+                  Booking...
+                </>
+              ) : (
+                'Book Online Reservation'
+              )}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ============================================================ */}
+      {/* 2. TABLE FLOOR PLAN CARD OVERLAY MODAL */}
+      {/* ============================================================ */}
+      <Dialog open={isPlanOpen} onOpenChange={setIsPlanOpen}>
+        <DialogContent className="max-w-4xl bg-zinc-950 border-[#BC9B6A]/30 text-zinc-100 rounded-none p-6">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-2xl font-bold tracking-wide text-zinc-100 flex items-center justify-between">
+              <span>Interactive Restaurant Floor Plan</span>
+              
+              {/* Legends display */}
+              <div className="hidden sm:flex gap-3 text-[9px] font-bold text-zinc-400 tracking-widest uppercase">
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                  <span>Free</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+                  <span>Seated</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-sky-500" />
+                  <span>Reserved</span>
+                </div>
+              </div>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-zinc-500 font-sans text-left mt-1">
+              Click any free table (green) to select it for your order.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 mt-4 flex flex-col items-stretch">
+            
+            {/* Table Dropdown Fallback list */}
+            <div className="w-full">
+              <Select value={selectedTableId} onValueChange={(id) => {
+                setSelectedTableId(id);
+                toast({
+                  title: 'Table Selected',
+                  description: `You have selected Table ${tables.find(t => t.id === id)?.name || id}.`
+                });
+              }}>
+                <SelectTrigger className="h-10 px-4 bg-zinc-900 border-zinc-800 rounded-none text-zinc-200 text-xs font-semibold focus:ring-[#BC9B6A]/40 focus:ring-offset-0">
+                  <SelectValue placeholder="Select table from list..." />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200">
+                  {tables.map((table) => (
+                    <SelectItem 
+                      key={table.id} 
+                      value={table.id}
+                      className="text-xs font-medium focus:bg-zinc-800 focus:text-zinc-100 cursor-pointer"
+                    >
+                      {table.name} ({table.capacity} seats) — {table.status === 'FREE' ? '🟢 Free' : table.status === 'RESERVED' ? '🔵 Reserved' : 'Occupied'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Scrollable Floor plan canvas wrapper */}
+            <div className="w-full overflow-x-auto border border-[#BC9B6A]/10 rounded-none bg-zinc-950 p-1 shadow-inner scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+              <div className="relative w-[800px] h-[533px] shrink-0 bg-[radial-gradient(#1c2e24_1px,transparent_1px)] bg-[size:16px_16px] overflow-hidden">
+                
+                {/* Section labels */}
+                <div className="absolute top-4 left-4 text-[9px] font-black uppercase text-zinc-700 tracking-widest pointer-events-none select-none">
+                  {t.floorPlan.mainDining}
+                </div>
+                <div className="absolute top-4 right-4 text-[9px] font-black uppercase text-zinc-700 tracking-widest pointer-events-none select-none">
+                  {t.floorPlan.bar}
+                </div>
+                <div className="absolute bottom-4 left-4 text-[9px] font-black uppercase text-zinc-700 tracking-widest pointer-events-none select-none">
+                  {t.floorPlan.patio}
+                </div>
+                <div className="absolute bottom-4 right-4 text-[9px] font-black uppercase text-zinc-700 tracking-widest pointer-events-none select-none">
+                  {t.floorPlan.vip}
+                </div>
+
+                {loading ? (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-zinc-500 text-xs">
+                    <Loader2 className="size-6 animate-spin text-[#BC9B6A]" />
+                    <span>Loading floor map...</span>
+                  </div>
+                ) : tables.length > 0 ? (
+                  tables.map((table) => {
+                    const isFree = table.status === 'FREE';
+                    const isSelected = selectedTableId === table.id;
+                    const isRound = table.shape === 'ROUND';
+
+                    const coords = getTableCoords(table);
+                    const left = `${(coords.x / 1200) * 100}%`;
+                    const top = `${(coords.y / 800) * 100}%`;
+                    const width = `${(coords.w / 1200) * 100}%`;
+                    const height = `${(coords.h / 800) * 100}%`;
+
+                    return (
+                      <button
+                        key={table.id}
+                        onClick={() => {
+                          setSelectedTableId(table.id);
+                          toast({
+                            title: 'Table Selected',
+                            description: `Selected ${table.name}. Tap order button to proceed.`
+                          });
+                        }}
+                        style={{ left, top, width, height }}
+                        className={cn(
+                          "absolute text-[9px] font-bold border flex flex-col items-center justify-center transition-all p-1 select-none focus:outline-none z-10",
+                          isRound ? "rounded-full" : "rounded-none",
+                          isSelected 
+                            ? "bg-[#005d2f]/30 border-[#BC9B6A] text-[#BC9B6A] shadow-[0_0_15px_rgba(188,155,106,0.5)] scale-[1.03] z-20" 
+                            : isFree
+                              ? "bg-emerald-950/10 border-emerald-500/40 text-emerald-400 hover:border-[#BC9B6A] hover:bg-emerald-950/20"
+                              : table.status === 'RESERVED'
+                                ? "bg-sky-955/10 border-sky-500/40 text-sky-400 hover:bg-sky-955/20"
+                                : "bg-amber-955/10 border-amber-500/40 text-amber-400 hover:bg-amber-955/20"
+                        )}
+                      >
+                        <span className="truncate max-w-full leading-none">{table.name}</span>
+                        <span className="text-[8px] opacity-75 font-normal mt-0.5">({table.capacity}p)</span>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center text-zinc-650 text-xs font-semibold">
+                    No tables found.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Bottom Actions */}
+            <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-zinc-900">
+              <Button
+                onClick={() => {
+                  setIsPlanOpen(false);
+                  handleBrowseMenu();
+                }}
+                className="w-full sm:flex-1 h-12 bg-[#005d2f] text-[#F1F6E7] border border-[#BC9B6A] hover:bg-[#005d2f]/90 transition-all font-serif font-bold text-xs uppercase tracking-widest rounded-none shadow-md"
+              >
+                <span>Browse Menu & Order</span>
+                <ArrowRight className="size-4 ml-2" />
+              </Button>
+
+              {isInstallable && !isInstalled && (
+                <Button
+                  variant="outline"
+                  onClick={handleInstall}
+                  disabled={installing}
+                  className="w-full sm:w-auto h-12 rounded-none border-zinc-800 hover:bg-zinc-900 text-zinc-300 text-[10px] font-bold uppercase tracking-widest px-6"
+                >
+                  {installing ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : <Download className="size-3.5 mr-1.5" />}
+                  Install App
+                </Button>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Footer & Subtle Staff Portal Link */}
-      <footer className="relative z-10 py-8 text-center border-t border-zinc-900/40 flex flex-col items-center gap-3">
-        <p className="text-[10px] text-zinc-650 font-semibold tracking-wide uppercase select-none">
+      <footer className="relative z-10 py-10 text-center border-t border-[#BC9B6A]/10 flex flex-col items-center gap-3 bg-zinc-950/20">
+        <p className="text-[9px] text-zinc-650 font-bold tracking-widest uppercase select-none font-sans">
           &copy; {new Date().getFullYear()} {restaurantName}. Powered by Antigravity OS
         </p>
         
         {/* Subtle, low-contrast Staff Portal link */}
         <button 
           onClick={() => router.push('/management')}
-          className="text-[9px] text-zinc-700 hover:text-zinc-400 transition-colors font-bold tracking-wider uppercase"
+          className="text-[8px] text-zinc-700 hover:text-[#BC9B6A] transition-colors font-bold tracking-widest uppercase"
         >
           Staff Portal Access
         </button>

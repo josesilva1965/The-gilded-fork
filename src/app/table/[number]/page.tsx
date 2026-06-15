@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import { TableOrderClient } from './table-order-client';
 import { Utensils } from 'lucide-react';
 import Link from 'next/link';
+import { safeDbCall } from '@/lib/db-fallback';
+import { MOCK_TABLES, MOCK_CATEGORIES, MOCK_MENU_ITEMS } from '@/lib/mock-data';
 
 interface PageProps {
   params: Promise<{ number: string }>;
@@ -16,28 +18,56 @@ export default async function TablePage({ params }: PageProps) {
     return <TableNotFoundMessage reason="Invalid table number format" />;
   }
 
+  // Fallback objects if DB is unreachable
+  const fallbackTableData = MOCK_TABLES.find(t => t.number === tableNumber) || {
+    id: `tbl-mock-${tableNumber}`,
+    number: tableNumber,
+    name: `Table ${tableNumber}`,
+    capacity: 4,
+    status: 'FREE',
+    x: 0,
+    y: 0,
+    width: 1,
+    height: 1,
+    section: 'MAIN',
+    shape: 'ROUND',
+    active: true,
+    orders: []
+  };
+
+  const fallbackMenuData = MOCK_CATEGORIES.map(category => ({
+    ...category,
+    items: MOCK_MENU_ITEMS.filter(item => item.categoryId === category.id).map(item => ({
+      ...item,
+      extras: []
+    }))
+  }));
+
   // Fetch the table and its active unpaid orders
-  const tableRaw = await db.restaurantTable.findUnique({
-    where: { number: tableNumber },
-    include: {
-      orders: {
-        where: {
-          status: { not: 'CANCELLED' },
-          paymentStatus: { in: ['PENDING', 'PARTIAL'] }
-        },
-        include: {
-          items: {
-            include: {
-              menuItem: true,
-              extras: true
-            },
-            orderBy: { createdAt: 'asc' }
-          }
-        },
-        orderBy: { createdAt: 'desc' }
+  const tableRaw = await safeDbCall(
+    () => db.restaurantTable.findUnique({
+      where: { number: tableNumber },
+      include: {
+        orders: {
+          where: {
+            status: { not: 'CANCELLED' },
+            paymentStatus: { in: ['PENDING', 'PARTIAL'] }
+          },
+          include: {
+            items: {
+              include: {
+                menuItem: true,
+                extras: true
+              },
+              orderBy: { createdAt: 'asc' }
+            }
+          },
+          orderBy: { createdAt: 'desc' }
+        }
       }
-    }
-  });
+    }),
+    fallbackTableData
+  );
 
   if (!tableRaw) {
     return <TableNotFoundMessage reason={`Table ${tableNumber} was not found in our system`} />;
@@ -48,21 +78,24 @@ export default async function TablePage({ params }: PageProps) {
   }
 
   // Fetch active menu categories and available items
-  const menuRaw = await db.menuCategory.findMany({
-    where: { active: true },
-    orderBy: { sortOrder: 'asc' },
-    include: {
-      items: {
-        where: { isAvailable: true },
-        orderBy: { sortOrder: 'asc' },
-        include: {
-          extras: {
-            where: { active: true }
+  const menuRaw = await safeDbCall(
+    () => db.menuCategory.findMany({
+      where: { active: true },
+      orderBy: { sortOrder: 'asc' },
+      include: {
+        items: {
+          where: { isAvailable: true },
+          orderBy: { sortOrder: 'asc' },
+          include: {
+            extras: {
+              where: { active: true }
+            }
           }
         }
       }
-    }
-  });
+    }),
+    fallbackMenuData
+  );
 
   // Safe serialization for Next.js props (handles Date conversion)
   const table = JSON.parse(JSON.stringify(tableRaw));
