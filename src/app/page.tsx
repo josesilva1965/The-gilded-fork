@@ -427,48 +427,6 @@ export default function LandingPage() {
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[600px] bg-[radial-gradient(circle_at_top,_rgba(0,93,47,0.15)_0%,_transparent_70%)] opacity-[0.8] pointer-events-none z-0" />
       <div className="absolute top-[20%] left-[10%] w-[350px] h-[350px] bg-[#005d2f]/5 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[20%] right-[5%] w-[450px] h-[450px] bg-[#BC9B6A]/5 rounded-full blur-[140px] pointer-events-none" />
-
-      {/* Widescreen Floating Side Columns - Left & Right food pictures */}
-      <div className="hidden xl:block absolute left-8 top-1/2 -translate-y-1/2 w-64 z-10">
-        <motion.div
-          initial={{ opacity: 0, x: -50 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.8, delay: 0.2 }}
-          className="border border-[#BC9B6A]/20 bg-zinc-950 p-2 shadow-2xl hover:border-[#BC9B6A]/50 transition-colors duration-300"
-        >
-          <div className="relative aspect-[3/4] w-full overflow-hidden mb-3">
-            <img 
-              src="/gourmet_steak_dish.png" 
-              alt="Signature Seared Ribeye" 
-              className="object-cover w-full h-full hover:scale-105 transition-transform duration-500"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-transparent pointer-events-none" />
-          </div>
-          <h3 className="font-serif text-sm font-bold text-zinc-100 tracking-wide">Signature Cuts</h3>
-          <p className="text-[10px] text-[#BC9B6A] italic mt-1 font-serif">Dry-aged prime steak prepared by our master chefs.</p>
-        </motion.div>
-      </div>
-
-      <div className="hidden xl:block absolute right-8 top-1/2 -translate-y-1/2 w-64 z-10">
-        <motion.div
-          initial={{ opacity: 0, x: 50 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.8, delay: 0.2 }}
-          className="border border-[#BC9B6A]/20 bg-zinc-950 p-2 shadow-2xl hover:border-[#BC9B6A]/50 transition-colors duration-300"
-        >
-          <div className="relative aspect-[3/4] w-full overflow-hidden mb-3">
-            <img 
-              src="/gourmet_seafood_dish.png" 
-              alt="Coastal Roasted Lobster" 
-              className="object-cover w-full h-full hover:scale-105 transition-transform duration-500"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-transparent pointer-events-none" />
-          </div>
-          <h3 className="font-serif text-sm font-bold text-zinc-100 tracking-wide">Coastal Delicacies</h3>
-          <p className="text-[10px] text-[#BC9B6A] italic mt-1 font-serif">Fresh roasted lobster tail & wild prawns with herb butter.</p>
-        </motion.div>
-      </div>
-
       {/* Centered S&W Header Layout */}
       <header className="relative z-10 max-w-7xl w-full mx-auto px-6 py-8 flex flex-col items-center gap-6 border-b border-[#BC9B6A]/10">
         <div className="flex items-center gap-3">
@@ -493,7 +451,31 @@ export default function LandingPage() {
       </header>
 
       {/* Main Luxury Hero Area */}
-      <main className="relative z-10 flex-1 max-w-5xl w-full mx-auto px-6 py-16 flex flex-col items-center justify-center text-center gap-12">
+      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-6 py-16 flex flex-col xl:flex-row items-center justify-center gap-8">
+        
+        {/* Left Side Column - Signature Cuts (Desktop only) */}
+        <div className="hidden xl:block w-72 shrink-0 self-center">
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="border border-[#BC9B6A]/20 bg-zinc-955 p-3 shadow-2xl hover:border-[#BC9B6A]/50 transition-colors duration-300 text-left"
+          >
+            <div className="relative aspect-[3/4] w-full overflow-hidden mb-3 bg-zinc-900">
+              <img 
+                src="/gourmet_steak_dish.png" 
+                alt="Signature Seared Ribeye" 
+                className="object-cover w-full h-full hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-transparent pointer-events-none" />
+            </div>
+            <h3 className="font-serif text-sm font-bold text-zinc-100 tracking-wide">Signature Cuts</h3>
+            <p className="text-[10px] text-[#BC9B6A] italic mt-1 font-serif">Dry-aged prime steak prepared by our master chefs.</p>
+          </motion.div>
+        </div>
+
+        {/* Center Column - Main Hero Content */}
+        <div className="flex-1 max-w-xl flex flex-col items-center justify-center text-center gap-12">>
         
         {/* Brand Logo & Presentation */}
         <div className="flex flex-col items-center gap-6">
@@ -603,6 +585,27 @@ export default function LandingPage() {
             <h3 className="font-serif text-sm font-bold text-zinc-100 tracking-wide">Coastal Delicacies</h3>
             <p className="text-[10px] text-[#BC9B6A] italic mt-1 font-serif">Fresh roasted lobster tail & wild prawns with herb butter.</p>
           </div>
+        </div>
+
+        {/* Right Side Column - Coastal Delicacies (Desktop only) */}
+        <div className="hidden xl:block w-72 shrink-0 self-center">
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="border border-[#BC9B6A]/20 bg-zinc-955 p-3 shadow-2xl hover:border-[#BC9B6A]/50 transition-colors duration-300 text-left"
+          >
+            <div className="relative aspect-[3/4] w-full overflow-hidden mb-3 bg-zinc-900">
+              <img 
+                src="/gourmet_seafood_dish.png" 
+                alt="Coastal Roasted Lobster" 
+                className="object-cover w-full h-full hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-transparent pointer-events-none" />
+            </div>
+            <h3 className="font-serif text-sm font-bold text-zinc-100 tracking-wide">Coastal Delicacies</h3>
+            <p className="text-[10px] text-[#BC9B6A] italic mt-1 font-serif">Fresh roasted lobster tail & wild prawns with herb butter.</p>
+          </motion.div>
         </div>
 
       </main>
