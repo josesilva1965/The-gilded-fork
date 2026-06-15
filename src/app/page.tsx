@@ -22,7 +22,9 @@ import {
   Map,
   ArrowRight,
   Compass,
-  Utensils
+  Utensils,
+  Minus,
+  Plus
 } from 'lucide-react';
 import { useBranding } from '@/stores/branding-store';
 import { useT, useLocale } from '@/stores/locale-store';
