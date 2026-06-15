@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { safeDbCall } from '@/lib/db-fallback';
+import { MOCK_DASHBOARD } from '@/lib/mock-data';
 
 export async function GET() {
-  try {
+  const data = await safeDbCall(async () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -116,7 +118,7 @@ export async function GET() {
           },
         },
         orderBy: { createdAt: 'desc' },
-        take: 100, // safety limit to prevent massive payload sizes as the day progresses
+        take: 100,
       }),
     ]);
 
@@ -128,7 +130,7 @@ export async function GET() {
       ? ((todayRevenue - yesterdayRevenue) / yesterdayRevenue) * 100
       : 0;
 
-    // Get menu item names for top items (runs after topItems resolves)
+    // Get menu item names for top items
     const menuItemIds = topItems.map(t => t.menuItemId).filter(Boolean) as string[];
     const menuItems = await db.menuItem.findMany({
       where: { id: { in: menuItemIds } },
@@ -209,7 +211,7 @@ export async function GET() {
     // Sort activity by actual date (newest first)
     recentActivity.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    return NextResponse.json({
+    return {
       todaySnapshot,
       weekSnapshots,
       activeOrders,
@@ -226,11 +228,10 @@ export async function GET() {
       clockedIn: clockedInUsers.filter((u) => u.clockLogs[0]?.action === 'IN').length,
       recentActivity,
       dailyOrders,
-    });
-  } catch (error) {
-    console.error('Error fetching dashboard:', error);
-    return NextResponse.json({ error: 'Failed to fetch dashboard data' }, { status: 500 });
-  }
+    };
+  }, MOCK_DASHBOARD);
+
+  return NextResponse.json(data);
 }
 
 function getTimeAgo(date: Date): string {

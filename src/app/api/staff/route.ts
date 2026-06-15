@@ -1,21 +1,21 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { safeDbCall } from '@/lib/db-fallback';
+import { MOCK_USERS } from '@/lib/mock-data';
 
 export async function GET() {
-  try {
-    const users = await db.user.findMany({
+  const users = await safeDbCall(
+    () => db.user.findMany({
       where: { active: true },
       orderBy: { name: 'asc' },
       include: {
         clockLogs: { orderBy: { timestamp: 'desc' }, take: 5 },
         shifts: { include: { shiftTemplate: true }, orderBy: { date: 'asc' } },
       },
-    });
-    return NextResponse.json(users);
-  } catch (error) {
-    console.error('Error fetching staff:', error);
-    return NextResponse.json({ error: 'Failed to fetch staff' }, { status: 500 });
-  }
+    }),
+    MOCK_USERS
+  );
+  return NextResponse.json(users);
 }
 
 export async function POST(req: Request) {

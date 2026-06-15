@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { safeDbCall } from '@/lib/db-fallback';
+import { MOCK_TABLES } from '@/lib/mock-data';
 
 const TABLE_INCLUDE = {
   orders: {
@@ -22,16 +24,14 @@ const TABLE_INCLUDE = {
 } as const;
 
 export async function GET() {
-  try {
-    const tables = await db.restaurantTable.findMany({
+  const tables = await safeDbCall(
+    () => db.restaurantTable.findMany({
       orderBy: { number: 'asc' },
       include: TABLE_INCLUDE,
-    });
-    return NextResponse.json(tables);
-  } catch (error) {
-    console.error('Error fetching tables:', error);
-    return NextResponse.json({ error: 'Failed to fetch tables' }, { status: 500 });
-  }
+    }),
+    MOCK_TABLES
+  );
+  return NextResponse.json(tables);
 }
 
 export async function PATCH(request: Request) {

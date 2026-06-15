@@ -77,12 +77,15 @@ function getTableCoords(table: TableInfo) {
   let width = table.width;
   let height = table.height;
 
-  // Grid coordinates mapping (translation from 0-10 index to pixel space)
-  if (table.x <= 10 && table.y <= 10) {
+  // If width/height are grid-based (<= 10), default to pixel sizes
+  if (!width || width <= 10) {
     width = table.shape === 'RECTANGLE' ? 140 : 110;
+  }
+  if (!height || height <= 10) {
     height = table.shape === 'RECTANGLE' ? 70 : 110;
   }
 
+  // If coordinates are already absolute pixels (e.g., > 10), keep them as is
   if (table.x > 10 || table.y > 10) {
     return { x: table.x, y: table.y, w: width, h: height };
   }
