@@ -464,13 +464,13 @@ export default function LandingPage() {
             <div className="relative aspect-[3/4] w-full overflow-hidden mb-3 bg-zinc-900">
               <img 
                 src="/gourmet_steak_dish.png" 
-                alt="Signature Seared Ribeye" 
+                alt={t.landing.signatureCutsTitle} 
                 className="object-cover w-full h-full hover:scale-105 transition-transform duration-500"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-transparent pointer-events-none" />
             </div>
-            <h3 className="font-serif text-sm font-bold text-zinc-100 tracking-wide">Signature Cuts</h3>
-            <p className="text-[10px] text-[#BC9B6A] italic mt-1 font-serif">Dry-aged prime steak prepared by our master chefs.</p>
+            <h3 className="font-serif text-sm font-bold text-zinc-100 tracking-wide">{t.landing.signatureCutsTitle}</h3>
+            <p className="text-[10px] text-[#BC9B6A] italic mt-1 font-serif">{t.landing.signatureCutsDesc}</p>
           </motion.div>
         </div>
 
@@ -508,7 +508,7 @@ export default function LandingPage() {
             className="w-full sm:flex-1 h-14 bg-[#005d2f] text-[#F1F6E7] border border-[#BC9B6A] hover:bg-[#005d2f]/90 transition-all font-serif font-bold text-sm uppercase tracking-wider rounded-none shadow-[0_4px_15px_rgba(0,93,47,0.25)]"
           >
             <Calendar className="size-4.5 mr-2 text-[#BC9B6A]" />
-            Book a Table
+            {t.landing.bookTableBtn}
           </Button>
 
           <Button
@@ -516,7 +516,7 @@ export default function LandingPage() {
             className="w-full sm:flex-1 h-14 bg-transparent text-[#BC9B6A] border border-[#BC9B6A] hover:bg-[#BC9B6A]/10 transition-all font-serif font-bold text-sm uppercase tracking-wider rounded-none"
           >
             <Map className="size-4.5 mr-2" />
-            {activeTableName ? `Table: ${activeTableName}` : 'Select Table & Order'}
+            {activeTableName ? t.landing.tableSelectedLabel.replace('{name}', activeTableName) : t.landing.selectTableBtn}
           </Button>
         </div>
 
@@ -526,15 +526,41 @@ export default function LandingPage() {
             onClick={handleBrowseMenu}
             className="font-serif text-sm tracking-widest uppercase font-semibold text-[#BC9B6A] hover:text-[#BC9B6A]/80 transition-colors flex items-center gap-1.5 border-b border-dashed border-[#BC9B6A] pb-1"
           >
-            <span>Browse Menu & Order</span>
+            <span>{t.landing.browseMenuBtn}</span>
             <ChevronRight className="size-4" />
           </button>
           {activeTableName && (
             <p className="text-[10px] text-emerald-400 font-semibold tracking-wider uppercase">
-              Selected: {activeTableName} (unlocked for order placement)
+              {t.landing.selectedUnlocked.replace('{name}', activeTableName)}
             </p>
           )}
         </div>
+
+        {/* Guest PWA Install Button */}
+        {isInstallable && !isInstalled && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="mt-6"
+          >
+            <Button
+              onClick={handleInstall}
+              disabled={installing}
+              className="h-12 px-8 bg-transparent text-[#BC9B6A] border border-[#BC9B6A]/40 hover:bg-[#BC9B6A]/10 hover:border-[#BC9B6A] transition-all font-serif font-bold text-xs uppercase tracking-widest rounded-none shadow-[0_0_20px_rgba(188,155,106,0.08)]"
+            >
+              {installing ? (
+                <Loader2 className="size-4 mr-2 animate-spin" />
+              ) : (
+                <Smartphone className="size-4 mr-2" />
+              )}
+              {t.landing.installGuestBtn}
+            </Button>
+            <p className="text-[9px] text-zinc-600 mt-2 tracking-wide font-sans">
+              {t.landing.installGuestDesc}
+            </p>
+          </motion.div>
+        )}
 
         {/* Address Card */}
         <div className="mt-8 p-6 w-full max-w-md border border-[#BC9B6A]/20 bg-zinc-950/40 backdrop-blur-md rounded-none text-left flex flex-col gap-4">
@@ -543,7 +569,7 @@ export default function LandingPage() {
               <MapPin className="size-4.5" />
             </div>
             <div>
-              <h3 className="text-[9px] font-black uppercase text-zinc-500 tracking-widest font-sans">Our Address</h3>
+              <h3 className="text-[9px] font-black uppercase text-zinc-500 tracking-widest font-sans">{t.landing.ourAddress}</h3>
               <p className="font-serif text-sm text-[#F1F6E7] mt-1 tracking-wide">{getAddress(activeLocale)}</p>
             </div>
           </div>
@@ -566,24 +592,24 @@ export default function LandingPage() {
             <div className="relative aspect-[16/10] w-full overflow-hidden mb-3">
               <img 
                 src="/gourmet_steak_dish.png" 
-                alt="Signature Cuts" 
+                alt={t.landing.signatureCutsTitle} 
                 className="object-cover w-full h-full"
               />
             </div>
-            <h3 className="font-serif text-sm font-bold text-zinc-100 tracking-wide">Signature Cuts</h3>
-            <p className="text-[10px] text-[#BC9B6A] italic mt-1 font-serif">Dry-aged prime steak prepared by our master chefs.</p>
+            <h3 className="font-serif text-sm font-bold text-zinc-100 tracking-wide">{t.landing.signatureCutsTitle}</h3>
+            <p className="text-[10px] text-[#BC9B6A] italic mt-1 font-serif">{t.landing.signatureCutsDesc}</p>
           </div>
 
           <div className="border border-[#BC9B6A]/20 bg-zinc-950/40 backdrop-blur-sm p-3 flex flex-col text-left">
             <div className="relative aspect-[16/10] w-full overflow-hidden mb-3">
               <img 
                 src="/gourmet_seafood_dish.png" 
-                alt="Coastal Delicacies" 
+                alt={t.landing.coastalDelicaciesTitle} 
                 className="object-cover w-full h-full"
               />
             </div>
-            <h3 className="font-serif text-sm font-bold text-zinc-100 tracking-wide">Coastal Delicacies</h3>
-            <p className="text-[10px] text-[#BC9B6A] italic mt-1 font-serif">Fresh roasted lobster tail & wild prawns with herb butter.</p>
+            <h3 className="font-serif text-sm font-bold text-zinc-100 tracking-wide">{t.landing.coastalDelicaciesTitle}</h3>
+            <p className="text-[10px] text-[#BC9B6A] italic mt-1 font-serif">{t.landing.coastalDelicaciesDesc}</p>
           </div>
         </div>
 
@@ -600,13 +626,13 @@ export default function LandingPage() {
             <div className="relative aspect-[3/4] w-full overflow-hidden mb-3 bg-zinc-900">
               <img 
                 src="/gourmet_seafood_dish.png" 
-                alt="Coastal Roasted Lobster" 
+                alt={t.landing.coastalDelicaciesTitle} 
                 className="object-cover w-full h-full hover:scale-105 transition-transform duration-500"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-transparent pointer-events-none" />
             </div>
-            <h3 className="font-serif text-sm font-bold text-zinc-100 tracking-wide">Coastal Delicacies</h3>
-            <p className="text-[10px] text-[#BC9B6A] italic mt-1 font-serif">Fresh roasted lobster tail & wild prawns with herb butter.</p>
+            <h3 className="font-serif text-sm font-bold text-zinc-100 tracking-wide">{t.landing.coastalDelicaciesTitle}</h3>
+            <p className="text-[10px] text-[#BC9B6A] italic mt-1 font-serif">{t.landing.coastalDelicaciesDesc}</p>
           </motion.div>
         </div>
 
@@ -619,10 +645,10 @@ export default function LandingPage() {
         <DialogContent className="max-w-xl bg-zinc-900 border-[#BC9B6A]/30 text-zinc-100 rounded-none p-6 sm:p-8">
           <DialogHeader className="text-center sm:text-left">
             <DialogTitle className="font-serif text-2xl font-bold tracking-wide text-zinc-100">
-              Book Your Table
+              {t.landing.bookTableModalTitle}
             </DialogTitle>
             <DialogDescription className="text-xs text-zinc-500 mt-1 font-sans">
-              Instant verification. Reserve online seamlessly.
+              {t.landing.bookTableModalDesc}
             </DialogDescription>
           </DialogHeader>
 
@@ -704,7 +730,7 @@ export default function LandingPage() {
                   <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200 text-xs">
                     {[1, 2, 3, 4, 5, 6, 8, 10, 12].map(n => (
                       <SelectItem key={n} value={n.toString()} className="cursor-pointer">
-                        {n} {n === 1 ? 'Guest' : 'Guests'}
+                        {n} {n === 1 ? t.landing.guestOption : t.landing.guestsOption}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -716,7 +742,7 @@ export default function LandingPage() {
               {/* Email */}
               <div className="flex flex-col gap-1.5 text-left">
                 <label className="text-[9px] font-black uppercase tracking-widest text-[#BC9B6A] font-sans">
-                  Email (Optional)
+                  {t.landing.emailOptionalLabel}
                 </label>
                 <Input
                   type="email"
@@ -730,14 +756,14 @@ export default function LandingPage() {
               {/* Preferred Available Table Select */}
               <div className="flex flex-col gap-1.5 text-left">
                 <label className="text-[9px] font-black uppercase tracking-widest text-[#BC9B6A] font-sans">
-                  Table (Optional)
+                  {t.landing.tableOptionalLabel}
                 </label>
                 <Select value={resTableId} onValueChange={setResTableId}>
                   <SelectTrigger className="bg-transparent border-t-0 border-x-0 border-b border-zinc-800 focus:border-[#BC9B6A] focus:ring-0 rounded-none px-0 h-10 text-xs text-zinc-300">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200 text-xs">
-                    <SelectItem value="any" className="cursor-pointer font-bold">Auto Assign Table</SelectItem>
+                    <SelectItem value="any" className="cursor-pointer font-bold">{t.landing.autoAssignTableOpt}</SelectItem>
                     {tables.map(table => {
                       const avail = tableAvailability[table.id];
                       const isAvailable = avail ? avail.available : true;
@@ -748,7 +774,7 @@ export default function LandingPage() {
                           disabled={!isAvailable}
                           className="cursor-pointer"
                         >
-                          {table.name} ({table.capacity}p) {isAvailable ? '' : '— ❌ Occupied'}
+                          {table.name} ({table.capacity}p) {isAvailable ? '' : `— ❌ ${t.floorPlan.occupied}`}
                         </SelectItem>
                       );
                     })}
@@ -763,7 +789,7 @@ export default function LandingPage() {
                 {t.reservations.notes}
               </label>
               <Textarea
-                placeholder="Allergies, high chair, window table, birthday..."
+                placeholder={t.reservations.specialRequestsPlaceholder}
                 value={resNotes}
                 onChange={e => setResNotes(e.target.value)}
                 className="bg-transparent border border-zinc-800 focus:border-[#BC9B6A] rounded-none px-3 py-2 text-xs placeholder:text-zinc-700 h-16 min-h-16 max-h-16"
@@ -778,10 +804,10 @@ export default function LandingPage() {
               {submittingRes ? (
                 <>
                   <Loader2 className="size-4 mr-2 animate-spin" />
-                  Booking...
+                  {t.landing.bookingLoading}
                 </>
               ) : (
-                'Book Online Reservation'
+                t.landing.bookOnlineResBtn
               )}
             </Button>
           </form>
@@ -795,26 +821,26 @@ export default function LandingPage() {
         <DialogContent className="max-w-7xl bg-zinc-950 border-[#BC9B6A]/30 text-zinc-100 rounded-none p-6">
           <DialogHeader>
             <DialogTitle className="font-serif text-2xl font-bold tracking-wide text-zinc-100 flex items-center justify-between">
-              <span>Interactive Restaurant Floor Plan</span>
+              <span>{t.landing.interactiveFloorPlanTitle}</span>
               
               {/* Legends display */}
               <div className="hidden sm:flex gap-3 text-[9px] font-bold text-zinc-400 tracking-widest uppercase">
                 <div className="flex items-center gap-1.5">
                   <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                  <span>Free</span>
+                  <span>{t.landing.legendFree}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
-                  <span>Seated</span>
+                  <span>{t.landing.legendSeated}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="h-2.5 w-2.5 rounded-full bg-sky-500" />
-                  <span>Reserved</span>
+                  <span>{t.landing.legendReserved}</span>
                 </div>
               </div>
             </DialogTitle>
             <DialogDescription className="text-xs text-zinc-500 font-sans text-left mt-1">
-              Click any free table (green) to select it for your order.
+              {t.landing.floorPlanDesc}
             </DialogDescription>
           </DialogHeader>
 
@@ -825,12 +851,12 @@ export default function LandingPage() {
               <Select value={selectedTableId} onValueChange={(id) => {
                 setSelectedTableId(id);
                 toast({
-                  title: 'Table Selected',
-                  description: `You have selected Table ${tables.find(t => t.id === id)?.name || id}.`
+                  title: t.landing.toastTableSelectedTitle,
+                  description: t.landing.toastTableSelectedDesc.replace('{name}', tables.find(t => t.id === id)?.name || id)
                 });
               }}>
                 <SelectTrigger className="h-10 px-4 bg-zinc-900 border-zinc-800 rounded-none text-zinc-200 text-xs font-semibold focus:ring-[#BC9B6A]/40 focus:ring-offset-0">
-                  <SelectValue placeholder="Select table from list..." />
+                  <SelectValue placeholder={t.landing.selectTableDropdownPlaceholder} />
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200">
                   {tables.map((table) => (
@@ -839,7 +865,7 @@ export default function LandingPage() {
                       value={table.id}
                       className="text-xs font-medium focus:bg-zinc-800 focus:text-zinc-100 cursor-pointer"
                     >
-                      {table.name} ({table.capacity} seats) — {table.status === 'FREE' ? '🟢 Free' : table.status === 'RESERVED' ? '🔵 Reserved' : 'Occupied'}
+                      {table.name} ({table.capacity} {t.landing.seatsLabel}) — {table.status === 'FREE' ? `🟢 ${t.floorPlan.statusFree}` : table.status === 'RESERVED' ? `🔵 ${t.floorPlan.statusReserved}` : `${t.floorPlan.occupied}`}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -849,11 +875,11 @@ export default function LandingPage() {
             {/* Zoom Controls Toolbar */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-zinc-900 border border-[#BC9B6A]/10 p-3 rounded-none">
               <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-400">
-                Floor Plan Sizing
+                {t.landing.floorPlanSizingLabel}
               </span>
               <div className="flex items-center gap-1.5 bg-zinc-955 border border-[#BC9B6A]/20 p-1">
                 <span className="text-[10px] font-bold text-[#BC9B6A] px-2">
-                  Zoom: {Math.round(zoom * 100)}%
+                  {t.landing.zoomLabel}: {Math.round(zoom * 100)}%
                 </span>
                 <Button
                   type="button"
@@ -878,7 +904,7 @@ export default function LandingPage() {
                   onClick={handleAutoFit}
                   className="h-7 px-2 text-[10px] font-bold uppercase tracking-wider border border-[#BC9B6A]/10 text-zinc-400 hover:text-[#BC9B6A] hover:bg-zinc-900"
                 >
-                  Fit
+                  {t.landing.fitBtn}
                 </Button>
                 <Button
                   type="button"
@@ -937,7 +963,7 @@ export default function LandingPage() {
                 {loading ? (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-zinc-500 text-xs">
                     <Loader2 className="size-6 animate-spin text-[#BC9B6A]" />
-                    <span>Loading floor map...</span>
+                    <span>{t.floorPlan.loadingFloorPlan}</span>
                   </div>
                 ) : tables.length > 0 ? (
                   tables.map((table) => {
@@ -957,8 +983,8 @@ export default function LandingPage() {
                         onClick={() => {
                           setSelectedTableId(table.id);
                           toast({
-                            title: 'Table Selected',
-                            description: `Selected ${table.name}. Tap order button to proceed.`
+                            title: t.landing.toastTableSelectedTitle,
+                            description: t.landing.toastTableTapOrderDesc.replace('{name}', table.name)
                           });
                         }}
                         style={{ left, top, width, height }}
@@ -981,7 +1007,7 @@ export default function LandingPage() {
                   })
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center text-zinc-650 text-xs font-semibold">
-                    No tables found.
+                    {t.landing.noTablesFound}
                   </div>
                 )}
                 </div>
@@ -997,7 +1023,7 @@ export default function LandingPage() {
                 }}
                 className="w-full sm:flex-1 h-12 bg-[#005d2f] text-[#F1F6E7] border border-[#BC9B6A] hover:bg-[#005d2f]/90 transition-all font-serif font-bold text-xs uppercase tracking-widest rounded-none shadow-md"
               >
-                <span>Browse Menu & Order</span>
+                <span>{t.landing.browseMenuBtn}</span>
                 <ArrowRight className="size-4 ml-2" />
               </Button>
 
@@ -1009,7 +1035,7 @@ export default function LandingPage() {
                   className="w-full sm:w-auto h-12 rounded-none border-zinc-800 hover:bg-zinc-900 text-zinc-300 text-[10px] font-bold uppercase tracking-widest px-6"
                 >
                   {installing ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : <Download className="size-3.5 mr-1.5" />}
-                  Install App
+                  {t.landing.installAppBtn}
                 </Button>
               )}
             </div>
@@ -1028,7 +1054,7 @@ export default function LandingPage() {
           onClick={() => router.push('/management')}
           className="text-[8px] text-zinc-700 hover:text-[#BC9B6A] transition-colors font-bold tracking-widest uppercase"
         >
-          Staff Portal Access
+          {t.landing.staffPortalAccessBtn}
         </button>
       </footer>
     </div>

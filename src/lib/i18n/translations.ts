@@ -745,6 +745,41 @@ export interface Translations {
     pwaInstructionsTitle: string;
     pwaInstructionsIOS: string;
     pwaInstructionsInstalled: string;
+    bookTableBtn: string;
+    selectTableBtn: string;
+    tableSelectedLabel: string;
+    browseMenuBtn: string;
+    selectedUnlocked: string;
+    signatureCutsTitle: string;
+    signatureCutsDesc: string;
+    coastalDelicaciesTitle: string;
+    coastalDelicaciesDesc: string;
+    bookTableModalTitle: string;
+    bookTableModalDesc: string;
+    emailOptionalLabel: string;
+    tableOptionalLabel: string;
+    autoAssignTableOpt: string;
+    bookOnlineResBtn: string;
+    interactiveFloorPlanTitle: string;
+    floorPlanDesc: string;
+    selectTableDropdownPlaceholder: string;
+    floorPlanSizingLabel: string;
+    legendFree: string;
+    legendSeated: string;
+    legendReserved: string;
+    staffPortalAccessBtn: string;
+    ourAddress: string;
+    guestOption: string;
+    guestsOption: string;
+    bookingLoading: string;
+    toastTableSelectedTitle: string;
+    toastTableSelectedDesc: string;
+    toastTableTapOrderDesc: string;
+    seatsLabel: string;
+    zoomLabel: string;
+    fitBtn: string;
+    noTablesFound: string;
+    installAppBtn: string;
   };
 
   footer: {
@@ -1456,6 +1491,41 @@ export const enGB: Translations = {
     pwaInstructionsTitle: 'Installation Guide',
     pwaInstructionsIOS: 'On iOS, tap the Share button and select "Add to Home Screen".',
     pwaInstructionsInstalled: 'App is already installed and ready on this device.',
+    bookTableBtn: 'Book a Table',
+    selectTableBtn: 'Select Table & Order',
+    tableSelectedLabel: 'Table: {name}',
+    browseMenuBtn: 'Browse Menu & Order',
+    selectedUnlocked: 'Selected: {name} (unlocked for order placement)',
+    signatureCutsTitle: 'Signature Cuts',
+    signatureCutsDesc: 'Dry-aged prime steak prepared by our master chefs.',
+    coastalDelicaciesTitle: 'Coastal Delicacies',
+    coastalDelicaciesDesc: 'Fresh roasted lobster tail & wild prawns with herb butter.',
+    bookTableModalTitle: 'Book Your Table',
+    bookTableModalDesc: 'Instant verification. Reserve online seamlessly.',
+    emailOptionalLabel: 'Email (Optional)',
+    tableOptionalLabel: 'Table (Optional)',
+    autoAssignTableOpt: 'Auto Assign Table',
+    bookOnlineResBtn: 'Book Online Reservation',
+    interactiveFloorPlanTitle: 'Interactive Restaurant Floor Plan',
+    floorPlanDesc: 'Click any free table (green) to select it for your order.',
+    selectTableDropdownPlaceholder: 'Select table from list...',
+    floorPlanSizingLabel: 'Floor Plan Sizing',
+    legendFree: 'Free',
+    legendSeated: 'Seated',
+    legendReserved: 'Reserved',
+    staffPortalAccessBtn: 'Staff Portal Access',
+    ourAddress: 'Our Address',
+    guestOption: 'Guest',
+    guestsOption: 'Guests',
+    bookingLoading: 'Booking...',
+    toastTableSelectedTitle: 'Table Selected',
+    toastTableSelectedDesc: 'You have selected Table {name}.',
+    toastTableTapOrderDesc: 'Selected {name}. Tap order button to proceed.',
+    seatsLabel: 'seats',
+    zoomLabel: 'Zoom',
+    fitBtn: 'Fit',
+    noTablesFound: 'No tables found.',
+    installAppBtn: 'Install App',
   },
   footer: {
     copyright: 'The Gilded Fork',
@@ -2166,6 +2236,41 @@ export const ptPT: Translations = {
     pwaInstructionsTitle: 'Guia de Instalação',
     pwaInstructionsIOS: 'No iOS, toque no botão Partilhar e selecione "Adicionar ao Ecrã Principal".',
     pwaInstructionsInstalled: 'A aplicação já está instalada e pronta neste dispositivo.',
+    bookTableBtn: 'Reservar Mesa',
+    selectTableBtn: 'Selecionar Mesa e Pedir',
+    tableSelectedLabel: 'Mesa: {name}',
+    browseMenuBtn: 'Ver Menu e Pedir',
+    selectedUnlocked: 'Selecionado: {name} (desbloqueado para pedidos)',
+    signatureCutsTitle: 'Cortes Especiais',
+    signatureCutsDesc: 'Bife maturado de primeira qualidade preparado pelos nossos chefs.',
+    coastalDelicaciesTitle: 'Delícias da Costa',
+    coastalDelicaciesDesc: 'Cauda de lagosta assada e camarão selvagem com manteiga de ervas.',
+    bookTableModalTitle: 'Reserve a Sua Mesa',
+    bookTableModalDesc: 'Confirmação instantânea. Reserve online de forma simples.',
+    emailOptionalLabel: 'E-mail (Opcional)',
+    tableOptionalLabel: 'Mesa (Opcional)',
+    autoAssignTableOpt: 'Atribuição Automática',
+    bookOnlineResBtn: 'Confirmar Reserva Online',
+    interactiveFloorPlanTitle: 'Plano Interativo da Sala',
+    floorPlanDesc: 'Clique em qualquer mesa livre (verde) para a selecionar para o seu pedido.',
+    selectTableDropdownPlaceholder: 'Selecione uma mesa da lista...',
+    floorPlanSizingLabel: 'Tamanho do Plano',
+    legendFree: 'Livre',
+    legendSeated: 'Ocupado',
+    legendReserved: 'Reservado',
+    staffPortalAccessBtn: 'Acesso ao Portal do Pessoal',
+    ourAddress: 'O Nosso Endereço',
+    guestOption: 'Cliente',
+    guestsOption: 'Clientes',
+    bookingLoading: 'A reservar...',
+    toastTableSelectedTitle: 'Mesa Selecionada',
+    toastTableSelectedDesc: 'Selecionou a Mesa {name}.',
+    toastTableTapOrderDesc: 'Mesa {name} selecionada. Toque no botão de pedido para prosseguir.',
+    seatsLabel: 'lugares',
+    zoomLabel: 'Zoom',
+    fitBtn: 'Ajustar',
+    noTablesFound: 'Nenhuma mesa encontrada.',
+    installAppBtn: 'Instalar App',
   },
   footer: {
     copyright: 'The Gilded Fork',
@@ -2876,6 +2981,41 @@ export const frFR: Translations = {
     pwaInstructionsTitle: 'Guide d\'Installation',
     pwaInstructionsIOS: 'Sur iOS, appuyez sur le bouton Partager et sélectionnez "Sur l\'écran d\'accueil".',
     pwaInstructionsInstalled: 'L\'application est déjà installée et prête sur cet appareil.',
+    bookTableBtn: 'Réserver une Table',
+    selectTableBtn: 'Sélectionner Table & Commander',
+    tableSelectedLabel: 'Table: {name}',
+    browseMenuBtn: 'Parcourir le Menu & Commander',
+    selectedUnlocked: 'Sélectionné: {name} (débloqué pour la commande)',
+    signatureCutsTitle: 'Coupures Signature',
+    signatureCutsDesc: 'Côte de bœuf maturée préparée par nos chefs cuisiniers.',
+    coastalDelicaciesTitle: 'Délices Côtiers',
+    coastalDelicaciesDesc: 'Queue de homard rôtie et crevettes sauvages au beurre d\'herbes.',
+    bookTableModalTitle: 'Réservez Votre Table',
+    bookTableModalDesc: 'Vérification instantanée. Réservez en ligne en toute simplicité.',
+    emailOptionalLabel: 'E-mail (Optionnel)',
+    tableOptionalLabel: 'Table (Optionnelle)',
+    autoAssignTableOpt: 'Assignation Automatique',
+    bookOnlineResBtn: 'Confirmer la Réservation en Ligne',
+    interactiveFloorPlanTitle: 'Plan de Salle Interactif',
+    floorPlanDesc: 'Cliquez sur une table libre (verte) pour la sélectionner pour votre commande.',
+    selectTableDropdownPlaceholder: 'Sélectionnez une table dans la liste...',
+    floorPlanSizingLabel: 'Taille du Plan de salle',
+    legendFree: 'Libre',
+    legendSeated: 'Occupé',
+    legendReserved: 'Réservé',
+    staffPortalAccessBtn: 'Accès Portail Personnel',
+    ourAddress: 'Notre Adresse',
+    guestOption: 'Client',
+    guestsOption: 'Clients',
+    bookingLoading: 'Réservation...',
+    toastTableSelectedTitle: 'Table Sélectionnée',
+    toastTableSelectedDesc: 'Vous avez sélectionné la Table {name}.',
+    toastTableTapOrderDesc: 'Table {name} sélectionnée. Appuyez sur le bouton de commande pour continuer.',
+    seatsLabel: 'places',
+    zoomLabel: 'Zoom',
+    fitBtn: 'Ajuster',
+    noTablesFound: 'Aucune table trouvée.',
+    installAppBtn: 'Installer l\'App',
   },
   footer: {
     copyright: 'The Gilded Fork',
@@ -3586,6 +3726,41 @@ export const esES: Translations = {
     pwaInstructionsTitle: 'Guía de Instalación',
     pwaInstructionsIOS: 'En iOS, pulse el botón Compartir y seleccione "Añadir a la pantalla de inicio".',
     pwaInstructionsInstalled: 'La aplicación ya está instalada y lista en este dispositivo.',
+    bookTableBtn: 'Reservar Mesa',
+    selectTableBtn: 'Seleccionar Mesa y Pedir',
+    tableSelectedLabel: 'Mesa: {name}',
+    browseMenuBtn: 'Ver Menú y Pedir',
+    selectedUnlocked: 'Seleccionado: {name} (desbloqueado para pedidos)',
+    signatureCutsTitle: 'Cortes Especiales',
+    signatureCutsDesc: 'Carne madurada de primera calidad preparada por nossos chefs.',
+    coastalDelicaciesTitle: 'Delicias de la Costa',
+    coastalDelicaciesDesc: 'Cola de langosta asada y langostinos salvajes con mantequilla de hierbas.',
+    bookTableModalTitle: 'Reserve Su Mesa',
+    bookTableModalDesc: 'Confirmación al instante. Reserve online sin complicaciones.',
+    emailOptionalLabel: 'Correo Electrónico (Opcional)',
+    tableOptionalLabel: 'Mesa (Opcional)',
+    autoAssignTableOpt: 'Asignar Mesa Automáticamente',
+    bookOnlineResBtn: 'Confirmar Reserva Online',
+    interactiveFloorPlanTitle: 'Plano Interactivo del Restaurante',
+    floorPlanDesc: 'Haga clic en cualquier mesa libre (verde) para seleccionarla.',
+    selectTableDropdownPlaceholder: 'Seleccione una mesa de la lista...',
+    floorPlanSizingLabel: 'Tamaño del Plano',
+    legendFree: 'Libre',
+    legendSeated: 'Ocupado',
+    legendReserved: 'Reservado',
+    staffPortalAccessBtn: 'Acceso Portal Personal',
+    ourAddress: 'Nuestra Dirección',
+    guestOption: 'Cliente',
+    guestsOption: 'Clientes',
+    bookingLoading: 'Reservando...',
+    toastTableSelectedTitle: 'Mesa Seleccionada',
+    toastTableSelectedDesc: 'Ha seleccionado la Mesa {name}.',
+    toastTableTapOrderDesc: 'Mesa {name} seleccionada. Toque el botón de pedido para continuar.',
+    seatsLabel: 'asientos',
+    zoomLabel: 'Zoom',
+    fitBtn: 'Ajustar',
+    noTablesFound: 'No se encontraron mesas.',
+    installAppBtn: 'Instalar App',
   },
   footer: {
     copyright: 'The Gilded Fork',
