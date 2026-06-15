@@ -475,7 +475,7 @@ export default function LandingPage() {
         </div>
 
         {/* Center Column - Main Hero Content */}
-        <div className="flex-1 max-w-xl flex flex-col items-center justify-center text-center gap-12">>
+        <div className="flex-1 max-w-xl flex flex-col items-center justify-center text-center gap-12">
         
         {/* Brand Logo & Presentation */}
         <div className="flex flex-col items-center gap-6">
