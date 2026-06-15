@@ -73,6 +73,43 @@ const TIME_SLOTS = [
   '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00', '22:30'
 ];
 
+function getTableCoords(table: TableInfo) {
+  let width = table.width;
+  let height = table.height;
+
+  // Grid coordinates mapping (translation from 0-10 index to pixel space)
+  if (table.x <= 10 && table.y <= 10) {
+    width = table.shape === 'RECTANGLE' ? 140 : 110;
+    height = table.shape === 'RECTANGLE' ? 70 : 110;
+  }
+
+  if (table.x > 10 || table.y > 10) {
+    return { x: table.x, y: table.y, w: width, h: height };
+  }
+
+  const zones: Record<string, { x: number; y: number; w: number; h: number }> = {
+    MAIN: { x: 0, y: 0, w: 600, h: 400 },
+    BAR: { x: 600, y: 0, w: 600, h: 400 },
+    PATIO: { x: 0, y: 400, w: 600, h: 400 },
+    VIP: { x: 600, y: 400, w: 600, h: 400 },
+  };
+
+  const zone = zones[table.section] || zones.MAIN;
+  const colWidth = 135;
+  const rowHeight = 110;
+  const paddingX = 40;
+  const paddingY = 90;
+
+  let posX = zone.x + paddingX + (table.x * colWidth);
+  let posY = zone.y + paddingY + (table.y * rowHeight);
+
+  // Keep it bounded
+  posX = Math.round(Math.min(posX, zone.x + zone.w - width - 20));
+  posY = Math.round(Math.min(posY, zone.y + zone.h - height - 20));
+
+  return { x: posX, y: posY, w: width, h: height };
+}
+
 export default function LandingPage() {
   const router = useRouter();
   const t = useT();
@@ -486,6 +523,24 @@ export default function LandingPage() {
 
                     {/* Floor Plan Viewport */}
                     <div className="relative w-full aspect-[3/2] rounded-2xl bg-zinc-950 border border-zinc-850 overflow-hidden shadow-inner bg-[radial-gradient(zinc-900_1px,transparent_1px)] bg-[size:16px_16px]">
+                      {/* Section Grid Dividers */}
+                      <div className="absolute top-1/2 left-0 w-full border-t border-dashed border-zinc-900/60 pointer-events-none z-0" />
+                      <div className="absolute left-1/2 top-0 h-full border-l border-dashed border-zinc-900/60 pointer-events-none z-0" />
+                      
+                      {/* Section Labels */}
+                      <div className="absolute top-3.5 left-4 text-[9px] font-black uppercase text-zinc-700 tracking-widest pointer-events-none select-none z-0">
+                        {t.floorPlan.mainDining}
+                      </div>
+                      <div className="absolute top-3.5 right-4 text-[9px] font-black uppercase text-zinc-700 tracking-widest pointer-events-none select-none z-0">
+                        {t.floorPlan.bar}
+                      </div>
+                      <div className="absolute bottom-3.5 left-4 text-[9px] font-black uppercase text-zinc-700 tracking-widest pointer-events-none select-none z-0">
+                        {t.floorPlan.patio}
+                      </div>
+                      <div className="absolute bottom-3.5 right-4 text-[9px] font-black uppercase text-zinc-700 tracking-widest pointer-events-none select-none z-0">
+                        {t.floorPlan.vip}
+                      </div>
+
                       {loading ? (
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-zinc-500 text-xs">
                           <Loader2 className="size-6 animate-spin text-primary" />
@@ -499,32 +554,32 @@ export default function LandingPage() {
                           // Style based on table shape
                           const isRound = table.shape === 'ROUND';
 
-                          // Absolute position percent calculations based on 1200x800 standard canvas coords
-                          const left = `${(table.x / 1200) * 100}%`;
-                          const top = `${(table.y / 800) * 100}%`;
-                          const width = `${(table.width / 1200) * 100}%`;
-                          const height = `${(table.height / 800) * 100}%`;
+                          // Absolute position percent calculations translating grid coordinates if needed
+                          const coords = getTableCoords(table);
+                          const left = `${(coords.x / 1200) * 100}%`;
+                          const top = `${(coords.y / 800) * 100}%`;
+                          const width = `${(coords.w / 1200) * 100}%`;
+                          const height = `${(coords.h / 800) * 100}%`;
 
                           return (
                             <button
                               key={table.id}
-                              disabled={!isFree}
                               onClick={() => setSelectedTableId(table.id)}
                               style={{ left, top, width, height }}
                               className={cn(
-                                "absolute text-[9px] font-black border flex flex-col items-center justify-center transition-all p-1 select-none focus:outline-none",
+                                "absolute text-[9px] font-black border flex flex-col items-center justify-center transition-all p-1 select-none focus:outline-none z-10",
                                 isRound ? "rounded-full" : "rounded-lg",
-                                isFree 
-                                  ? isSelected 
-                                    ? "bg-primary/20 border-primary text-primary shadow-[0_0_15px_var(--color-emerald-500)] scale-[1.03]" 
-                                    : "bg-emerald-950/10 border-emerald-500/40 text-emerald-400 hover:border-emerald-400 hover:bg-emerald-950/20"
-                                  : table.status === 'RESERVED'
-                                    ? "bg-sky-950/10 border-sky-500/30 text-sky-400/60 opacity-60 cursor-not-allowed"
-                                    : "bg-amber-955/10 border-amber-500/30 text-amber-400/60 opacity-60 cursor-not-allowed"
+                                isSelected 
+                                  ? "bg-primary/20 border-primary text-primary shadow-[0_0_15px_var(--color-emerald-500)] scale-[1.03] z-20" 
+                                  : isFree
+                                    ? "bg-emerald-950/10 border-emerald-500/40 text-emerald-400 hover:border-emerald-400 hover:bg-emerald-950/20"
+                                    : table.status === 'RESERVED'
+                                      ? "bg-sky-955/10 border-sky-500/40 text-sky-400 hover:border-sky-450 hover:bg-sky-955/20"
+                                      : "bg-amber-955/10 border-amber-500/40 text-amber-400 hover:border-amber-450 hover:bg-amber-955/20"
                               )}
                             >
-                              <span className="truncate max-w-full">{table.name}</span>
-                              <span className="text-[8px] opacity-75 font-normal">({table.capacity}p)</span>
+                              <span className="truncate max-w-full leading-none">{table.name}</span>
+                              <span className="text-[8px] opacity-75 font-normal mt-0.5">({table.capacity}p)</span>
                             </button>
                           );
                         })
@@ -540,7 +595,7 @@ export default function LandingPage() {
                     <Button
                       disabled={!selectedTableId}
                       onClick={handleBrowseMenu}
-                      className="w-full h-11 bg-primary text-primary-foreground hover:bg-primary/95 text-xs font-bold rounded-xl transition-all shadow-lg shadow-primary/15 group"
+                      className="w-full h-11 bg-primary text-primary-foreground hover:bg-primary/95 text-xs font-bold rounded-xl transition-all shadow-lg shadow-primary/15 group disabled:opacity-40 disabled:bg-zinc-900 disabled:text-zinc-500 disabled:border-zinc-850 disabled:shadow-none disabled:pointer-events-none"
                     >
                       <span>{t.landing.viewMenuBtn}</span>
                       <ArrowRight className="size-4 ml-1.5 transition-transform group-hover:translate-x-0.5" />
