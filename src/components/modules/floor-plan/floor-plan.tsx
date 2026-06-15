@@ -494,6 +494,7 @@ function CanvasTableCard({
   onCapacityChange,
   onServerChange,
   isLayoutEditable,
+  zoom,
 }: {
   table: RestaurantTable;
   isSelected: boolean;
@@ -506,6 +507,7 @@ function CanvasTableCard({
   onCapacityChange: (tableId: string, newCapacity: number) => void;
   onServerChange: (tableId: string, serverId: string | null) => void;
   isLayoutEditable: boolean;
+  zoom: number;
 }) {
   const t = useT();
   const elementRef = useRef<HTMLDivElement>(null);
@@ -561,8 +563,8 @@ function CanvasTableCard({
         const deltaY = moveEvent.clientY - startY;
 
         // Restrict size between 60px and 300px
-        const newWidth = Math.max(60, Math.min(300, startWidth + deltaX));
-        const newHeight = Math.max(40, Math.min(300, startHeight + deltaY));
+        const newWidth = Math.max(60, Math.min(300, startWidth + deltaX / zoom));
+        const newHeight = Math.max(40, Math.min(300, startHeight + deltaY / zoom));
 
         onResizeRef.current(table.id, newWidth, newHeight);
       };
@@ -585,8 +587,7 @@ function CanvasTableCard({
     return () => {
       handleEl.removeEventListener('pointerdown', handlePointerDown);
     };
-  }, [table.id, isLayoutEditable]);
-
+  }, [table.id, isLayoutEditable, zoom]);
   // Document-level drag handling for robust pointer tracking
   useEffect(() => {
     const el = elementRef.current;
@@ -628,7 +629,7 @@ function CanvasTableCard({
 
       if (dragState.isDragging) {
         e.preventDefault();
-        onDragMoveRef.current(table.id, deltaX, deltaY);
+        onDragMoveRef.current(table.id, deltaX / zoom, deltaY / zoom);
         dragState.lastX = e.clientX;
         dragState.lastY = e.clientY;
       }
@@ -661,8 +662,7 @@ function CanvasTableCard({
       document.removeEventListener('pointerup', handlePointerUp);
       document.removeEventListener('pointercancel', handlePointerUp);
     };
-  }, [table.id, isLayoutEditable]);
-
+  }, [table.id, isLayoutEditable, zoom]);
   const eligibleStaff = staff.filter((s) => ['FOH', 'MANAGER', 'ADMIN'].includes(s.role));
 
   return (
@@ -923,6 +923,31 @@ function FloorViewCanvas({
   
   const [initialized, setInitialized] = useState(false);
 
+  // Zoom & Auto-Fit state for Floor Plan
+  const [zoom, setZoom] = useState(1);
+  const canvasWrapperRef = useRef<HTMLDivElement>(null);
+
+  const handleAutoFit = useCallback(() => {
+    if (canvasWrapperRef.current) {
+      const parentWidth = canvasWrapperRef.current.clientWidth;
+      const computedScale = Math.min(1.2, parentWidth / (CANVAS_MIN_WIDTH + 20));
+      setZoom(Math.max(0.4, computedScale));
+    }
+  }, []);
+
+  // Autofit on mount and window resize
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      handleAutoFit();
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [handleAutoFit]);
+
+  useEffect(() => {
+    window.addEventListener('resize', handleAutoFit);
+    return () => window.removeEventListener('resize', handleAutoFit);
+  }, [handleAutoFit]);
+
   // Use refs to avoid stale closures
   const onTablePositionChangeRef = useRef(onTablePositionChange);
   const onTableSizeChangeRef = useRef(onTableSizeChange);
@@ -1033,90 +1058,153 @@ function FloorViewCanvas({
       resizingTableIdRef.current = null;
     }
   }, []);
-
   return (
-    <div className="relative rounded-xl border border-zinc-800 bg-zinc-950 overflow-auto">
-      <div
-        ref={containerRef}
-        className="relative"
-        style={{
-          minWidth: CANVAS_MIN_WIDTH,
-          minHeight: CANVAS_MIN_HEIGHT,
-          backgroundImage:
-            'radial-gradient(circle, rgba(113,113,122,0.15) 1px, transparent 1px)',
-          backgroundSize: '20px 20px',
-        }}
+    <div className="space-y-4">
+      {/* Zoom Controls Bar */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-zinc-900 border border-zinc-800 p-3 rounded-xl">
+        <span className="text-xs font-semibold text-zinc-300">
+          Floor Plan Sizing
+        </span>
+        <div className="flex items-center gap-1.5 bg-zinc-955 border border-zinc-800 p-1 rounded-md">
+          <span className="text-[10px] font-bold text-emerald-400 px-2">
+            Zoom: {Math.round(zoom * 100)}%
+          </span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => setZoom(prev => Math.max(0.4, prev - 0.1))}
+            className="size-7 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+          >
+            <Minus className="size-3.5" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => setZoom(1)}
+            className="h-7 px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+          >
+            100%
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={handleAutoFit}
+            className="h-7 px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+          >
+            Fit
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => setZoom(prev => Math.min(1.5, prev + 0.1))}
+            className="size-7 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+          >
+            <Plus className="size-3.5" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Scrollable Floor plan canvas wrapper - dynamic scale */}
+      <div 
+        ref={canvasWrapperRef}
+        className="relative rounded-xl border border-zinc-800 bg-zinc-950 overflow-auto w-full p-1"
       >
-        {/* Section zone labels */}
-        {ALL_SECTIONS.map((section) => {
-          const zone = getSectionZones()[section];
-          const sectionTables = tables.filter((tbl) => tbl.section === section);
-          if (sectionTables.length === 0) return null;
-          const Icon = SECTION_ICONS[section];
-          return (
-            <div
-              key={section}
-              className={cn('absolute border rounded-lg pointer-events-none', SECTION_BG_COLORS[section])}
-              style={{ left: zone.x, top: zone.y, width: zone.w, height: zone.h }}
-            >
-              <div className={cn('flex items-center gap-1.5 px-2 py-1 rounded-md border m-2 w-fit', SECTION_LABEL_BG[section])}>
-                <Icon className="size-3" />
-                <span className="text-[10px] font-semibold uppercase tracking-wider">{getSectionLabels(t)[section]}</span>
-                <Badge variant="outline" className="border-current/20 text-current text-[8px] px-1 py-0 h-3.5 ml-1">
-                  {sectionTables.length}
-                </Badge>
-              </div>
+        <div 
+          style={{
+            width: `${CANVAS_MIN_WIDTH * zoom}px`,
+            height: `${CANVAS_MIN_HEIGHT * zoom}px`,
+            transition: 'width 0.2s ease-out, height 0.2s ease-out'
+          }}
+          className="relative shrink-0 overflow-hidden"
+        >
+          <div
+            ref={containerRef}
+            className="absolute top-0 left-0"
+            style={{
+              width: CANVAS_MIN_WIDTH,
+              height: CANVAS_MIN_HEIGHT,
+              transform: `scale(${zoom})`,
+              transformOrigin: 'top left',
+              backgroundImage:
+                'radial-gradient(circle, rgba(113,113,122,0.15) 1px, transparent 1px)',
+              backgroundSize: '20px 20px',
+              transition: 'transform 0.2s ease-out',
+            }}
+          >
+            {/* Section zone labels */}
+            {ALL_SECTIONS.map((section) => {
+              const zone = getSectionZones()[section];
+              const sectionTables = tables.filter((tbl) => tbl.section === section);
+              if (sectionTables.length === 0) return null;
+              const Icon = SECTION_ICONS[section];
+              return (
+                <div
+                  key={section}
+                  className={cn('absolute border rounded-lg pointer-events-none', SECTION_BG_COLORS[section])}
+                  style={{ left: zone.x, top: zone.y, width: zone.w, height: zone.h }}
+                >
+                  <div className={cn('flex items-center gap-1.5 px-2 py-1 rounded-md border m-2 w-fit', SECTION_LABEL_BG[section])}>
+                    <Icon className="size-3" />
+                    <span className="text-[10px] font-semibold uppercase tracking-wider">{getSectionLabels(t)[section]}</span>
+                    <Badge variant="outline" className="border-current/20 text-current text-[8px] px-1 py-0 h-3.5 ml-1">
+                      {sectionTables.length}
+                    </Badge>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Table cards */}
+            {tables.map((table) => {
+              if (!initialized) return null;
+              const pixelPos = localPositions[table.id] || getInitialPixelPos(table);
+              return (
+                <CanvasTableCard
+                  key={table.id}
+                  table={{
+                    ...table,
+                    x: pixelPos.x,
+                    y: pixelPos.y,
+                    width: localSizes[table.id]?.w ?? ((!table.width || table.width <= 10) ? (table.shape === 'RECTANGLE' ? 140 : 110) : table.width),
+                    height: localSizes[table.id]?.h ?? ((!table.height || table.height <= 10) ? (table.shape === 'RECTANGLE' ? 70 : 110) : table.height),
+                  }}
+                  isSelected={selectedTableId === table.id}
+                  onClick={() => onSelectTable(table)}
+                  onDragMove={handleDragMove}
+                  onDragEnd={handleDragEnd}
+                  onResize={handleResize}
+                  onResizeEnd={handleResizeEnd}
+                  staff={staff}
+                  onCapacityChange={onCapacityChange}
+                  onServerChange={onServerChange}
+                  isLayoutEditable={isLayoutEditable}
+                  zoom={zoom}
+                />
+              );
+            })}
+
+            {/* Drag / Edit layout hint */}
+            <div className="absolute bottom-3 right-3 flex items-center gap-1.5 text-zinc-600 text-[10px] pointer-events-none">
+              {isLayoutEditable ? (
+                <>
+                  <Move className="size-3 text-emerald-400 animate-pulse" />
+                  <span className="text-emerald-400 font-medium">{t.floorPlan.dragToMove}</span>
+                </>
+              ) : (
+                <>
+                  <Pencil className="size-3 text-zinc-500" />
+                  <span>{t.floorPlan.clickEditLayoutToMove}</span>
+                </>
+              )}
             </div>
-          );
-        })}
-
-        {/* Table cards */}
-        {tables.map((table) => {
-          if (!initialized) return null;
-          const pixelPos = localPositions[table.id] || getInitialPixelPos(table);
-          return (
-            <CanvasTableCard
-              key={table.id}
-              table={{
-                ...table,
-                x: pixelPos.x,
-                y: pixelPos.y,
-                width: localSizes[table.id]?.w ?? ((!table.width || table.width <= 10) ? (table.shape === 'RECTANGLE' ? 140 : 110) : table.width),
-                height: localSizes[table.id]?.h ?? ((!table.height || table.height <= 10) ? (table.shape === 'RECTANGLE' ? 70 : 110) : table.height),
-              }}
-              isSelected={selectedTableId === table.id}
-              onClick={() => onSelectTable(table)}
-              onDragMove={handleDragMove}
-              onDragEnd={handleDragEnd}
-              onResize={handleResize}
-              onResizeEnd={handleResizeEnd}
-              staff={staff}
-              onCapacityChange={onCapacityChange}
-              onServerChange={onServerChange}
-              isLayoutEditable={isLayoutEditable}
-            />
-          );
-        })}
-
-        {/* Drag / Edit layout hint */}
-        <div className="absolute bottom-3 right-3 flex items-center gap-1.5 text-zinc-600 text-[10px] pointer-events-none">
-          {isLayoutEditable ? (
-            <>
-              <Move className="size-3 text-emerald-400 animate-pulse" />
-              <span className="text-emerald-400 font-medium">{t.floorPlan.dragToMove}</span>
-            </>
-          ) : (
-            <>
-              <Pencil className="size-3 text-zinc-500" />
-              <span>{t.floorPlan.clickEditLayoutToMove}</span>
-            </>
-          )}
+          </div>
         </div>
       </div>
     </div>
   );
 }
-
 /* ─── Table Detail Sheet ─── */
 
 function TableDetailSheet({

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -128,6 +128,34 @@ export default function LandingPage() {
   // Dialog Overlay Visibility States
   const [isReserveOpen, setIsReserveOpen] = useState(false);
   const [isPlanOpen, setIsPlanOpen] = useState(false);
+
+  // Zoom & Auto-Fit state for Floor Plan
+  const [zoom, setZoom] = useState(1);
+  const canvasWrapperRef = useRef<HTMLDivElement>(null);
+
+  const handleAutoFit = () => {
+    if (canvasWrapperRef.current) {
+      const parentWidth = canvasWrapperRef.current.clientWidth;
+      const computedScale = Math.min(1.2, parentWidth / 1210);
+      setZoom(Math.max(0.4, computedScale));
+    }
+  };
+
+  useEffect(() => {
+    if (isPlanOpen) {
+      const timer = setTimeout(() => {
+        handleAutoFit();
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [isPlanOpen]);
+
+  useEffect(() => {
+    if (isPlanOpen) {
+      window.addEventListener('resize', handleAutoFit);
+      return () => window.removeEventListener('resize', handleAutoFit);
+    }
+  }, [isPlanOpen]);
 
   // Core Data States
   const [tables, setTables] = useState<TableInfo[]>([]);
@@ -689,7 +717,7 @@ export default function LandingPage() {
       {/* 2. TABLE FLOOR PLAN CARD OVERLAY MODAL */}
       {/* ============================================================ */}
       <Dialog open={isPlanOpen} onOpenChange={setIsPlanOpen}>
-        <DialogContent className="max-w-4xl bg-zinc-950 border-[#BC9B6A]/30 text-zinc-100 rounded-none p-6">
+        <DialogContent className="max-w-7xl bg-zinc-950 border-[#BC9B6A]/30 text-zinc-100 rounded-none p-6">
           <DialogHeader>
             <DialogTitle className="font-serif text-2xl font-bold tracking-wide text-zinc-100 flex items-center justify-between">
               <span>Interactive Restaurant Floor Plan</span>
@@ -743,21 +771,91 @@ export default function LandingPage() {
               </Select>
             </div>
 
-            {/* Scrollable Floor plan canvas wrapper */}
-            <div className="w-full overflow-x-auto border border-[#BC9B6A]/10 rounded-none bg-zinc-950 p-1 shadow-inner scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
-              <div className="relative w-[800px] h-[533px] shrink-0 bg-[radial-gradient(#1c2e24_1px,transparent_1px)] bg-[size:16px_16px] overflow-hidden">
+            {/* Zoom Controls Toolbar */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-zinc-900 border border-[#BC9B6A]/10 p-3 rounded-none">
+              <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-400">
+                Floor Plan Sizing
+              </span>
+              <div className="flex items-center gap-1.5 bg-zinc-955 border border-[#BC9B6A]/20 p-1">
+                <span className="text-[10px] font-bold text-[#BC9B6A] px-2">
+                  Zoom: {Math.round(zoom * 100)}%
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setZoom(prev => Math.max(0.4, prev - 0.1))}
+                  className="size-7 border border-[#BC9B6A]/10 text-zinc-400 hover:text-[#BC9B6A] hover:bg-zinc-900"
+                >
+                  <Minus className="size-3.5" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setZoom(1)}
+                  className="h-7 px-2 text-[10px] font-bold uppercase tracking-wider border border-[#BC9B6A]/10 text-zinc-400 hover:text-[#BC9B6A] hover:bg-zinc-900"
+                >
+                  100%
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleAutoFit}
+                  className="h-7 px-2 text-[10px] font-bold uppercase tracking-wider border border-[#BC9B6A]/10 text-zinc-400 hover:text-[#BC9B6A] hover:bg-zinc-900"
+                >
+                  Fit
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setZoom(prev => Math.min(1.5, prev + 0.1))}
+                  className="size-7 border border-[#BC9B6A]/10 text-zinc-400 hover:text-[#BC9B6A] hover:bg-zinc-900"
+                >
+                  <Plus className="size-3.5" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Scrollable Floor plan canvas wrapper - dynamic scale */}
+            <div 
+              ref={canvasWrapperRef}
+              className="w-full overflow-auto max-h-[60vh] border border-[#BC9B6A]/10 rounded-none bg-zinc-950 p-1 shadow-inner scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent"
+            >
+              <div 
+                style={{
+                  width: `${1200 * zoom}px`,
+                  height: `${800 * zoom}px`,
+                  transition: 'width 0.2s ease-out, height 0.2s ease-out'
+                }}
+                className="relative shrink-0 overflow-hidden"
+              >
+                <div 
+                  style={{
+                    transform: `scale(${zoom})`,
+                    transformOrigin: 'top left',
+                    width: '1200px',
+                    height: '800px',
+                    transition: 'transform 0.2s ease-out'
+                  }}
+                  className="absolute top-0 left-0 bg-[radial-gradient(#1c2e24_1px,transparent_1px)] bg-[size:16px_16px] overflow-hidden"
+                >
                 
+                {/* Section Grid Dividers */}
+                <div className="absolute top-[400px] left-0 w-full border-t border-dashed border-zinc-900/40 pointer-events-none z-0" />
+                <div className="absolute left-[600px] top-0 h-full border-l border-dashed border-zinc-900/40 pointer-events-none z-0" />
+
                 {/* Section labels */}
-                <div className="absolute top-4 left-4 text-[9px] font-black uppercase text-zinc-700 tracking-widest pointer-events-none select-none">
+                <div className="absolute top-4 left-4 text-[10px] font-black uppercase text-zinc-700 tracking-widest pointer-events-none select-none z-0">
                   {t.floorPlan.mainDining}
                 </div>
-                <div className="absolute top-4 right-4 text-[9px] font-black uppercase text-zinc-700 tracking-widest pointer-events-none select-none">
+                <div className="absolute top-4 left-[620px] text-[10px] font-black uppercase text-zinc-700 tracking-widest pointer-events-none select-none z-0">
                   {t.floorPlan.bar}
                 </div>
-                <div className="absolute bottom-4 left-4 text-[9px] font-black uppercase text-zinc-700 tracking-widest pointer-events-none select-none">
+                <div className="absolute top-[420px] left-4 text-[10px] font-black uppercase text-zinc-700 tracking-widest pointer-events-none select-none z-0">
                   {t.floorPlan.patio}
                 </div>
-                <div className="absolute bottom-4 right-4 text-[9px] font-black uppercase text-zinc-700 tracking-widest pointer-events-none select-none">
+                <div className="absolute top-[420px] left-[620px] text-[10px] font-black uppercase text-zinc-700 tracking-widest pointer-events-none select-none z-0">
                   {t.floorPlan.vip}
                 </div>
 
@@ -773,10 +871,10 @@ export default function LandingPage() {
                     const isRound = table.shape === 'ROUND';
 
                     const coords = getTableCoords(table);
-                    const left = `${(coords.x / 1200) * 100}%`;
-                    const top = `${(coords.y / 800) * 100}%`;
-                    const width = `${(coords.w / 1200) * 100}%`;
-                    const height = `${(coords.h / 800) * 100}%`;
+                    const left = `${coords.x}px`;
+                    const top = `${coords.y}px`;
+                    const width = `${coords.w}px`;
+                    const height = `${coords.h}px`;
 
                     return (
                       <button
@@ -790,7 +888,7 @@ export default function LandingPage() {
                         }}
                         style={{ left, top, width, height }}
                         className={cn(
-                          "absolute text-[9px] font-bold border flex flex-col items-center justify-center transition-all p-1 select-none focus:outline-none z-10",
+                          "absolute text-xs font-bold border flex flex-col items-center justify-center transition-all p-2 select-none focus:outline-none z-10",
                           isRound ? "rounded-full" : "rounded-none",
                           isSelected 
                             ? "bg-[#005d2f]/30 border-[#BC9B6A] text-[#BC9B6A] shadow-[0_0_15px_rgba(188,155,106,0.5)] scale-[1.03] z-20" 
@@ -802,7 +900,7 @@ export default function LandingPage() {
                         )}
                       >
                         <span className="truncate max-w-full leading-none">{table.name}</span>
-                        <span className="text-[8px] opacity-75 font-normal mt-0.5">({table.capacity}p)</span>
+                        <span className="text-[9px] opacity-75 font-normal mt-1">({table.capacity}p)</span>
                       </button>
                     );
                   })
@@ -811,6 +909,7 @@ export default function LandingPage() {
                     No tables found.
                   </div>
                 )}
+                </div>
               </div>
             </div>
 
