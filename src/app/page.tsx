@@ -384,7 +384,16 @@ export default function LandingPage() {
             {restaurantName}
           </span>
         </div>
-        <LanguageSwitcher variant="flag-only" />
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            onClick={() => router.push('/management')}
+            className="text-xs font-bold text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 border border-zinc-850 rounded-xl px-4 h-9"
+          >
+            Staff Portal
+          </Button>
+          <LanguageSwitcher variant="flag-only" />
+        </div>
       </header>
 
       {/* Hero & Interactive Area */}
@@ -496,12 +505,11 @@ export default function LandingPage() {
               
               {/* Plan Tab */}
               {activeTab === 'plan' && (
-                <div className="space-y-6 flex-1 flex flex-col justify-between">
-                  <div className="space-y-4">
+                <div className="space-y-6 flex-1 flex flex-col justify-between">                  <div className="space-y-4">
                     <div className="flex items-center justify-between flex-wrap gap-2">
                       <div>
                         <h2 className="text-base font-bold text-zinc-100">Visual Restaurant Layout</h2>
-                        <p className="text-[10px] text-zinc-550 mt-0.5">Click any free table (green) to select it.</p>
+                        <p className="text-[10px] text-zinc-500 mt-0.5">Click a table on the layout or choose from the list.</p>
                       </div>
                       
                       {/* Map Status Legends */}
@@ -521,25 +529,46 @@ export default function LandingPage() {
                       </div>
                     </div>
 
-                    {/* Floor Plan Viewport */}
-                    <div className="relative w-full aspect-[3/2] rounded-2xl bg-zinc-950 border border-zinc-850 overflow-hidden shadow-inner bg-[radial-gradient(zinc-900_1px,transparent_1px)] bg-[size:16px_16px]">
-                      {/* Section Grid Dividers */}
-                      <div className="absolute top-1/2 left-0 w-full border-t border-dashed border-zinc-900/60 pointer-events-none z-0" />
-                      <div className="absolute left-1/2 top-0 h-full border-l border-dashed border-zinc-900/60 pointer-events-none z-0" />
-                      
-                      {/* Section Labels */}
-                      <div className="absolute top-3.5 left-4 text-[9px] font-black uppercase text-zinc-700 tracking-widest pointer-events-none select-none z-0">
-                        {t.floorPlan.mainDining}
-                      </div>
-                      <div className="absolute top-3.5 right-4 text-[9px] font-black uppercase text-zinc-700 tracking-widest pointer-events-none select-none z-0">
-                        {t.floorPlan.bar}
-                      </div>
-                      <div className="absolute bottom-3.5 left-4 text-[9px] font-black uppercase text-zinc-700 tracking-widest pointer-events-none select-none z-0">
-                        {t.floorPlan.patio}
-                      </div>
-                      <div className="absolute bottom-3.5 right-4 text-[9px] font-black uppercase text-zinc-700 tracking-widest pointer-events-none select-none z-0">
-                        {t.floorPlan.vip}
-                      </div>
+                    {/* Table Select Dropdown Fallback */}
+                    <div className="space-y-1">
+                      <Select value={selectedTableId} onValueChange={setSelectedTableId}>
+                        <SelectTrigger className="h-10 px-4 bg-zinc-950/40 border-zinc-800 rounded-xl text-zinc-200 text-xs font-semibold focus:ring-primary/40 focus:ring-offset-0">
+                          <SelectValue placeholder="Select table from list..." />
+                        </SelectTrigger>
+                        <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200">
+                          {tables.map((table) => (
+                            <SelectItem 
+                              key={table.id} 
+                              value={table.id}
+                              className="text-xs font-medium focus:bg-zinc-800 focus:text-zinc-100 cursor-pointer"
+                            >
+                              {table.name} ({table.capacity} seats) — {table.status === 'FREE' ? '🟢 Free' : table.status === 'RESERVED' ? '🔵 Reserved' : '🟡 Occupied'}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Floor Plan Viewport - Scrollable on mobile with a fixed canvas size */}
+                    <div className="w-full overflow-x-auto overflow-y-hidden border border-zinc-855 rounded-2xl bg-zinc-950 p-1 shadow-inner scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+                      <div className="relative w-[800px] h-[533px] shrink-0 bg-[radial-gradient(zinc-900_1px,transparent_1px)] bg-[size:16px_16px] overflow-hidden rounded-xl">
+                        {/* Section Grid Dividers */}
+                        <div className="absolute top-1/2 left-0 w-full border-t border-dashed border-zinc-900/60 pointer-events-none z-0" />
+                        <div className="absolute left-1/2 top-0 h-full border-l border-dashed border-zinc-900/60 pointer-events-none z-0" />
+                        
+                        {/* Section Labels */}
+                        <div className="absolute top-3.5 left-4 text-[9px] font-black uppercase text-zinc-700 tracking-widest pointer-events-none select-none z-0">
+                          {t.floorPlan.mainDining}
+                        </div>
+                        <div className="absolute top-3.5 right-4 text-[9px] font-black uppercase text-zinc-700 tracking-widest pointer-events-none select-none z-0">
+                          {t.floorPlan.bar}
+                        </div>
+                        <div className="absolute bottom-3.5 left-4 text-[9px] font-black uppercase text-zinc-700 tracking-widest pointer-events-none select-none z-0">
+                          {t.floorPlan.patio}
+                        </div>
+                        <div className="absolute bottom-3.5 right-4 text-[9px] font-black uppercase text-zinc-700 tracking-widest pointer-events-none select-none z-0">
+                          {t.floorPlan.vip}
+                        </div>
 
                       {loading ? (
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-zinc-500 text-xs">
@@ -574,7 +603,7 @@ export default function LandingPage() {
                                   : isFree
                                     ? "bg-emerald-950/10 border-emerald-500/40 text-emerald-400 hover:border-emerald-400 hover:bg-emerald-950/20"
                                     : table.status === 'RESERVED'
-                                      ? "bg-sky-955/10 border-sky-500/40 text-sky-400 hover:border-sky-450 hover:bg-sky-955/20"
+                                      ? "bg-sky-955/10 border-sky-500/40 text-sky-400 hover:border-sky-400 hover:bg-sky-955/20"
                                       : "bg-amber-955/10 border-amber-500/40 text-amber-400 hover:border-amber-450 hover:bg-amber-955/20"
                               )}
                             >
@@ -588,6 +617,7 @@ export default function LandingPage() {
                           No tables found.
                         </div>
                       )}
+                      </div>
                     </div>
                   </div>
 
