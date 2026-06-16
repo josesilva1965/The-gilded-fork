@@ -23,9 +23,10 @@ export const TRANSLATIONS = {
     heroStatHomemade: "Fait Maison",
     heroStatAtmosphere: "Atmosphère",
     seasonalSelection: "Sélection de Saison",
-    seasonalItemTitle: "L'Expresso Truffé Épicé",
-    seasonalItemDesc: "Notre boisson signature du mois : café de spécialité guatémaltèque, éclats de truffe au chocolat noir et zestes d'anis.",
+    seasonalItemTitle: "La Côte de Bœuf Tomahawk Maturée",
+    seasonalItemDesc: "Côte de bœuf de qualité supérieure maturée 45 jours, grillée au bois de cerisier, servie avec beurre de romarin fumé et fleur de sel.",
     viewMenuLink: "Voir le menu →",
+    orderOnline: "Commander en Ligne",
 
     // About Section
     aboutLabel: "Notre Philosophie",
@@ -169,9 +170,10 @@ export const TRANSLATIONS = {
     heroStatHomemade: "Homemade",
     heroStatAtmosphere: "Bespoke Vibe",
     seasonalSelection: "Seasonal Selection",
-    seasonalItemTitle: "Spiced Truffle Espresso",
-    seasonalItemDesc: "Our signature beverage of the month: specialty Guatemalan espresso, flakes of premium dark chocolate truffles, and star anise zests.",
+    seasonalItemTitle: "Dry-Aged Tomahawk Steak",
+    seasonalItemDesc: "45-day dry-aged premium beef steak, grilled over cherrywood, served with smoked rosemary butter and fleur de sel.",
     viewMenuLink: "View the menu →",
+    orderOnline: "Order Online",
 
     // About Section
     aboutLabel: "Our Philosophy",
@@ -315,9 +317,10 @@ export const TRANSLATIONS = {
     heroStatHomemade: "Hecho en Casa",
     heroStatAtmosphere: "Atmósfera Única",
     seasonalSelection: "Selección de Temporada",
-    seasonalItemTitle: "Espresso de Trufa y Especias",
-    seasonalItemDesc: "Nuestra bebida firma del mes: café de especialidad de Guatemala, astillas de trufas de chocolate negro y ralladura de anís.",
+    seasonalItemTitle: "Chuletón Tomahawk Madurado",
+    seasonalItemDesc: "Chuletón de ternera premium madurado durante 45 días, asado a la leña de cerezo, servido con mantequilla de romero ahumada y flor de sal.",
     viewMenuLink: "Ver el menú →",
+    orderOnline: "Pedir Online",
 
     // About Section
     aboutLabel: "Nuestra Filosofía",
@@ -461,9 +464,10 @@ export const TRANSLATIONS = {
     heroStatHomemade: "Feito em Casa",
     heroStatAtmosphere: "Ambiente Íntimo",
     seasonalSelection: "Seleção de Época",
-    seasonalItemTitle: "Espresso de Trufa e Especiarias",
-    seasonalItemDesc: "A nossa bebida de assinatura do mês: café de especialidade da Guatemala, raspas de trufa de chocolate preto e sementes de anis.",
+    seasonalItemTitle: "Tomahawk de Boi Maturado",
+    seasonalItemDesc: "Tomahawk premium maturado por 45 dias, grelhado em lenha de cerejeira, servido com manteiga de alecrim fumada e flor de sal.",
     viewMenuLink: "Ver o menu →",
+    orderOnline: "Pedir Online",
 
     // About Section
     aboutLabel: "A Nossa Filosofia",

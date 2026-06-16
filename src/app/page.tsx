@@ -286,6 +286,29 @@ export default function LandingPage() {
     }
   };
 
+  // Fixed browse menu logic (never disabled)
+  const handleBrowseMenu = () => {
+    if (selectedTableId) {
+      const table = tables.find(t => t.id === selectedTableId);
+      if (table) {
+        router.push(`/table/${table.number}`);
+        return;
+      }
+    }
+    
+    // Fallback: browse using the first active table
+    const firstTable = tables.length > 0 ? tables[0] : null;
+    if (firstTable) {
+      router.push(`/table/${firstTable.number}?preview=true`);
+      toast({
+        title: 'Entering Menu Preview',
+        description: `Browsing menu as guest. Select Table ${firstTable.number} or select another table on the plan to start ordering.`,
+      });
+    } else {
+      router.push('/table/1?preview=true');
+    }
+  };
+
   // Detect iOS
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -677,6 +700,14 @@ export default function LandingPage() {
             <LanguageSwitcher variant="flag-only" />
 
             <button
+              onClick={handleBrowseMenu}
+              className="px-5 py-2.5 bg-transparent border border-emerald-500/35 hover:bg-emerald-500/10 text-emerald-400 rounded-full font-sans text-xs uppercase font-extrabold tracking-wider transition-all duration-300 active:scale-95 cursor-pointer flex items-center gap-1.5"
+            >
+              <ShoppingBag className="size-3.5" />
+              <span>{ccT.orderOnline || 'Order Online'}</span>
+            </button>
+
+            <button
               onClick={() => handleSmoothScroll('reservation')}
               className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-500 text-zinc-950 rounded-full font-sans text-xs uppercase font-extrabold tracking-wider transition-all duration-300 shadow-md hover:shadow-emerald-500/20 active:scale-95 cursor-pointer"
               style={{ color: 'var(--primary-foreground)' }}
@@ -744,6 +775,16 @@ export default function LandingPage() {
             >
               {ccT.navFeedback}
             </button>
+            <button
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                handleBrowseMenu();
+              }}
+              className="block w-full text-left px-4 py-3 rounded-md text-sm font-sans tracking-wider uppercase text-emerald-400 font-bold flex items-center gap-2"
+            >
+              <ShoppingBag className="size-4" />
+              <span>{ccT.orderOnline || 'Order Online'}</span>
+            </button>
           </div>
         </div>
       </header>
@@ -792,9 +833,17 @@ export default function LandingPage() {
                 {/* Action Buttons */}
                 <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-4">
                   <button
-                    onClick={() => handleSmoothScroll('menu')}
+                    onClick={handleBrowseMenu}
                     className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-emerald-600 to-teal-500 text-zinc-950 font-extrabold uppercase tracking-wider text-xs rounded-full transition-all duration-300 shadow-lg hover:shadow-emerald-500/20 flex items-center justify-center space-x-2 group active:scale-95 cursor-pointer"
                     style={{ color: 'var(--primary-foreground)' }}
+                  >
+                    <ShoppingBag className="h-3.5 w-3.5" />
+                    <span>{ccT.orderOnline || 'Order Online'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleSmoothScroll('menu')}
+                    className="w-full sm:w-auto px-8 py-4 bg-zinc-900/60 hover:bg-zinc-900 text-zinc-200 border border-zinc-800 hover:border-zinc-750 font-semibold uppercase tracking-wider text-xs rounded-full transition-all duration-300 flex items-center justify-center space-x-2 group active:scale-95 cursor-pointer"
                   >
                     <span>{ccT.heroCtaMenu}</span>
                     <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1" />
@@ -802,7 +851,7 @@ export default function LandingPage() {
 
                   <button
                     onClick={() => handleSmoothScroll('reservation')}
-                    className="w-full sm:w-auto px-8 py-4 bg-transparent hover:bg-zinc-900/50 text-zinc-100 font-semibold uppercase tracking-wider text-xs rounded-full border border-zinc-700 hover:border-zinc-500 transition-all duration-300 flex items-center justify-center cursor-pointer"
+                    className="w-full sm:w-auto px-8 py-4 bg-transparent hover:bg-zinc-900/50 text-zinc-350 border border-zinc-800 hover:border-zinc-700 font-semibold uppercase tracking-wider text-xs rounded-full transition-all duration-300 flex items-center justify-center cursor-pointer"
                   >
                     {ccT.heroCtaReserve}
                   </button>
@@ -830,8 +879,8 @@ export default function LandingPage() {
                 <div className="relative group overflow-hidden rounded-2xl border border-zinc-900 bg-zinc-950/70 p-4 backdrop-blur-xl transition-all duration-500 hover:border-emerald-500/35">
                   <div className="relative aspect-[3/4] overflow-hidden rounded-xl">
                     <img
-                      src="https://images.unsplash.com/photo-1507133750040-4a8f57021571?q=80&w=900&auto=format&fit=crop"
-                      alt="Signature Cup"
+                      src="https://images.unsplash.com/photo-1600891964599-f61ba0e24092?q=80&w=900&auto=format&fit=crop"
+                      alt="Signature Dry-Aged Tomahawk Steak"
                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                       referrerPolicy="no-referrer"
                     />
@@ -844,7 +893,7 @@ export default function LandingPage() {
                     <h3 className="font-serif text-base font-bold text-zinc-100">{ccT.seasonalItemTitle}</h3>
                     <p className="text-xs font-sans text-zinc-400 mt-1">{ccT.seasonalItemDesc}</p>
                     <div className="mt-3 flex items-center justify-between">
-                      <span className="font-mono text-emerald-400 text-xs font-bold">6.20€</span>
+                      <span className="font-mono text-emerald-400 text-xs font-bold">89.00€</span>
                       <button 
                         onClick={() => handleSmoothScroll('menu')}
                         className="text-[10px] uppercase tracking-wider font-mono text-zinc-300 hover:text-emerald-400 font-bold flex items-center gap-1 transition-colors cursor-pointer"
