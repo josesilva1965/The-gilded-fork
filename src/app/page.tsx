@@ -879,7 +879,7 @@ export default function LandingPage() {
                 <div className="relative group overflow-hidden rounded-2xl border border-zinc-900 bg-zinc-950/70 p-4 backdrop-blur-xl transition-all duration-500 hover:border-emerald-500/35">
                   <div className="relative aspect-[3/4] overflow-hidden rounded-xl">
                     <img
-                      src="https://images.unsplash.com/photo-1627662236973-4f8259124471?q=80&w=900&auto=format&fit=crop"
+                      src="/tomahawk-steak.png"
                       alt="Signature Dry-Aged Tomahawk Steak"
                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                       referrerPolicy="no-referrer"
