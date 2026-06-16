@@ -421,31 +421,31 @@ export default function LandingPage() {
   }, [tables, selectedTableId]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans relative flex flex-col justify-between overflow-x-hidden selection:bg-[#BC9B6A] selection:text-zinc-950">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans relative flex flex-col justify-between overflow-x-hidden selection:bg-emerald-500 selection:text-zinc-950">
       
       {/* Premium Ambient Backgrounds */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[600px] bg-[radial-gradient(circle_at_top,_rgba(0,93,47,0.15)_0%,_transparent_70%)] opacity-[0.8] pointer-events-none z-0" />
-      <div className="absolute top-[20%] left-[10%] w-[350px] h-[350px] bg-[#005d2f]/5 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[20%] right-[5%] w-[450px] h-[450px] bg-[#BC9B6A]/5 rounded-full blur-[140px] pointer-events-none" />
-      {/* Centered S&W Header Layout */}
-      <header className="relative z-10 max-w-7xl w-full mx-auto px-6 py-8 flex flex-col items-center gap-6 border-b border-[#BC9B6A]/10">
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[600px] bg-[radial-gradient(circle_at_top,_var(--primary)_0%,_transparent_75%)] opacity-[0.25] pointer-events-none z-0" />
+      <div className="absolute top-[15%] left-[5%] w-[450px] h-[450px] bg-emerald-500/10 rounded-full blur-[150px] pointer-events-none" />
+      <div className="absolute bottom-[15%] right-[5%] w-[500px] h-[500px] bg-emerald-600/5 rounded-full blur-[180px] pointer-events-none" />
+      {/* Centered Dynamic Header Layout */}
+      <header className="relative z-10 max-w-7xl w-full mx-auto px-6 py-8 flex flex-col items-center gap-6 border-b border-emerald-500/20">
         <div className="flex items-center gap-3">
           {logoIconType === 'url' && logoUrl ? (
             <img src={logoUrl} alt="logo" className="h-9 w-auto object-contain" />
           ) : (
-            <span className="font-serif font-black text-xl text-[#BC9B6A] tracking-widest">{logoText || 'GF'}</span>
+            <span className="font-serif font-black text-xl text-emerald-400 tracking-widest">{logoText || 'GF'}</span>
           )}
-          <div className="h-4 w-px bg-[#BC9B6A]/30" />
+          <div className="h-4 w-px bg-emerald-500/30" />
           <span className="font-serif font-medium text-base tracking-widest uppercase text-zinc-200">
             {restaurantName}
           </span>
         </div>
         
         {/* Decorative thin line layout */}
-        <div className="w-16 h-px bg-[#BC9B6A]/40" />
+        <div className="w-16 h-px bg-emerald-500/40" />
 
         {/* Global Controls */}
-        <div className="flex items-center gap-6 text-[10px] uppercase font-bold tracking-widest text-[#BC9B6A]">
+        <div className="flex items-center gap-6 text-[10px] uppercase font-bold tracking-widest text-emerald-400">
           <LanguageSwitcher variant="flag-only" />
         </div>
       </header>
@@ -459,9 +459,9 @@ export default function LandingPage() {
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="border border-[#BC9B6A]/20 bg-zinc-955 p-3 shadow-2xl hover:border-[#BC9B6A]/50 transition-colors duration-300 text-left"
+            className="border border-emerald-500/20 bg-zinc-950/40 backdrop-blur-md p-3 shadow-[0_4px_30px_rgba(0,0,0,0.5)] hover:border-emerald-500/50 hover:shadow-[0_0_30px_rgba(16,185,129,0.15)] transition-all duration-300 text-left"
           >
-            <div className="relative aspect-[3/4] w-full overflow-hidden mb-3 bg-zinc-900">
+            <div className="relative aspect-[3/4] w-full overflow-hidden mb-3 bg-zinc-900 border border-emerald-500/10">
               <img 
                 src="/gourmet_steak_dish.png" 
                 alt={t.landing.signatureCutsTitle} 
@@ -470,7 +470,7 @@ export default function LandingPage() {
               <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-transparent pointer-events-none" />
             </div>
             <h3 className="font-serif text-sm font-bold text-zinc-100 tracking-wide">{t.landing.signatureCutsTitle}</h3>
-            <p className="text-[10px] text-[#BC9B6A] italic mt-1 font-serif">{t.landing.signatureCutsDesc}</p>
+            <p className="text-[10px] text-emerald-400/90 italic mt-1 font-serif">{t.landing.signatureCutsDesc}</p>
           </motion.div>
         </div>
 
@@ -492,10 +492,10 @@ export default function LandingPage() {
           </div>
           
           <div className="space-y-4 max-w-2xl mt-4">
-            <h1 className="font-serif text-5xl sm:text-6xl font-bold tracking-tight text-zinc-100 leading-tight">
+            <h1 className="font-serif text-5xl sm:text-7xl font-black tracking-tight leading-none bg-gradient-to-br from-white via-zinc-100 to-emerald-400 bg-clip-text text-transparent filter drop-shadow-[0_2px_10px_rgba(255,255,255,0.05)]">
               {restaurantName}
             </h1>
-            <h2 className="font-serif text-lg sm:text-xl italic text-[#BC9B6A] font-medium tracking-wide">
+            <h2 className="font-serif text-lg sm:text-2xl italic bg-gradient-to-r from-emerald-400 via-emerald-300 to-emerald-500 bg-clip-text text-transparent font-semibold tracking-wide drop-shadow-[0_0_15px_rgba(16,185,129,0.1)]">
               {t.landing.tagline}
             </h2>
           </div>
@@ -505,17 +505,18 @@ export default function LandingPage() {
         <div className="flex flex-col sm:flex-row items-center gap-5 w-full max-w-lg mt-4">
           <Button
             onClick={() => setIsReserveOpen(true)}
-            className="w-full sm:flex-1 h-14 bg-[#005d2f] text-[#F1F6E7] border border-[#BC9B6A] hover:bg-[#005d2f]/90 transition-all font-serif font-bold text-sm uppercase tracking-wider rounded-none shadow-[0_4px_15px_rgba(0,93,47,0.25)]"
+            className="w-full sm:flex-1 h-14 bg-gradient-to-r from-emerald-600 to-teal-500 text-zinc-950 font-black border border-emerald-400/40 hover:from-emerald-500 hover:to-teal-400 transition-all duration-300 font-serif text-sm uppercase tracking-wider rounded-none shadow-[0_0_25px_rgba(16,185,129,0.35)] hover:shadow-[0_0_35px_rgba(16,185,129,0.5)] transform hover:-translate-y-0.5 active:translate-y-0"
+            style={{ color: 'var(--primary-foreground)' }}
           >
-            <Calendar className="size-4.5 mr-2 text-[#BC9B6A]" />
+            <Calendar className="size-4.5 mr-2 text-zinc-950" style={{ color: 'var(--primary-foreground)' }} />
             {t.landing.bookTableBtn}
           </Button>
 
           <Button
             onClick={() => setIsPlanOpen(true)}
-            className="w-full sm:flex-1 h-14 bg-transparent text-[#BC9B6A] border border-[#BC9B6A] hover:bg-[#BC9B6A]/10 transition-all font-serif font-bold text-sm uppercase tracking-wider rounded-none"
+            className="w-full sm:flex-1 h-14 bg-zinc-955/60 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/10 hover:border-emerald-400 hover:text-emerald-300 transition-all duration-300 font-serif font-bold text-sm uppercase tracking-wider rounded-none backdrop-blur-sm shadow-[0_0_15px_rgba(0,0,0,0.3)] hover:shadow-[0_0_20px_rgba(16,185,129,0.1)]"
           >
-            <Map className="size-4.5 mr-2" />
+            <Map className="size-4.5 mr-2 text-emerald-400" />
             {activeTableName ? t.landing.tableSelectedLabel.replace('{name}', activeTableName) : t.landing.selectTableBtn}
           </Button>
         </div>
@@ -524,10 +525,10 @@ export default function LandingPage() {
         <div className="flex flex-col items-center gap-2">
           <button
             onClick={handleBrowseMenu}
-            className="font-serif text-sm tracking-widest uppercase font-semibold text-[#BC9B6A] hover:text-[#BC9B6A]/80 transition-colors flex items-center gap-1.5 border-b border-dashed border-[#BC9B6A] pb-1"
+            className="font-serif text-sm tracking-widest uppercase font-semibold text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1.5 border-b border-dashed border-emerald-400/60 pb-1 hover:border-emerald-300"
           >
             <span>{t.landing.browseMenuBtn}</span>
-            <ChevronRight className="size-4" />
+            <ChevronRight className="size-4 text-emerald-400 animate-pulse" />
           </button>
           {activeTableName && (
             <p className="text-[10px] text-emerald-400 font-semibold tracking-wider uppercase">
@@ -535,8 +536,7 @@ export default function LandingPage() {
             </p>
           )}
         </div>
-
-        {/* Guest PWA Install Button — always visible */}
+        {/* Guest PWA Install Button — always visible */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -553,7 +553,7 @@ export default function LandingPage() {
               <Button
                 onClick={handleInstall}
                 disabled={installing}
-                className="h-12 px-8 bg-transparent text-[#BC9B6A] border border-[#BC9B6A]/40 hover:bg-[#BC9B6A]/10 hover:border-[#BC9B6A] transition-all font-serif font-bold text-xs uppercase tracking-widest rounded-none shadow-[0_0_20px_rgba(188,155,106,0.08)]"
+                className="h-12 px-8 bg-zinc-950/60 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/10 hover:border-emerald-400 transition-all duration-300 font-serif font-bold text-xs uppercase tracking-widest rounded-none shadow-[0_0_20px_rgba(16,185,129,0.08)] hover:shadow-[0_0_25px_rgba(16,185,129,0.15)]"
               >
                 {installing ? (
                   <Loader2 className="size-4 mr-2 animate-spin" />
@@ -562,7 +562,7 @@ export default function LandingPage() {
                 )}
                 {t.landing.installGuestBtn}
               </Button>
-              <p className="text-[9px] text-zinc-600 mt-2 tracking-wide font-sans">
+              <p className="text-[9px] text-zinc-650 mt-2 tracking-wide font-sans">
                 {t.landing.installGuestDesc}
               </p>
             </>
@@ -575,12 +575,12 @@ export default function LandingPage() {
                     description: t.landing.pwaInstructionsIOS,
                   });
                 }}
-                className="h-12 px-8 bg-transparent text-[#BC9B6A] border border-[#BC9B6A]/40 hover:bg-[#BC9B6A]/10 hover:border-[#BC9B6A] transition-all font-serif font-bold text-xs uppercase tracking-widest rounded-none shadow-[0_0_20px_rgba(188,155,106,0.08)]"
+                className="h-12 px-8 bg-zinc-950/60 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/10 hover:border-emerald-400 transition-all duration-300 font-serif font-bold text-xs uppercase tracking-widest rounded-none shadow-[0_0_20px_rgba(16,185,129,0.08)] hover:shadow-[0_0_25px_rgba(16,185,129,0.15)]"
               >
                 <Smartphone className="size-4 mr-2" />
                 {t.landing.installGuestBtn}
               </Button>
-              <p className="text-[9px] text-zinc-600 mt-2 tracking-wide font-sans">
+              <p className="text-[9px] text-zinc-650 mt-2 tracking-wide font-sans">
                 {t.landing.installGuestDesc}
               </p>
             </>
@@ -588,10 +588,10 @@ export default function LandingPage() {
         </motion.div>
 
         {/* Address Card */}
-        <div className="mt-8 p-6 w-full max-w-md border border-[#BC9B6A]/20 bg-zinc-950/40 backdrop-blur-md rounded-none text-left flex flex-col gap-4">
+        <div className="mt-8 p-6 w-full max-w-md border border-emerald-500/20 bg-zinc-950/60 backdrop-blur-md rounded-none text-left flex flex-col gap-4 shadow-[0_4px_30px_rgba(0,0,0,0.4)] hover:border-emerald-500/30 transition-all duration-300">
           <div className="flex gap-4">
-            <div className="p-2.5 h-10 w-10 border border-[#BC9B6A]/30 text-[#BC9B6A] flex items-center justify-center shrink-0">
-              <MapPin className="size-4.5" />
+            <div className="p-2.5 h-10 w-10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0 bg-emerald-950/30">
+              <MapPin className="size-4.5 text-emerald-400" />
             </div>
             <div>
               <h3 className="text-[9px] font-black uppercase text-zinc-500 tracking-widest font-sans">{t.landing.ourAddress}</h3>
@@ -599,13 +599,13 @@ export default function LandingPage() {
             </div>
           </div>
           
-          <div className="grid grid-cols-2 gap-4 border-t border-[#BC9B6A]/10 pt-4 text-[9px] uppercase font-bold tracking-widest text-[#BC9B6A]">
+          <div className="grid grid-cols-2 gap-4 border-t border-emerald-500/10 pt-4 text-[9px] uppercase font-bold tracking-widest text-emerald-400">
             <div className="flex items-center gap-2">
-              <Phone className="size-3.5 shrink-0" />
+              <Phone className="size-3.5 shrink-0 text-emerald-400" />
               <span>+351 210 987 654</span>
             </div>
             <div className="flex items-center gap-2 justify-end">
-              <Mail className="size-3.5 shrink-0" />
+              <Mail className="size-3.5 shrink-0 text-emerald-400" />
               <span>info@gildedfork.com</span>
             </div>
           </div>
@@ -613,28 +613,30 @@ export default function LandingPage() {
 
         {/* Mobile/Tablet Food Display Grid */}
         <div className="xl:hidden grid grid-cols-1 sm:grid-cols-2 gap-6 w-full max-w-2xl mt-8">
-          <div className="border border-[#BC9B6A]/20 bg-zinc-950/40 backdrop-blur-sm p-3 flex flex-col text-left">
-            <div className="relative aspect-[16/10] w-full overflow-hidden mb-3">
+          <div className="border border-emerald-500/20 bg-zinc-950/40 backdrop-blur-sm p-3 flex flex-col text-left hover:border-emerald-500/40 transition-colors">
+            <div className="relative aspect-[16/10] w-full overflow-hidden mb-3 border border-emerald-500/10">
               <img 
                 src="/gourmet_steak_dish.png" 
                 alt={t.landing.signatureCutsTitle} 
                 className="object-cover w-full h-full"
               />
+              <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-transparent pointer-events-none" />
             </div>
             <h3 className="font-serif text-sm font-bold text-zinc-100 tracking-wide">{t.landing.signatureCutsTitle}</h3>
-            <p className="text-[10px] text-[#BC9B6A] italic mt-1 font-serif">{t.landing.signatureCutsDesc}</p>
+            <p className="text-[10px] text-emerald-400 italic mt-1 font-serif">{t.landing.signatureCutsDesc}</p>
           </div>
 
-          <div className="border border-[#BC9B6A]/20 bg-zinc-950/40 backdrop-blur-sm p-3 flex flex-col text-left">
-            <div className="relative aspect-[16/10] w-full overflow-hidden mb-3">
+          <div className="border border-emerald-500/20 bg-zinc-950/40 backdrop-blur-sm p-3 flex flex-col text-left hover:border-emerald-500/40 transition-colors">
+            <div className="relative aspect-[16/10] w-full overflow-hidden mb-3 border border-emerald-500/10">
               <img 
                 src="/gourmet_seafood_dish.png" 
                 alt={t.landing.coastalDelicaciesTitle} 
                 className="object-cover w-full h-full"
               />
+              <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-transparent pointer-events-none" />
             </div>
             <h3 className="font-serif text-sm font-bold text-zinc-100 tracking-wide">{t.landing.coastalDelicaciesTitle}</h3>
-            <p className="text-[10px] text-[#BC9B6A] italic mt-1 font-serif">{t.landing.coastalDelicaciesDesc}</p>
+            <p className="text-[10px] text-emerald-400 italic mt-1 font-serif">{t.landing.coastalDelicaciesDesc}</p>
           </div>
         </div>
 
@@ -646,9 +648,9 @@ export default function LandingPage() {
             initial={{ opacity: 0, x: 30 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="border border-[#BC9B6A]/20 bg-zinc-955 p-3 shadow-2xl hover:border-[#BC9B6A]/50 transition-colors duration-300 text-left"
+            className="border border-emerald-500/20 bg-zinc-950/40 backdrop-blur-md p-3 shadow-[0_4px_30px_rgba(0,0,0,0.5)] hover:border-emerald-500/50 hover:shadow-[0_0_30px_rgba(16,185,129,0.15)] transition-all duration-300 text-left"
           >
-            <div className="relative aspect-[3/4] w-full overflow-hidden mb-3 bg-zinc-900">
+            <div className="relative aspect-[3/4] w-full overflow-hidden mb-3 bg-zinc-900 border border-emerald-500/10">
               <img 
                 src="/gourmet_seafood_dish.png" 
                 alt={t.landing.coastalDelicaciesTitle} 
@@ -657,7 +659,7 @@ export default function LandingPage() {
               <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-transparent pointer-events-none" />
             </div>
             <h3 className="font-serif text-sm font-bold text-zinc-100 tracking-wide">{t.landing.coastalDelicaciesTitle}</h3>
-            <p className="text-[10px] text-[#BC9B6A] italic mt-1 font-serif">{t.landing.coastalDelicaciesDesc}</p>
+            <p className="text-[10px] text-emerald-400/90 italic mt-1 font-serif">{t.landing.coastalDelicaciesDesc}</p>
           </motion.div>
         </div>
 
@@ -667,7 +669,7 @@ export default function LandingPage() {
       {/* 1. RESERVATION CARD OVERLAY MODAL */}
       {/* ============================================================ */}
       <Dialog open={isReserveOpen} onOpenChange={setIsReserveOpen}>
-        <DialogContent className="max-w-xl bg-zinc-900 border-[#BC9B6A]/30 text-zinc-100 rounded-none p-6 sm:p-8">
+        <DialogContent className="max-w-xl bg-zinc-900 border-emerald-500/30 text-zinc-100 rounded-none p-6 sm:p-8">
           <DialogHeader className="text-center sm:text-left">
             <DialogTitle className="font-serif text-2xl font-bold tracking-wide text-zinc-100">
               {t.landing.bookTableModalTitle}
@@ -681,7 +683,7 @@ export default function LandingPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {/* Name */}
               <div className="flex flex-col gap-1.5 text-left">
-                <label className="text-[9px] font-black uppercase tracking-widest text-[#BC9B6A] font-sans">
+                <label className="text-[9px] font-black uppercase tracking-widest text-emerald-400 font-sans">
                   {t.reservations.guestName}
                 </label>
                 <Input
@@ -690,13 +692,13 @@ export default function LandingPage() {
                   placeholder="Marco Rossi"
                   value={resName}
                   onChange={e => setResName(e.target.value)}
-                  className="bg-transparent border-t-0 border-x-0 border-b border-zinc-800 focus:border-[#BC9B6A] focus-visible:ring-0 rounded-none px-0 h-10 text-xs placeholder:text-zinc-700"
+                  className="bg-transparent border-t-0 border-x-0 border-b border-zinc-800 focus:border-emerald-500 focus-visible:ring-0 rounded-none px-0 h-10 text-xs placeholder:text-zinc-700"
                 />
               </div>
               
               {/* Phone */}
               <div className="flex flex-col gap-1.5 text-left">
-                <label className="text-[9px] font-black uppercase tracking-widest text-[#BC9B6A] font-sans">
+                <label className="text-[9px] font-black uppercase tracking-widest text-emerald-400 font-sans">
                   {t.reservations.phone}
                 </label>
                 <Input
@@ -704,7 +706,7 @@ export default function LandingPage() {
                   placeholder="+351 912 345 678"
                   value={resPhone}
                   onChange={e => setResPhone(e.target.value)}
-                  className="bg-transparent border-t-0 border-x-0 border-b border-zinc-800 focus:border-[#BC9B6A] focus-visible:ring-0 rounded-none px-0 h-10 text-xs placeholder:text-zinc-700"
+                  className="bg-transparent border-t-0 border-x-0 border-b border-zinc-800 focus:border-emerald-500 focus-visible:ring-0 rounded-none px-0 h-10 text-xs placeholder:text-zinc-700"
                 />
               </div>
             </div>
@@ -712,7 +714,7 @@ export default function LandingPage() {
             <div className="grid grid-cols-3 gap-4">
               {/* Date */}
               <div className="flex flex-col gap-1.5 text-left">
-                <label className="text-[9px] font-black uppercase tracking-widest text-[#BC9B6A] font-sans">
+                <label className="text-[9px] font-black uppercase tracking-widest text-emerald-400 font-sans">
                   {t.reservations.date}
                 </label>
                 <Input
@@ -720,17 +722,17 @@ export default function LandingPage() {
                   required
                   value={resDate}
                   onChange={e => setResDate(e.target.value)}
-                  className="bg-transparent border-t-0 border-x-0 border-b border-zinc-800 focus:border-[#BC9B6A] focus-visible:ring-0 rounded-none px-0 h-10 text-xs"
+                  className="bg-transparent border-t-0 border-x-0 border-b border-zinc-800 focus:border-emerald-500 focus-visible:ring-0 rounded-none px-0 h-10 text-xs"
                 />
               </div>
 
               {/* Time Slot */}
               <div className="flex flex-col gap-1.5 text-left">
-                <label className="text-[9px] font-black uppercase tracking-widest text-[#BC9B6A] font-sans">
+                <label className="text-[9px] font-black uppercase tracking-widest text-emerald-400 font-sans">
                   {t.reservations.time}
                 </label>
                 <Select value={resTime} onValueChange={setResTime}>
-                  <SelectTrigger className="bg-transparent border-t-0 border-x-0 border-b border-zinc-800 focus:border-[#BC9B6A] focus:ring-0 rounded-none px-0 h-10 text-xs text-zinc-300">
+                  <SelectTrigger className="bg-transparent border-t-0 border-x-0 border-b border-zinc-800 focus:border-emerald-500 focus:ring-0 rounded-none px-0 h-10 text-xs text-zinc-300">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200 text-xs">
@@ -745,11 +747,11 @@ export default function LandingPage() {
 
               {/* Party Size */}
               <div className="flex flex-col gap-1.5 text-left">
-                <label className="text-[9px] font-black uppercase tracking-widest text-[#BC9B6A] font-sans">
+                <label className="text-[9px] font-black uppercase tracking-widest text-emerald-400 font-sans">
                   {t.reservations.partySize}
                 </label>
                 <Select value={resGuests} onOpenChange={() => {}} onValueChange={setResGuests}>
-                  <SelectTrigger className="bg-transparent border-t-0 border-x-0 border-b border-zinc-800 focus:border-[#BC9B6A] focus:ring-0 rounded-none px-0 h-10 text-xs text-zinc-300">
+                  <SelectTrigger className="bg-transparent border-t-0 border-x-0 border-b border-zinc-800 focus:border-emerald-500 focus:ring-0 rounded-none px-0 h-10 text-xs text-zinc-300">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200 text-xs">
@@ -766,7 +768,7 @@ export default function LandingPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {/* Email */}
               <div className="flex flex-col gap-1.5 text-left">
-                <label className="text-[9px] font-black uppercase tracking-widest text-[#BC9B6A] font-sans">
+                <label className="text-[9px] font-black uppercase tracking-widest text-emerald-400 font-sans">
                   {t.landing.emailOptionalLabel}
                 </label>
                 <Input
@@ -774,17 +776,17 @@ export default function LandingPage() {
                   placeholder="client@gildedfork.com"
                   value={resEmail}
                   onChange={e => setResEmail(e.target.value)}
-                  className="bg-transparent border-t-0 border-x-0 border-b border-zinc-800 focus:border-[#BC9B6A] focus-visible:ring-0 rounded-none px-0 h-10 text-xs placeholder:text-zinc-700"
+                  className="bg-transparent border-t-0 border-x-0 border-b border-zinc-800 focus:border-emerald-500 focus-visible:ring-0 rounded-none px-0 h-10 text-xs placeholder:text-zinc-700"
                 />
               </div>
 
               {/* Preferred Available Table Select */}
               <div className="flex flex-col gap-1.5 text-left">
-                <label className="text-[9px] font-black uppercase tracking-widest text-[#BC9B6A] font-sans">
+                <label className="text-[9px] font-black uppercase tracking-widest text-emerald-400 font-sans">
                   {t.landing.tableOptionalLabel}
                 </label>
                 <Select value={resTableId} onValueChange={setResTableId}>
-                  <SelectTrigger className="bg-transparent border-t-0 border-x-0 border-b border-zinc-800 focus:border-[#BC9B6A] focus:ring-0 rounded-none px-0 h-10 text-xs text-zinc-300">
+                  <SelectTrigger className="bg-transparent border-t-0 border-x-0 border-b border-zinc-800 focus:border-emerald-500 focus:ring-0 rounded-none px-0 h-10 text-xs text-zinc-300">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200 text-xs">
@@ -810,25 +812,26 @@ export default function LandingPage() {
 
             {/* Special Notes */}
             <div className="flex flex-col gap-1.5 text-left">
-              <label className="text-[9px] font-black uppercase tracking-widest text-[#BC9B6A] font-sans">
+              <label className="text-[9px] font-black uppercase tracking-widest text-emerald-400 font-sans">
                 {t.reservations.notes}
               </label>
               <Textarea
                 placeholder={t.reservations.specialRequestsPlaceholder}
                 value={resNotes}
                 onChange={e => setResNotes(e.target.value)}
-                className="bg-transparent border border-zinc-800 focus:border-[#BC9B6A] rounded-none px-3 py-2 text-xs placeholder:text-zinc-700 h-16 min-h-16 max-h-16"
+                className="bg-transparent border border-zinc-800 focus:border-emerald-500 rounded-none px-3 py-2 text-xs placeholder:text-zinc-700 h-16 min-h-16 max-h-16"
               />
             </div>
 
             <Button
               type="submit"
               disabled={submittingRes}
-              className="w-full h-12 bg-[#005d2f] text-[#F1F6E7] border border-[#BC9B6A] hover:bg-transparent hover:text-[#BC9B6A] transition-all font-serif font-bold text-xs uppercase tracking-widest rounded-none mt-2"
+              className="w-full h-12 bg-gradient-to-r from-emerald-600 to-teal-500 text-zinc-950 hover:from-emerald-500 hover:to-teal-400 font-serif font-extrabold text-xs uppercase tracking-widest rounded-none mt-2 transition-all duration-300 shadow-[0_0_20px_rgba(16,185,129,0.25)]"
+              style={{ color: 'var(--primary-foreground)' }}
             >
               {submittingRes ? (
                 <>
-                  <Loader2 className="size-4 mr-2 animate-spin" />
+                  <Loader2 className="size-4 mr-2 animate-spin text-zinc-955" />
                   {t.landing.bookingLoading}
                 </>
               ) : (
@@ -843,7 +846,7 @@ export default function LandingPage() {
       {/* 2. TABLE FLOOR PLAN CARD OVERLAY MODAL */}
       {/* ============================================================ */}
       <Dialog open={isPlanOpen} onOpenChange={setIsPlanOpen}>
-        <DialogContent className="max-w-7xl bg-zinc-950 border-[#BC9B6A]/30 text-zinc-100 rounded-none p-6">
+        <DialogContent className="max-w-7xl bg-zinc-950 border-emerald-500/30 text-zinc-100 rounded-none p-6">
           <DialogHeader>
             <DialogTitle className="font-serif text-2xl font-bold tracking-wide text-zinc-100 flex items-center justify-between">
               <span>{t.landing.interactiveFloorPlanTitle}</span>
@@ -880,7 +883,7 @@ export default function LandingPage() {
                   description: t.landing.toastTableSelectedDesc.replace('{name}', tables.find(t => t.id === id)?.name || id)
                 });
               }}>
-                <SelectTrigger className="h-10 px-4 bg-zinc-900 border-zinc-800 rounded-none text-zinc-200 text-xs font-semibold focus:ring-[#BC9B6A]/40 focus:ring-offset-0">
+                <SelectTrigger className="h-10 px-4 bg-zinc-900 border-zinc-800 rounded-none text-zinc-200 text-xs font-semibold focus:ring-emerald-500/40 focus:ring-offset-0">
                   <SelectValue placeholder={t.landing.selectTableDropdownPlaceholder} />
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200">
@@ -898,12 +901,12 @@ export default function LandingPage() {
             </div>
 
             {/* Zoom Controls Toolbar */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-zinc-900 border border-[#BC9B6A]/10 p-3 rounded-none">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-zinc-900 border border-emerald-500/10 p-3 rounded-none">
               <span className="text-[10px] uppercase font-bold tracking-widest text-zinc-400">
                 {t.landing.floorPlanSizingLabel}
               </span>
-              <div className="flex items-center gap-1.5 bg-zinc-955 border border-[#BC9B6A]/20 p-1">
-                <span className="text-[10px] font-bold text-[#BC9B6A] px-2">
+              <div className="flex items-center gap-1.5 bg-zinc-955 border border-emerald-500/20 p-1">
+                <span className="text-[10px] font-bold text-emerald-400 px-2">
                   {t.landing.zoomLabel}: {Math.round(zoom * 100)}%
                 </span>
                 <Button
@@ -911,7 +914,7 @@ export default function LandingPage() {
                   variant="ghost"
                   size="icon"
                   onClick={() => setZoom(prev => Math.max(0.4, prev - 0.1))}
-                  className="size-7 border border-[#BC9B6A]/10 text-zinc-400 hover:text-[#BC9B6A] hover:bg-zinc-900"
+                  className="size-7 border border-emerald-500/10 text-zinc-400 hover:text-emerald-400 hover:bg-zinc-900"
                 >
                   <Minus className="size-3.5" />
                 </Button>
@@ -919,7 +922,7 @@ export default function LandingPage() {
                   type="button"
                   variant="ghost"
                   onClick={() => setZoom(1)}
-                  className="h-7 px-2 text-[10px] font-bold uppercase tracking-wider border border-[#BC9B6A]/10 text-zinc-400 hover:text-[#BC9B6A] hover:bg-zinc-900"
+                  className="h-7 px-2 text-[10px] font-bold uppercase tracking-wider border border-emerald-500/10 text-zinc-400 hover:text-emerald-400 hover:bg-zinc-900"
                 >
                   100%
                 </Button>
@@ -927,7 +930,7 @@ export default function LandingPage() {
                   type="button"
                   variant="ghost"
                   onClick={handleAutoFit}
-                  className="h-7 px-2 text-[10px] font-bold uppercase tracking-wider border border-[#BC9B6A]/10 text-zinc-400 hover:text-[#BC9B6A] hover:bg-zinc-900"
+                  className="h-7 px-2 text-[10px] font-bold uppercase tracking-wider border border-emerald-500/10 text-zinc-400 hover:text-emerald-400 hover:bg-zinc-900"
                 >
                   {t.landing.fitBtn}
                 </Button>
@@ -936,7 +939,7 @@ export default function LandingPage() {
                   variant="ghost"
                   size="icon"
                   onClick={() => setZoom(prev => Math.min(1.5, prev + 0.1))}
-                  className="size-7 border border-[#BC9B6A]/10 text-zinc-400 hover:text-[#BC9B6A] hover:bg-zinc-900"
+                  className="size-7 border border-emerald-500/10 text-zinc-400 hover:text-emerald-400 hover:bg-zinc-900"
                 >
                   <Plus className="size-3.5" />
                 </Button>
@@ -946,7 +949,7 @@ export default function LandingPage() {
             {/* Scrollable Floor plan canvas wrapper - dynamic scale */}
             <div 
               ref={canvasWrapperRef}
-              className="w-full overflow-auto max-h-[60vh] border border-[#BC9B6A]/10 rounded-none bg-zinc-950 p-1 shadow-inner scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent"
+              className="w-full overflow-auto max-h-[60vh] border border-emerald-500/10 rounded-none bg-zinc-950 p-1 shadow-inner scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent"
             >
               <div 
                 style={{
@@ -970,7 +973,7 @@ export default function LandingPage() {
                 {/* Section Grid Dividers */}
                 <div className="absolute top-[400px] left-0 w-full border-t border-dashed border-zinc-900/40 pointer-events-none z-0" />
                 <div className="absolute left-[600px] top-0 h-full border-l border-dashed border-zinc-900/40 pointer-events-none z-0" />
-
+ 
                 {/* Section labels */}
                 <div className="absolute top-4 left-4 text-[10px] font-black uppercase text-zinc-700 tracking-widest pointer-events-none select-none z-0">
                   {t.floorPlan.mainDining}
@@ -987,7 +990,7 @@ export default function LandingPage() {
 
                 {loading ? (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-zinc-500 text-xs">
-                    <Loader2 className="size-6 animate-spin text-[#BC9B6A]" />
+                    <Loader2 className="size-6 animate-spin text-emerald-500" />
                     <span>{t.floorPlan.loadingFloorPlan}</span>
                   </div>
                 ) : tables.length > 0 ? (
@@ -1017,9 +1020,9 @@ export default function LandingPage() {
                           "absolute text-xs font-bold border flex flex-col items-center justify-center transition-all p-2 select-none focus:outline-none z-10",
                           isRound ? "rounded-full" : "rounded-none",
                           isSelected 
-                            ? "bg-[#005d2f]/30 border-[#BC9B6A] text-[#BC9B6A] shadow-[0_0_15px_rgba(188,155,106,0.5)] scale-[1.03] z-20" 
+                            ? "bg-emerald-500/25 border-emerald-400 text-emerald-300 shadow-[0_0_20px_rgba(16,185,129,0.4)] scale-[1.03] z-20" 
                             : isFree
-                              ? "bg-emerald-950/10 border-emerald-500/40 text-emerald-400 hover:border-[#BC9B6A] hover:bg-emerald-950/20"
+                              ? "bg-emerald-950/10 border-emerald-500/40 text-emerald-400 hover:border-emerald-400 hover:bg-emerald-950/20"
                               : table.status === 'RESERVED'
                                 ? "bg-sky-955/10 border-sky-500/40 text-sky-400 hover:bg-sky-955/20"
                                 : "bg-amber-955/10 border-amber-500/40 text-amber-400 hover:bg-amber-955/20"
@@ -1046,10 +1049,11 @@ export default function LandingPage() {
                   setIsPlanOpen(false);
                   handleBrowseMenu();
                 }}
-                className="w-full sm:flex-1 h-12 bg-[#005d2f] text-[#F1F6E7] border border-[#BC9B6A] hover:bg-[#005d2f]/90 transition-all font-serif font-bold text-xs uppercase tracking-widest rounded-none shadow-md"
+                className="w-full sm:flex-1 h-12 bg-gradient-to-r from-emerald-600 to-teal-500 text-zinc-950 font-black border border-emerald-400/40 hover:from-emerald-500 hover:to-teal-400 transition-all duration-300 font-serif text-xs uppercase tracking-widest rounded-none shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.45)]"
+                style={{ color: 'var(--primary-foreground)' }}
               >
                 <span>{t.landing.browseMenuBtn}</span>
-                <ArrowRight className="size-4 ml-2" />
+                <ArrowRight className="size-4 ml-2 text-zinc-950" style={{ color: 'var(--primary-foreground)' }} />
               </Button>
 
               {isInstallable && !isInstalled && (
@@ -1069,7 +1073,7 @@ export default function LandingPage() {
       </Dialog>
 
       {/* Footer & Subtle Staff Portal Link */}
-      <footer className="relative z-10 py-10 text-center border-t border-[#BC9B6A]/10 flex flex-col items-center gap-3 bg-zinc-950/20">
+      <footer className="relative z-10 py-10 text-center border-t border-emerald-500/10 flex flex-col items-center gap-3 bg-zinc-950/20">
         <p className="text-[9px] text-zinc-650 font-bold tracking-widest uppercase select-none font-sans">
           &copy; {new Date().getFullYear()} {restaurantName}. Powered by Antigravity OS
         </p>
@@ -1077,7 +1081,7 @@ export default function LandingPage() {
         {/* Subtle, low-contrast Staff Portal link */}
         <button 
           onClick={() => router.push('/management')}
-          className="text-[8px] text-zinc-700 hover:text-[#BC9B6A] transition-colors font-bold tracking-widest uppercase"
+          className="text-[8px] text-zinc-700 hover:text-emerald-400 transition-colors font-bold tracking-widest uppercase"
         >
           {t.landing.staffPortalAccessBtn}
         </button>
