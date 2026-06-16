@@ -421,315 +421,247 @@ export default function LandingPage() {
   }, [tables, selectedTableId]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans relative flex flex-col overflow-x-hidden selection:bg-[#BC9B6A] selection:text-zinc-950">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans relative flex flex-col justify-between overflow-x-hidden selection:bg-[#BC9B6A] selection:text-zinc-950">
       
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* SECTION 1 — HEADER NAV BAR */}
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      <header className="relative z-20 w-full bg-[#1a2e1f] border-b border-[#BC9B6A]/10">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          {/* Logo + Name */}
-          <div className="flex items-center gap-3">
-            {logoIconType === 'url' && logoUrl ? (
-              <img src={logoUrl} alt="logo" className="h-8 w-auto object-contain" />
-            ) : (
-              <span className="font-serif font-black text-lg text-[#BC9B6A] tracking-widest italic">{logoText || 'GF'}</span>
-            )}
-            <span className="font-serif font-medium text-sm tracking-widest uppercase text-zinc-300 hidden sm:inline">
-              {restaurantName}
-            </span>
-          </div>
+      {/* Premium Ambient Backgrounds */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[600px] bg-[radial-gradient(circle_at_top,_rgba(0,93,47,0.15)_0%,_transparent_70%)] opacity-[0.8] pointer-events-none z-0" />
+      <div className="absolute top-[20%] left-[10%] w-[350px] h-[350px] bg-[#005d2f]/5 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[20%] right-[5%] w-[450px] h-[450px] bg-[#BC9B6A]/5 rounded-full blur-[140px] pointer-events-none" />
+      {/* Centered S&W Header Layout */}
+      <header className="relative z-10 max-w-7xl w-full mx-auto px-6 py-8 flex flex-col items-center gap-6 border-b border-[#BC9B6A]/10">
+        <div className="flex items-center gap-3">
+          {logoIconType === 'url' && logoUrl ? (
+            <img src={logoUrl} alt="logo" className="h-9 w-auto object-contain" />
+          ) : (
+            <span className="font-serif font-black text-xl text-[#BC9B6A] tracking-widest">{logoText || 'GF'}</span>
+          )}
+          <div className="h-4 w-px bg-[#BC9B6A]/30" />
+          <span className="font-serif font-medium text-base tracking-widest uppercase text-zinc-200">
+            {restaurantName}
+          </span>
+        </div>
+        
+        {/* Decorative thin line layout */}
+        <div className="w-16 h-px bg-[#BC9B6A]/40" />
 
-          {/* Nav Links */}
-          <nav className="hidden md:flex items-center gap-8 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
-            <button onClick={() => setIsReserveOpen(true)} className="hover:text-[#BC9B6A] transition-colors">{t.landing.bookTableBtn}</button>
-            <button onClick={handleBrowseMenu} className="hover:text-[#BC9B6A] transition-colors">{t.landing.browseMenuBtn}</button>
-            <button onClick={() => setIsPlanOpen(true)} className="hover:text-[#BC9B6A] transition-colors">{t.nav.floorPlan}</button>
-          </nav>
-
-          {/* Right Controls */}
-          <div className="flex items-center gap-4">
-            <LanguageSwitcher variant="flag-only" />
-            <a href={`tel:+351210987654`} className="hidden sm:flex items-center gap-1.5 text-[10px] text-zinc-400 tracking-widest font-bold uppercase hover:text-[#BC9B6A] transition-colors">
-              <Phone className="size-3" />
-              <span>+351 210 987 654</span>
-            </a>
-          </div>
+        {/* Global Controls */}
+        <div className="flex items-center gap-6 text-[10px] uppercase font-bold tracking-widest text-[#BC9B6A]">
+          <LanguageSwitcher variant="flag-only" />
         </div>
       </header>
 
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* SECTION 2 — FULL-WIDTH HERO (Dark split layout) */}
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      <section className="relative z-10 w-full bg-[#1a2e1f]">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 min-h-[520px] lg:min-h-[600px]">
-          
-          {/* Left — Text Content */}
-          <div className="flex flex-col justify-center px-8 sm:px-12 lg:px-16 py-16 lg:py-24 relative">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              className="max-w-lg"
-            >
-              <p className="text-[10px] font-bold tracking-[0.35em] uppercase text-[#BC9B6A] mb-4">
-                {t.landing.welcome}
-              </p>
-              
-              <h1 className="font-serif text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-[#F1F6E7] leading-[1.05] mb-6">
-                {restaurantName}
-              </h1>
-
-              <p className="font-serif text-sm sm:text-base text-zinc-400 leading-relaxed max-w-md mb-8 italic">
-                {t.landing.tagline}
-              </p>
-
-              {/* Hero CTA Buttons */}
-              <div className="flex flex-wrap items-center gap-4">
-                <Button
-                  onClick={() => setIsPlanOpen(true)}
-                  className="h-12 px-6 bg-transparent text-[#BC9B6A] border border-[#BC9B6A]/50 hover:bg-[#BC9B6A]/10 transition-all font-serif font-bold text-xs uppercase tracking-widest rounded-none"
-                >
-                  <Map className="size-4 mr-2" />
-                  {activeTableName ? t.landing.tableSelectedLabel.replace('{name}', activeTableName) : t.landing.selectTableBtn}
-                </Button>
-                
-                <button
-                  onClick={handleBrowseMenu}
-                  className="font-serif text-xs tracking-widest uppercase font-bold text-[#BC9B6A] hover:text-[#F1F6E7] transition-colors flex items-center gap-1.5 border-b border-dashed border-[#BC9B6A]/40 pb-0.5"
-                >
-                  {t.landing.browseMenuBtn}
-                  <ChevronRight className="size-3.5" />
-                </button>
-              </div>
-
-              {activeTableName && (
-                <p className="text-[10px] text-emerald-400 font-semibold tracking-wider uppercase mt-4">
-                  {t.landing.selectedUnlocked.replace('{name}', activeTableName)}
-                </p>
-              )}
-            </motion.div>
-          </div>
-
-          {/* Right — Hero Image */}
-          <div className="relative overflow-hidden hidden lg:block">
-            <motion.img
-              initial={{ opacity: 0, scale: 1.05 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 1.2 }}
-              src="/gourmet_steak_dish.png"
-              alt={t.landing.signatureCutsTitle}
-              className="absolute inset-0 w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#1a2e1f] via-[#1a2e1f]/30 to-transparent pointer-events-none" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#1a2e1f]/60 via-transparent to-transparent pointer-events-none" />
-          </div>
-
-          {/* Mobile Hero Image */}
-          <div className="relative h-64 sm:h-80 overflow-hidden lg:hidden">
-            <img
-              src="/gourmet_steak_dish.png"
-              alt={t.landing.signatureCutsTitle}
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#1a2e1f] via-[#1a2e1f]/40 to-transparent pointer-events-none" />
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* SECTION 3 — INLINE BOOKING BAR */}
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      <section className="relative z-20 w-full bg-[#0f1f14] border-y border-[#BC9B6A]/15">
-        <div className="max-w-6xl mx-auto px-6 py-5 flex flex-col md:flex-row items-center gap-4 md:gap-6">
-          <div className="shrink-0 text-left">
-            <h3 className="font-serif font-bold text-sm uppercase tracking-widest text-[#F1F6E7]">
-              {t.landing.bookTableBtn}
-            </h3>
-          </div>
-
-          <div className="flex-1 flex flex-wrap items-center gap-3 w-full">
-            {/* Party Size */}
-            <Select value={resGuests} onValueChange={setResGuests}>
-              <SelectTrigger className="h-10 w-[130px] bg-[#1a2e1f] border-[#BC9B6A]/20 rounded-none text-zinc-300 text-xs focus:ring-[#BC9B6A]/40 font-serif">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200 text-xs">
-                {[1, 2, 3, 4, 5, 6, 8, 10, 12].map(n => (
-                  <SelectItem key={n} value={n.toString()} className="cursor-pointer">
-                    {n} {n === 1 ? t.landing.guestOption : t.landing.guestsOption}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {/* Date */}
-            <Input
-              type="date"
-              value={resDate}
-              onChange={e => setResDate(e.target.value)}
-              className="h-10 w-[150px] bg-[#1a2e1f] border-[#BC9B6A]/20 rounded-none text-zinc-300 text-xs focus-visible:ring-[#BC9B6A]/40 font-serif"
-            />
-
-            {/* Time */}
-            <Select value={resTime} onValueChange={setResTime}>
-              <SelectTrigger className="h-10 w-[120px] bg-[#1a2e1f] border-[#BC9B6A]/20 rounded-none text-zinc-300 text-xs focus:ring-[#BC9B6A]/40 font-serif">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200 text-xs">
-                {TIME_SLOTS.map(slot => (
-                  <SelectItem key={slot} value={slot} className="cursor-pointer">
-                    {slot}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Submit Button */}
-          <Button
-            onClick={() => setIsReserveOpen(true)}
-            className="h-10 px-8 bg-[#BC9B6A] text-[#1a2e1f] hover:bg-[#BC9B6A]/90 transition-all font-serif font-bold text-xs uppercase tracking-widest rounded-none shadow-lg"
-          >
-            <Calendar className="size-3.5 mr-2" />
-            {t.landing.bookOnlineResBtn}
-          </Button>
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* SECTION 4 — SPECIALTIES HEADING (Light section) */}
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      <section className="w-full bg-[#F1F6E7] py-20 sm:py-28">
-        <div className="max-w-3xl mx-auto px-6 text-center">
-          <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-            className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-[#1a2e1f] leading-snug uppercase"
-          >
-            {t.landing.tagline}
-          </motion.h2>
-          <div className="w-16 h-px bg-[#BC9B6A] mx-auto mt-8" />
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* SECTION 5 — CHEF'S SECRETS (Split content) */}
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      <section className="w-full bg-[#F1F6E7]">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-0">
-          
-          {/* Left — Image */}
+      {/* Main Luxury Hero Area */}
+      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-6 py-16 flex flex-col xl:flex-row items-center justify-center gap-8">
+        
+        {/* Left Side Column - Signature Cuts (Desktop only) */}
+        <div className="hidden xl:block w-72 shrink-0 self-center">
           <motion.div
             initial={{ opacity: 0, x: -30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-            className="relative overflow-hidden"
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="border border-[#BC9B6A]/20 bg-zinc-955 p-3 shadow-2xl hover:border-[#BC9B6A]/50 transition-colors duration-300 text-left"
           >
-            <div className="p-8 sm:p-12 lg:p-16">
-              <div className="relative aspect-[4/5] sm:aspect-[3/4] overflow-hidden shadow-2xl">
-                <img
-                  src="/gourmet_seafood_dish.png"
-                  alt={t.landing.coastalDelicaciesTitle}
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
-                />
-              </div>
+            <div className="relative aspect-[3/4] w-full overflow-hidden mb-3 bg-zinc-900">
+              <img 
+                src="/gourmet_steak_dish.png" 
+                alt={t.landing.signatureCutsTitle} 
+                className="object-cover w-full h-full hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-transparent pointer-events-none" />
             </div>
-          </motion.div>
-
-          {/* Right — Text */}
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-            className="flex flex-col justify-center px-8 sm:px-12 lg:px-16 py-12 lg:py-24"
-          >
-            <p className="text-[10px] font-bold tracking-[0.35em] uppercase text-[#BC9B6A] mb-4">
-              {t.landing.signatureCutsTitle}
-            </p>
-
-            <h3 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold text-[#1a2e1f] leading-snug uppercase tracking-tight mb-6">
-              {t.landing.coastalDelicaciesTitle}
-            </h3>
-
-            <p className="text-sm text-[#1a2e1f]/70 leading-relaxed max-w-md mb-8 font-serif">
-              {t.landing.coastalDelicaciesDesc}
-            </p>
-
-            <div className="flex flex-wrap gap-4">
-              <Button
-                onClick={handleBrowseMenu}
-                className="h-11 px-6 bg-[#1a2e1f] text-[#F1F6E7] hover:bg-[#1a2e1f]/90 transition-all font-serif font-bold text-xs uppercase tracking-widest rounded-none"
-              >
-                {t.landing.browseMenuBtn}
-                <ArrowRight className="size-3.5 ml-2" />
-              </Button>
-            </div>
+            <h3 className="font-serif text-sm font-bold text-zinc-100 tracking-wide">{t.landing.signatureCutsTitle}</h3>
+            <p className="text-[10px] text-[#BC9B6A] italic mt-1 font-serif">{t.landing.signatureCutsDesc}</p>
           </motion.div>
         </div>
-      </section>
 
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* SECTION 6 — ADDRESS + INSTALL + FOOTER STRIP */}
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      <section className="w-full bg-[#1a2e1f] py-16">
-        <div className="max-w-5xl mx-auto px-6 flex flex-col items-center gap-10">
-          
-          {/* Address Block */}
-          <div className="flex flex-col sm:flex-row items-center gap-8 text-center sm:text-left">
-            <div className="p-3 border border-[#BC9B6A]/20 text-[#BC9B6A]">
-              <MapPin className="size-5" />
-            </div>
-            <div>
-              <h4 className="text-[9px] font-black uppercase text-zinc-500 tracking-widest font-sans mb-1">{t.landing.ourAddress}</h4>
-              <p className="font-serif text-sm text-[#F1F6E7] tracking-wide">{getAddress(activeLocale)}</p>
-            </div>
-            <div className="hidden sm:block h-8 w-px bg-[#BC9B6A]/20" />
-            <div className="flex items-center gap-6 text-[9px] uppercase font-bold tracking-widest text-[#BC9B6A]">
-              <div className="flex items-center gap-1.5">
-                <Phone className="size-3" />
-                <span>+351 210 987 654</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Mail className="size-3" />
-                <span>info@gildedfork.com</span>
-              </div>
-            </div>
+        {/* Center Column - Main Hero Content */}
+        <div className="flex-1 max-w-xl flex flex-col items-center justify-center text-center gap-12">
+        
+        {/* Brand Logo & Presentation */}
+        <div className="flex flex-col items-center gap-6">
+          <div 
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
+            style={{
+              transform: `perspective(800px) rotateX(${rotate.x}deg) rotateY(${rotate.y}deg)`,
+              transition: 'transform 0.15s ease-out',
+            }}
+            className="cursor-default"
+          >
+            {renderLogo()}
           </div>
+          
+          <div className="space-y-4 max-w-2xl mt-4">
+            <h1 className="font-serif text-5xl sm:text-6xl font-bold tracking-tight text-zinc-100 leading-tight">
+              {restaurantName}
+            </h1>
+            <h2 className="font-serif text-lg sm:text-xl italic text-[#BC9B6A] font-medium tracking-wide">
+              {t.landing.tagline}
+            </h2>
+          </div>
+        </div>
 
-          {/* Install App CTA */}
-          <div className="flex flex-col items-center gap-3">
-            {isInstalled ? (
-              <div className="flex items-center gap-2 text-emerald-400 text-[10px] font-bold tracking-widest uppercase">
-                <Check className="size-4" />
-                <span>{t.landing.pwaInstructionsInstalled}</span>
-              </div>
-            ) : isInstallable ? (
+        {/* Dynamic Navigation CTAs */}
+        <div className="flex flex-col sm:flex-row items-center gap-5 w-full max-w-lg mt-4">
+          <Button
+            onClick={() => setIsReserveOpen(true)}
+            className="w-full sm:flex-1 h-14 bg-[#005d2f] text-[#F1F6E7] border border-[#BC9B6A] hover:bg-[#005d2f]/90 transition-all font-serif font-bold text-sm uppercase tracking-wider rounded-none shadow-[0_4px_15px_rgba(0,93,47,0.25)]"
+          >
+            <Calendar className="size-4.5 mr-2 text-[#BC9B6A]" />
+            {t.landing.bookTableBtn}
+          </Button>
+
+          <Button
+            onClick={() => setIsPlanOpen(true)}
+            className="w-full sm:flex-1 h-14 bg-transparent text-[#BC9B6A] border border-[#BC9B6A] hover:bg-[#BC9B6A]/10 transition-all font-serif font-bold text-sm uppercase tracking-wider rounded-none"
+          >
+            <Map className="size-4.5 mr-2" />
+            {activeTableName ? t.landing.tableSelectedLabel.replace('{name}', activeTableName) : t.landing.selectTableBtn}
+          </Button>
+        </div>
+
+        {/* Direct Menu Preview Trigger */}
+        <div className="flex flex-col items-center gap-2">
+          <button
+            onClick={handleBrowseMenu}
+            className="font-serif text-sm tracking-widest uppercase font-semibold text-[#BC9B6A] hover:text-[#BC9B6A]/80 transition-colors flex items-center gap-1.5 border-b border-dashed border-[#BC9B6A] pb-1"
+          >
+            <span>{t.landing.browseMenuBtn}</span>
+            <ChevronRight className="size-4" />
+          </button>
+          {activeTableName && (
+            <p className="text-[10px] text-emerald-400 font-semibold tracking-wider uppercase">
+              {t.landing.selectedUnlocked.replace('{name}', activeTableName)}
+            </p>
+          )}
+        </div>
+
+        {/* Guest PWA Install Button — always visible */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+          className="mt-6 flex flex-col items-center"
+        >
+          {isInstalled ? (
+            <div className="flex items-center gap-2 text-emerald-400 text-[10px] font-bold tracking-widest uppercase">
+              <Check className="size-4" />
+              <span>{t.landing.pwaInstructionsInstalled}</span>
+            </div>
+          ) : isInstallable ? (
+            <>
               <Button
                 onClick={handleInstall}
                 disabled={installing}
-                className="h-11 px-8 bg-transparent text-[#BC9B6A] border border-[#BC9B6A]/30 hover:bg-[#BC9B6A]/10 hover:border-[#BC9B6A] transition-all font-serif font-bold text-xs uppercase tracking-widest rounded-none"
+                className="h-12 px-8 bg-transparent text-[#BC9B6A] border border-[#BC9B6A]/40 hover:bg-[#BC9B6A]/10 hover:border-[#BC9B6A] transition-all font-serif font-bold text-xs uppercase tracking-widest rounded-none shadow-[0_0_20px_rgba(188,155,106,0.08)]"
               >
-                {installing ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Smartphone className="size-4 mr-2" />}
+                {installing ? (
+                  <Loader2 className="size-4 mr-2 animate-spin" />
+                ) : (
+                  <Smartphone className="size-4 mr-2" />
+                )}
                 {t.landing.installGuestBtn}
               </Button>
-            ) : (
+              <p className="text-[9px] text-zinc-600 mt-2 tracking-wide font-sans">
+                {t.landing.installGuestDesc}
+              </p>
+            </>
+          ) : (
+            <>
               <Button
-                onClick={() => toast({ title: t.landing.pwaInstructionsTitle, description: t.landing.pwaInstructionsIOS })}
-                className="h-11 px-8 bg-transparent text-[#BC9B6A] border border-[#BC9B6A]/30 hover:bg-[#BC9B6A]/10 hover:border-[#BC9B6A] transition-all font-serif font-bold text-xs uppercase tracking-widest rounded-none"
+                onClick={() => {
+                  toast({
+                    title: t.landing.pwaInstructionsTitle,
+                    description: t.landing.pwaInstructionsIOS,
+                  });
+                }}
+                className="h-12 px-8 bg-transparent text-[#BC9B6A] border border-[#BC9B6A]/40 hover:bg-[#BC9B6A]/10 hover:border-[#BC9B6A] transition-all font-serif font-bold text-xs uppercase tracking-widest rounded-none shadow-[0_0_20px_rgba(188,155,106,0.08)]"
               >
                 <Smartphone className="size-4 mr-2" />
                 {t.landing.installGuestBtn}
               </Button>
-            )}
-            <p className="text-[9px] text-zinc-600 tracking-wide font-sans">{t.landing.installGuestDesc}</p>
+              <p className="text-[9px] text-zinc-600 mt-2 tracking-wide font-sans">
+                {t.landing.installGuestDesc}
+              </p>
+            </>
+          )}
+        </motion.div>
+
+        {/* Address Card */}
+        <div className="mt-8 p-6 w-full max-w-md border border-[#BC9B6A]/20 bg-zinc-950/40 backdrop-blur-md rounded-none text-left flex flex-col gap-4">
+          <div className="flex gap-4">
+            <div className="p-2.5 h-10 w-10 border border-[#BC9B6A]/30 text-[#BC9B6A] flex items-center justify-center shrink-0">
+              <MapPin className="size-4.5" />
+            </div>
+            <div>
+              <h3 className="text-[9px] font-black uppercase text-zinc-500 tracking-widest font-sans">{t.landing.ourAddress}</h3>
+              <p className="font-serif text-sm text-[#F1F6E7] mt-1 tracking-wide">{getAddress(activeLocale)}</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4 border-t border-[#BC9B6A]/10 pt-4 text-[9px] uppercase font-bold tracking-widest text-[#BC9B6A]">
+            <div className="flex items-center gap-2">
+              <Phone className="size-3.5 shrink-0" />
+              <span>+351 210 987 654</span>
+            </div>
+            <div className="flex items-center gap-2 justify-end">
+              <Mail className="size-3.5 shrink-0" />
+              <span>info@gildedfork.com</span>
+            </div>
           </div>
         </div>
-      </section>
+
+        {/* Mobile/Tablet Food Display Grid */}
+        <div className="xl:hidden grid grid-cols-1 sm:grid-cols-2 gap-6 w-full max-w-2xl mt-8">
+          <div className="border border-[#BC9B6A]/20 bg-zinc-950/40 backdrop-blur-sm p-3 flex flex-col text-left">
+            <div className="relative aspect-[16/10] w-full overflow-hidden mb-3">
+              <img 
+                src="/gourmet_steak_dish.png" 
+                alt={t.landing.signatureCutsTitle} 
+                className="object-cover w-full h-full"
+              />
+            </div>
+            <h3 className="font-serif text-sm font-bold text-zinc-100 tracking-wide">{t.landing.signatureCutsTitle}</h3>
+            <p className="text-[10px] text-[#BC9B6A] italic mt-1 font-serif">{t.landing.signatureCutsDesc}</p>
+          </div>
+
+          <div className="border border-[#BC9B6A]/20 bg-zinc-950/40 backdrop-blur-sm p-3 flex flex-col text-left">
+            <div className="relative aspect-[16/10] w-full overflow-hidden mb-3">
+              <img 
+                src="/gourmet_seafood_dish.png" 
+                alt={t.landing.coastalDelicaciesTitle} 
+                className="object-cover w-full h-full"
+              />
+            </div>
+            <h3 className="font-serif text-sm font-bold text-zinc-100 tracking-wide">{t.landing.coastalDelicaciesTitle}</h3>
+            <p className="text-[10px] text-[#BC9B6A] italic mt-1 font-serif">{t.landing.coastalDelicaciesDesc}</p>
+          </div>
+        </div>
+
+        </div>
+
+        {/* Right Side Column - Coastal Delicacies (Desktop only) */}
+        <div className="hidden xl:block w-72 shrink-0 self-center">
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="border border-[#BC9B6A]/20 bg-zinc-955 p-3 shadow-2xl hover:border-[#BC9B6A]/50 transition-colors duration-300 text-left"
+          >
+            <div className="relative aspect-[3/4] w-full overflow-hidden mb-3 bg-zinc-900">
+              <img 
+                src="/gourmet_seafood_dish.png" 
+                alt={t.landing.coastalDelicaciesTitle} 
+                className="object-cover w-full h-full hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-transparent pointer-events-none" />
+            </div>
+            <h3 className="font-serif text-sm font-bold text-zinc-100 tracking-wide">{t.landing.coastalDelicaciesTitle}</h3>
+            <p className="text-[10px] text-[#BC9B6A] italic mt-1 font-serif">{t.landing.coastalDelicaciesDesc}</p>
+          </motion.div>
+        </div>
+
+      </main>
 
       {/* ============================================================ */}
       {/* 1. RESERVATION CARD OVERLAY MODAL */}
