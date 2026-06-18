@@ -184,8 +184,209 @@ export default function LandingPage() {
   const [isIOS, setIsIOS] = useState(false);
   const [installing, setInstalling] = useState(false);
 
+  // Loyalty States
+  const [loggedInCustomer, setLoggedInCustomer] = useState<any>(null);
+  const [isLoyaltyOpen, setIsLoyaltyOpen] = useState(false);
+  const [loyaltyTab, setLoyaltyTab] = useState<'login' | 'register'>('login');
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPhone, setLoginPhone] = useState('');
+  const [loginOtp, setLoginOtp] = useState('');
+  const [loginOtpStep, setLoginOtpStep] = useState(false);
+  
+  const [regFirstName, setRegFirstName] = useState('');
+  const [regLastName, setRegLastName] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPhone, setRegPhone] = useState('');
+  const [regAllergies, setRegAllergies] = useState<string[]>([]);
+  const [regBirthday, setRegBirthday] = useState('');
+  const [isSubmittingCustomer, setIsSubmittingCustomer] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('gilded_fork_guest');
+      if (stored) {
+        try {
+          setLoggedInCustomer(JSON.parse(stored));
+        } catch (e) {}
+      }
+    }
+  }, []);
+
+  const handleCustomerLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loginEmail && !loginPhone) return;
+
+    if (!loginOtpStep) {
+      setLoginOtpStep(true);
+      toast({
+        title: 'Verification Code Sent',
+        description: 'Please type the 4-digit code sent to your device (use 1234 to sign in).'
+      });
+      return;
+    }
+
+    if (loginOtp !== '1234') {
+      toast({
+        title: 'Invalid Code',
+        description: 'The verification code you entered is incorrect. Try 1234.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setIsSubmittingCustomer(true);
+    try {
+      const res = await fetch('/api/customers/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'LOGIN',
+          email: loginEmail || undefined,
+          phone: loginPhone || undefined,
+        })
+      });
+
+      const data = await res.json();
+      if (data.error === 'NOT_FOUND') {
+        toast({
+          title: 'Profile Not Found',
+          description: 'No customer matches this email/phone. We have switched to the registration tab.'
+        });
+        setLoyaltyTab('register');
+        setRegEmail(loginEmail);
+        setRegPhone(loginPhone);
+        setLoginOtpStep(false);
+      } else if (data.error) {
+        throw new Error(data.error);
+      } else {
+        setLoggedInCustomer(data);
+        localStorage.setItem('gilded_fork_guest', JSON.stringify(data));
+        setIsLoyaltyOpen(false);
+        setLoginOtpStep(false);
+        setLoginOtp('');
+        toast({
+          title: 'Welcome Back!',
+          description: `Logged in as ${data.firstName} ${data.lastName}.`
+        });
+      }
+    } catch (err) {
+      toast({
+        title: 'Login Failed',
+        description: 'Unable to connect to customer server. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsSubmittingCustomer(false);
+    }
+  };
+
+  const handleCustomerRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!regFirstName || !regLastName || (!regEmail && !regPhone)) return;
+
+    setIsSubmittingCustomer(true);
+    try {
+      const res = await fetch('/api/customers/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'REGISTER',
+          firstName: regFirstName,
+          lastName: regLastName,
+          email: regEmail || undefined,
+          phone: regPhone || undefined,
+          allergies: regAllergies.join(', ') || null,
+          birthday: regBirthday || undefined,
+        })
+      });
+
+      const data = await res.json();
+      if (data.error) {
+        toast({
+          title: 'Registration Failed',
+          description: data.error,
+          variant: 'destructive'
+        });
+      } else {
+        setLoggedInCustomer(data);
+        localStorage.setItem('gilded_fork_guest', JSON.stringify(data));
+        setIsLoyaltyOpen(false);
+        setRegFirstName('');
+        setRegLastName('');
+        setRegEmail('');
+        setRegPhone('');
+        setRegAllergies([]);
+        setRegBirthday('');
+        toast({
+          title: 'Welcome!',
+          description: `Account created for ${data.firstName} ${data.lastName}. 150 loyalty points added!`
+        });
+      }
+    } catch {
+      toast({
+        title: 'Error',
+        description: 'Server error during registration.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsSubmittingCustomer(false);
+    }
+  };
+
+  const handleCustomerLogout = () => {
+    setLoggedInCustomer(null);
+    localStorage.removeItem('gilded_fork_guest');
+    toast({
+      title: 'Logged Out',
+      description: 'You have signed out of your loyalty profile.'
+    });
+  };
+
+  const handleToggleFavorite = async (menuItemId: string) => {
+    if (!loggedInCustomer) {
+      setIsLoyaltyOpen(true);
+      toast({
+        title: 'Sign In Required',
+        description: 'Please sign in to save your favorite dishes!'
+      });
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/customers/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'FAVORITE',
+          customerId: loggedInCustomer.id,
+          menuItemId
+        })
+      });
+
+      const data = await res.json();
+      if (data.favorites) {
+        const updatedCust = {
+          ...loggedInCustomer,
+          favorites: data.favorites.map((id: string) => ({ menuItemId: id }))
+        };
+        setLoggedInCustomer(updatedCust);
+        localStorage.setItem('gilded_fork_guest', JSON.stringify(updatedCust));
+        toast({
+          title: 'Favorites Updated',
+          description: 'Your favorite dishes list has been updated.'
+        });
+      }
+    } catch {
+      toast({
+        title: 'Error',
+        description: 'Failed to update favorites.'
+      });
+    }
+  };
+
   // Reviews list state
   const [reviews, setReviews] = useState<any[]>([]);
+
 
   // Testimonials rating inputs
   const [revAuthor, setRevAuthor] = useState('');
@@ -700,6 +901,14 @@ export default function LandingPage() {
             <LanguageSwitcher variant="flag-only" />
 
             <button
+              onClick={() => setIsLoyaltyOpen(true)}
+              className="px-4 py-2.5 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-200 rounded-full font-sans text-xs uppercase font-extrabold tracking-wider transition-all duration-300 active:scale-95 cursor-pointer flex items-center gap-1.5"
+            >
+              <UserCircle2 className="size-4 text-emerald-400" />
+              <span>{loggedInCustomer ? `${loggedInCustomer.firstName}` : 'Loyalty'}</span>
+            </button>
+
+            <button
               onClick={handleBrowseMenu}
               className="px-5 py-2.5 bg-transparent border border-emerald-500/35 hover:bg-emerald-500/10 text-emerald-400 rounded-full font-sans text-xs uppercase font-extrabold tracking-wider transition-all duration-300 active:scale-95 cursor-pointer flex items-center gap-1.5"
             >
@@ -774,6 +983,16 @@ export default function LandingPage() {
               }`}
             >
               {ccT.navFeedback}
+            </button>
+            <button
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                setIsLoyaltyOpen(true);
+              }}
+              className="block w-full text-left px-4 py-3 rounded-md text-sm font-sans tracking-wider uppercase text-zinc-200 flex items-center gap-2"
+            >
+              <UserCircle2 className="size-4 text-emerald-450" />
+              <span>{loggedInCustomer ? `${loggedInCustomer.firstName} (${loggedInCustomer.loyaltyPoints} pts)` : 'Loyalty Portal'}</span>
             </button>
             <button
               onClick={() => {
@@ -1247,11 +1466,32 @@ export default function LandingPage() {
                         {item.allergies && (
                           <p className="text-[9px] font-mono text-rose-400 uppercase tracking-widest">{item.allergies}</p>
                         )}
+                        {(() => {
+                          if (!loggedInCustomer || !loggedInCustomer.allergies || !item.allergies) return null;
+                          const custAllergies = loggedInCustomer.allergies.toLowerCase().split(',').map((a: string) => a.trim());
+                          const itemAllergies = item.allergies.toLowerCase().split(',').map((a: string) => a.trim());
+                          const isThreat = itemAllergies.some((a: string) => custAllergies.includes(a));
+                          if (!isThreat) return null;
+                          return (
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-rose-950/45 border border-rose-900/30 text-rose-400 text-[9px] font-bold uppercase tracking-wider animate-pulse">
+                              ⚠️ Allergy Match
+                            </span>
+                          );
+                        })()}
                       </div>
                     </div>
 
                     <div className="pt-4 border-t border-zinc-900 mt-4 flex items-center justify-between">
-                      <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-wider">{item.type}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-wider">{item.type}</span>
+                        <button
+                          onClick={() => handleToggleFavorite(item.id)}
+                          className="p-1.5 rounded-full hover:bg-zinc-900/60 text-zinc-500 hover:text-rose-500 transition-colors"
+                          title="Save to Favorites"
+                        >
+                          <Heart className={cn("size-3.5", loggedInCustomer?.favorites?.some((f: any) => f.menuItemId === item.id) ? "fill-rose-555 text-rose-555" : "")} />
+                        </button>
+                      </div>
                       <button
                         onClick={() => handleOpenCustomizer(item)}
                         className="h-8 px-4 bg-zinc-955 hover:bg-emerald-500 text-emerald-400 hover:text-zinc-955 border border-emerald-500/20 hover:border-emerald-500 transition-all font-mono font-bold text-[10px] uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer"
@@ -2099,6 +2339,320 @@ export default function LandingPage() {
         </div>
       </footer>
 
+      {/* Loyalty & Rewards Portal Modal */}
+      <Dialog open={isLoyaltyOpen} onOpenChange={setIsLoyaltyOpen}>
+        <DialogContent className="bg-zinc-950 border-zinc-900 text-zinc-100 sm:max-w-md max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl">
+          <DialogHeader className="space-y-2.5 pb-2">
+            <DialogTitle className="text-lg font-serif font-black tracking-wide text-zinc-100 flex items-center gap-2">
+              <Sparkles className="size-5 text-emerald-400" />
+              <span>Gilded Loyalty Club</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-zinc-400">
+              {loggedInCustomer
+                ? 'Manage your loyalty points, allergies, and favorites.'
+                : 'Unlock exclusive rewards, priority reservations, and personalized allergy safety warnings.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {loggedInCustomer ? (
+            <div className="space-y-5">
+              {/* Profile Card */}
+              <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-900 shadow-inner space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="size-10 rounded-full bg-emerald-555 text-zinc-955 flex items-center justify-center font-bold text-sm">
+                    {loggedInCustomer.firstName[0]}
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-zinc-100">{loggedInCustomer.firstName} {loggedInCustomer.lastName}</h4>
+                    <p className="text-[10px] text-zinc-500">{loggedInCustomer.email || loggedInCustomer.phone}</p>
+                  </div>
+                  <Badge className="ml-auto bg-gradient-to-r from-emerald-500 to-teal-500 text-black font-extrabold text-[9px] px-2 py-0.5 tracking-wider uppercase border-none">
+                    {loggedInCustomer.loyaltyTier}
+                  </Badge>
+                </div>
+
+                <Separator className="bg-zinc-800/50" />
+
+                {/* Points Progress */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs font-bold">
+                    <span className="text-zinc-400">Loyalty Balance:</span>
+                    <span className="text-emerald-400">{loggedInCustomer.loyaltyPoints} points</span>
+                  </div>
+                  <div className="h-2 w-full bg-zinc-950 rounded-full overflow-hidden border border-zinc-900">
+                    <div 
+                      className="h-full bg-gradient-to-r from-emerald-500 to-teal-555 transition-all duration-550"
+                      style={{ width: `${Math.min(100, (loggedInCustomer.loyaltyPoints / 5000) * 100)}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[8px] font-mono text-zinc-600 uppercase tracking-wider">
+                    <span>Bronze (0)</span>
+                    <span>Silver (1000)</span>
+                    <span>Gold (2500)</span>
+                    <span>Platinum (5000)</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Allergy Prefills */}
+              <div className="space-y-2.5">
+                <h4 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">Allergy Safety Profile</h4>
+                <p className="text-[10px] text-zinc-500">Configure your food allergies to enable warning badges on the menu.</p>
+                <div className="grid grid-cols-2 gap-2 bg-zinc-950/40 p-3 rounded-2xl border border-zinc-900">
+                  {['Gluten', 'Nuts', 'Dairy', 'Seafood', 'Eggs', 'Soy'].map((allergy) => {
+                    const activeAllergies = loggedInCustomer.allergies?.toLowerCase().split(',').map((a: string) => a.trim()) || [];
+                    const isSelected = activeAllergies.includes(allergy.toLowerCase());
+                    return (
+                      <Button
+                        key={allergy}
+                        type="button"
+                        variant={isSelected ? 'default' : 'outline'}
+                        className={cn(
+                          "h-8 rounded-lg text-xs font-semibold justify-start gap-2 px-2.5",
+                          isSelected && "bg-rose-950/40 hover:bg-rose-950/50 border border-rose-900/30 text-rose-450 hover:text-rose-455"
+                        )}
+                        onClick={async () => {
+                          let newAllergies = [...activeAllergies];
+                          if (isSelected) {
+                            newAllergies = newAllergies.filter(a => a !== allergy.toLowerCase());
+                          } else {
+                            newAllergies.push(allergy.toLowerCase());
+                          }
+
+                          try {
+                            const res = await fetch('/api/customers/portal', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                action: 'UPDATE',
+                                id: loggedInCustomer.id,
+                                allergies: newAllergies.join(', ') || null
+                              })
+                            });
+                            const data = await res.json();
+                            if (!data.error) {
+                              setLoggedInCustomer(data);
+                              localStorage.setItem('gilded_fork_guest', JSON.stringify(data));
+                              toast({
+                                title: 'Safety Profile Updated',
+                                description: 'Your allergy restrictions have been updated.'
+                              });
+                            }
+                          } catch (e) {}
+                        }}
+                      >
+                        <div className={cn("size-2 rounded-full", isSelected ? "bg-rose-400 animate-pulse" : "bg-zinc-700")} />
+                        <span>{allergy}</span>
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Favorites List */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">Saved Favorites</h4>
+                {loggedInCustomer.favorites?.length > 0 ? (
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                    {loggedInCustomer.favorites.map((fav: any) => {
+                      const item = dbMenuCategories.flatMap(c => c.items).find(i => i.id === fav.menuItemId);
+                      if (!item) return null;
+                      return (
+                        <div key={fav.menuItemId} className="flex items-center justify-between p-2 rounded-xl bg-zinc-900/40 border border-zinc-900 text-xs">
+                          <span className="font-semibold text-zinc-200">{item.name}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-emerald-400 text-[11px]">${item.price.toFixed(2)}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-zinc-500 hover:text-rose-555"
+                              onClick={() => handleToggleFavorite(item.id)}
+                            >
+                              <Heart className="size-3.5 fill-rose-555 text-rose-555" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-zinc-600 italic text-center py-2">No favorite dishes saved yet.</p>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  className="flex-1 h-9 rounded-xl text-xs font-bold bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-100"
+                  onClick={() => setIsLoyaltyOpen(false)}
+                >
+                  Close Portal
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  className="h-9 rounded-xl text-xs font-bold"
+                  onClick={handleCustomerLogout}
+                >
+                  Log Out
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex border-b border-zinc-900 pb-0.5">
+                <button
+                  onClick={() => {
+                    setLoyaltyTab('login');
+                    setLoginOtpStep(false);
+                  }}
+                  className={cn(
+                    "flex-1 pb-2.5 text-center text-xs font-bold transition-all border-b-2 uppercase tracking-wider",
+                    loyaltyTab === 'login' ? "border-emerald-500 text-emerald-400" : "border-transparent text-zinc-500"
+                  )}
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() => setLoyaltyTab('register')}
+                  className={cn(
+                    "flex-1 pb-2.5 text-center text-xs font-bold transition-all border-b-2 uppercase tracking-wider",
+                    loyaltyTab === 'register' ? "border-emerald-500 text-emerald-400" : "border-transparent text-zinc-500"
+                  )}
+                >
+                  Register
+                </button>
+              </div>
+
+              {loyaltyTab === 'login' ? (
+                <form onSubmit={handleCustomerLogin} className="space-y-4">
+                  {!loginOtpStep ? (
+                    <div className="space-y-3.5">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider font-mono">Email Address</label>
+                        <Input
+                          placeholder="email@example.com"
+                          type="email"
+                          value={loginEmail}
+                          onChange={(e) => {
+                            setLoginEmail(e.target.value);
+                            setLoginPhone('');
+                          }}
+                          className="bg-zinc-900/60 border-zinc-850 h-10 rounded-xl text-xs text-zinc-100"
+                        />
+                      </div>
+                      <div className="text-center text-[10px] text-zinc-650 font-bold uppercase tracking-widest font-mono">— Or —</div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider font-mono">Phone Number</label>
+                        <Input
+                          placeholder="+1 (555) 000-0000"
+                          type="tel"
+                          value={loginPhone}
+                          onChange={(e) => {
+                            setLoginPhone(e.target.value);
+                            setLoginEmail('');
+                          }}
+                          className="bg-zinc-900/60 border-zinc-850 h-10 rounded-xl text-xs text-zinc-100"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 text-center py-2">
+                      <label className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block mb-2 font-mono">Enter 4-Digit Verification Code</label>
+                      <Input
+                        placeholder="1 2 3 4"
+                        type="text"
+                        maxLength={4}
+                        value={loginOtp}
+                        onChange={(e) => setLoginOtp(e.target.value)}
+                        className="bg-zinc-900 border-zinc-800 h-11 text-center font-mono font-black text-lg max-w-28 mx-auto rounded-xl tracking-[0.2em]"
+                      />
+                      <p className="text-[9px] text-zinc-550 mt-1 font-mono">Use mock verification code <strong>1234</strong> to proceed.</p>
+                    </div>
+                  )}
+
+                  <Button
+                    type="submit"
+                    disabled={isSubmittingCustomer || (!loginEmail && !loginPhone)}
+                    className="w-full h-10 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-black font-extrabold text-xs rounded-xl border-none shadow-md"
+                  >
+                    {isSubmittingCustomer ? <Loader2 className="size-3.5 animate-spin" /> : loginOtpStep ? 'Verify & Sign In' : 'Request Verification Code'}
+                  </Button>
+                </form>
+              ) : (
+                <form onSubmit={handleCustomerRegister} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider font-mono">First Name</label>
+                      <Input
+                        placeholder="John"
+                        required
+                        value={regFirstName}
+                        onChange={(e) => setRegFirstName(e.target.value)}
+                        className="bg-zinc-900/60 border-zinc-850 h-10 rounded-xl text-xs text-zinc-100"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider font-mono">Last Name</label>
+                      <Input
+                        placeholder="Doe"
+                        required
+                        value={regLastName}
+                        onChange={(e) => setRegLastName(e.target.value)}
+                        className="bg-zinc-900/60 border-zinc-850 h-10 rounded-xl text-xs text-zinc-100"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider font-mono">Email Address</label>
+                    <Input
+                      placeholder="john.doe@example.com"
+                      type="email"
+                      value={regEmail}
+                      onChange={(e) => setRegEmail(e.target.value)}
+                      className="bg-zinc-900/60 border-zinc-850 h-10 rounded-xl text-xs text-zinc-100"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider font-mono">Phone Number</label>
+                    <Input
+                      placeholder="+1 (555) 000-0000"
+                      type="tel"
+                      value={regPhone}
+                      onChange={(e) => setRegPhone(e.target.value)}
+                      className="bg-zinc-900/60 border-zinc-850 h-10 rounded-xl text-xs text-zinc-100"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider font-mono">Birthday</label>
+                      <Input
+                        type="date"
+                        value={regBirthday}
+                        onChange={(e) => setRegBirthday(e.target.value)}
+                        className="bg-zinc-900/60 border-zinc-850 h-10 rounded-xl text-xs text-zinc-100"
+                      />
+                    </div>
+                    <div className="space-y-1.5 flex flex-col justify-end">
+                      <Button
+                        type="submit"
+                        disabled={isSubmittingCustomer || !regFirstName || !regLastName || (!regEmail && !regPhone)}
+                        className="w-full h-10 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-black font-extrabold text-xs rounded-xl border-none shadow-md"
+                      >
+                        {isSubmittingCustomer ? <Loader2 className="size-3.5 animate-spin" /> : 'Register & Join'}
+                      </Button>
+                    </div>
+                  </div>
+                </form>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

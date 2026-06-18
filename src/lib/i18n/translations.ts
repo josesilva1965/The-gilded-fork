@@ -699,6 +699,9 @@ export interface Translations {
     itemAddedToCart: string;
     cartEmpty: string;
     placedBySelf: string;
+    orderOption: string;
+    dineIn: string;
+    takeaway: string;
   };
 
   menuManagement: {
@@ -1447,6 +1450,9 @@ export const enGB: Translations = {
     itemAddedToCart: 'Item added to cart',
     cartEmpty: 'Your cart is empty',
     placedBySelf: 'Guest Order',
+    orderOption: 'Order Option',
+    dineIn: 'Dine-In',
+    takeaway: 'Takeaway',
   },
   menuManagement: {
     title: 'Menu Management',
@@ -2192,6 +2198,9 @@ export const ptPT: Translations = {
     itemAddedToCart: 'Item adicionado ao carrinho',
     cartEmpty: 'O seu carrinho está vazio',
     placedBySelf: 'Pedido do Cliente',
+    orderOption: 'Opção do Pedido',
+    dineIn: 'Comer no Local',
+    takeaway: 'Para Levar',
   },
   menuManagement: {
     title: 'Gestão do Menu',
@@ -2937,6 +2946,9 @@ export const frFR: Translations = {
     itemAddedToCart: 'Article ajouté au panier',
     cartEmpty: 'Votre panier est vide',
     placedBySelf: 'Commande client',
+    orderOption: 'Option de Commande',
+    dineIn: 'Sur Place',
+    takeaway: 'À Emporter',
   },
   menuManagement: {
     title: 'Gestion du Menu',
@@ -3682,6 +3694,9 @@ export const esES: Translations = {
     itemAddedToCart: 'Artículo añadido al carrito',
     cartEmpty: 'Su carrito está vacío',
     placedBySelf: 'Pedido de cliente',
+    orderOption: 'Opción de Pedido',
+    dineIn: 'Comer en el Local',
+    takeaway: 'Para Llevar',
   },
   menuManagement: {
     title: 'Gestión del Menú',

@@ -176,6 +176,8 @@ export function TableOrderClient({ table, menu }: { table: Table; menu: MenuCate
   const { isInstallable, isInstalled, install } = usePwaInstall();
   const [isIOS, setIsIOS] = useState(false);
   const [showPwaGuide, setShowPwaGuide] = useState(false);
+  const [guestCount, setGuestCount] = useState<number>(2);
+  const [orderType, setOrderType] = useState<'DINE_IN' | 'TAKEAWAY'>('DINE_IN');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -184,11 +186,127 @@ export function TableOrderClient({ table, menu }: { table: Table; menu: MenuCate
     }
   }, []);
 
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [guestCount, setGuestCount] = useState<number>(2);
-  const [activeTab, setActiveTab] = useState<'menu' | 'status'>('menu');
+  const [activeTab, setActiveTab] = useState<'menu' | 'status' | 'billing'>('menu');
+  const [tipPercent, setTipPercent] = useState<number>(0);
+  const [customTip, setCustomTip] = useState<string>('');
+  const [splitMode, setSplitMode] = useState<'full' | 'equal'>('full');
+  const [splitCount, setSplitCount] = useState<number>(2);
+  const [paymentStep, setPaymentStep] = useState<'idle' | 'processing' | 'success' | 'cash_requested'>('idle');
+  const [paymentStatusText, setPaymentStatusText] = useState<string>('');
+  const [paymentMethod, setPaymentMethod] = useState<'CARD' | 'APPLE_PAY' | 'CASH'>('CARD');
+  const [selectedShareIndex, setSelectedShareIndex] = useState<number>(0);
+
+  const existingPayments = useMemo(() => activeOrders.flatMap(o => o.payments || []), [activeOrders]);
+  const paidShareIndexes = useMemo(() => {
+    return existingPayments
+      .filter(p => p.reference?.startsWith('Share '))
+      .map(p => parseInt(p.reference!.replace('Share ', ''), 10) - 1)
+      .filter(idx => !isNaN(idx));
+  }, [existingPayments]);
+
+  const handleCheckout = async (amountToPay: number, isSplit: boolean, shareIndex?: number) => {
+    setPaymentStep('processing');
+    setPaymentStatusText(t.pos?.connectingReader || 'Connecting to secure payment terminal...');
+    
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    setPaymentStatusText(t.pos?.authorizing || 'Authorizing payment...');
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    
+    try {
+      const orderToPay = activeOrders[0];
+      if (!orderToPay) throw new Error('No active order');
+
+      const resolvedTip = tipPercent > 0 
+        ? (amountToPay * (tipPercent / 100))
+        : (parseFloat(customTip) || 0);
+
+      const payload = {
+        orderId: orderToPay.id,
+        tableId: currentTable.id,
+        amount: amountToPay,
+        paymentMethod: paymentMethod,
+        tipAmount: resolvedTip,
+        reference: isSplit ? `Share ${shareIndex! + 1}` : 'Guest Self-Checkout',
+        action: isSplit ? 'PAY_SPLIT' : 'PAY'
+      };
+
+      const res = await fetch('/api/orders/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error('Checkout API failed');
+
+      const updatedOrder = await res.json();
+      
+      const socket = getSocket();
+      socket.emit('order:updated', updatedOrder);
+      socket.emit('table:status-updated', { 
+        tableId: currentTable.id, 
+        status: updatedOrder.paymentStatus === 'COMPLETED' ? 'FREE' : 'BILL_REQUESTED',
+        updatedBy: 'Guest Self-Checkout'
+      });
+
+      setPaymentStep('success');
+      toast({
+        title: 'Payment Successful',
+        description: `Thank you! Your payment was processed.`,
+      });
+
+      refetchTable();
+    } catch (err) {
+      setPaymentStep('idle');
+      toast({
+        title: 'Payment Failed',
+        description: 'We could not process your card. Please try again or call staff.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleCallStaffCash = async () => {
+    setPaymentStep('processing');
+    setPaymentStatusText('Alerting server...');
+    
+    try {
+      const res = await fetch('/api/orders/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'CALL_STAFF',
+          tableId: currentTable.id,
+          message: 'Cash Checkout assistance'
+        }),
+      });
+
+      if (!res.ok) throw new Error('Failed to alert staff');
+
+      const socket = getSocket();
+      socket.emit('notification', {
+        message: `${currentTable.name} requests Cash Checkout assistance.`,
+        type: 'info',
+        role: 'FOH'
+      });
+
+      setPaymentStep('cash_requested');
+      toast({
+        title: 'Request Sent',
+        description: 'A waiter has been notified to bring the bill folder and collect cash.',
+      });
+    } catch {
+      setPaymentStep('idle');
+      toast({
+        title: 'Failed to contact staff',
+        description: 'Please call a waiter in person.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+
   const [customizingItem, setCustomizingItem] = useState<MenuItem | null>(null);
   const [selectedExtras, setSelectedExtras] = useState<MenuItemExtra[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
@@ -355,6 +473,7 @@ export function TableOrderClient({ table, menu }: { table: Table; menu: MenuCate
             })),
           })),
           guestCount,
+          type: orderType,
           notes: orderNotes || null,
           locale: locale,
         }),
@@ -458,7 +577,7 @@ export function TableOrderClient({ table, menu }: { table: Table; menu: MenuCate
 
       {/* Navigation tabs */}
       <div className="relative z-10 px-4 mt-4">
-        <div className="grid grid-cols-2 p-0.5 rounded-lg border border-zinc-800 bg-zinc-900/60 backdrop-blur-sm">
+        <div className="grid grid-cols-3 p-0.5 rounded-lg border border-zinc-800 bg-zinc-900/60 backdrop-blur-sm">
           <button
             onClick={() => setActiveTab('menu')}
             className={`flex items-center justify-center gap-2 py-2 rounded-md text-xs font-semibold transition-all duration-200 ${
@@ -487,6 +606,17 @@ export function TableOrderClient({ table, menu }: { table: Table; menu: MenuCate
               </span>
             )}
           </button>
+          <button
+            onClick={() => setActiveTab('billing')}
+            className={`flex items-center justify-center gap-2 py-2 rounded-md text-xs font-semibold transition-all duration-200 ${
+              activeTab === 'billing'
+                ? 'bg-zinc-800 text-zinc-100 shadow-sm'
+                : 'text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            <ShoppingCart className="size-3.5" />
+            {t.pos?.billTitle || 'Billing & Pay'}
+          </button>
         </div>
       </div>
 
@@ -497,7 +627,7 @@ export function TableOrderClient({ table, menu }: { table: Table; menu: MenuCate
           <div className="space-y-4">
             
             {/* Table Settings Panel */}
-            <Card className="bg-zinc-900/40 border-zinc-900 p-3 shadow-inner">
+            <Card className="bg-zinc-900/40 border-zinc-900 p-3 shadow-inner space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Users className="size-4 text-zinc-500" />
@@ -520,6 +650,43 @@ export function TableOrderClient({ table, menu }: { table: Table; menu: MenuCate
                     onClick={() => setGuestCount(Math.min(12, guestCount + 1))}
                   >
                     <Plus className="size-3" />
+                  </Button>
+                </div>
+              </div>
+
+              <Separator className="bg-zinc-800/40" />
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Utensils className="size-4 text-zinc-500" />
+                  <span className="text-xs text-zinc-400">{t.tableOrder.orderOption}</span>
+                </div>
+                <div className="flex items-center gap-1.5 bg-zinc-950/60 p-0.5 rounded-md border border-zinc-800">
+                  <Button
+                    type="button"
+                    variant={orderType === 'DINE_IN' ? 'default' : 'outline'}
+                    onClick={() => setOrderType('DINE_IN')}
+                    className={cn(
+                      "h-6 px-2.5 rounded-md text-[10px] font-bold transition-all",
+                      orderType === 'DINE_IN' 
+                        ? "bg-emerald-500 hover:bg-emerald-600 text-black border-none" 
+                        : "text-zinc-400 hover:text-zinc-200 border-none bg-transparent"
+                    )}
+                  >
+                    {t.tableOrder.dineIn}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={orderType === 'TAKEAWAY' ? 'default' : 'outline'}
+                    onClick={() => setOrderType('TAKEAWAY')}
+                    className={cn(
+                      "h-6 px-2.5 rounded-md text-[10px] font-bold transition-all",
+                      orderType === 'TAKEAWAY' 
+                        ? "bg-emerald-500 hover:bg-emerald-600 text-black border-none" 
+                        : "text-zinc-400 hover:text-zinc-200 border-none bg-transparent"
+                    )}
+                  >
+                    {t.tableOrder.takeaway}
                   </Button>
                 </div>
               </div>
@@ -757,6 +924,284 @@ export function TableOrderClient({ table, menu }: { table: Table; menu: MenuCate
                   <button onClick={() => setActiveTab('menu')} className="text-emerald-500 font-semibold hover:underline">
                     {t.tableOrder.browseMenu}
                   </button>
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab 3: Billing & Checkout */}
+        {activeTab === 'billing' && (
+          <div className="space-y-4 pb-12">
+            {activeOrders.length > 0 ? (
+              <div className="space-y-4">
+                <Card className="bg-zinc-900/60 border-zinc-800/80 shadow-md">
+                  <CardContent className="p-4 space-y-4">
+                    <div className="flex justify-between items-center pb-2 border-b border-zinc-800">
+                      <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">{t.tableOrder?.outstandingBill || 'Outstanding Bill'}</h3>
+                      <span className="text-lg font-black text-emerald-400">${activeBillTotal.toFixed(2)}</span>
+                    </div>
+
+                    {/* Split Mode Selector */}
+                    <div className="space-y-2">
+                      <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">{t.pos?.splitMethod || 'Payment Split Method'}</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          type="button"
+                          variant={splitMode === 'full' ? 'default' : 'outline'}
+                          className="h-9 rounded-xl text-xs font-semibold"
+                          onClick={() => {
+                            setSplitMode('full');
+                            setPaymentStep('idle');
+                          }}
+                        >
+                          {t.pos?.fullAmount || 'Pay Full Amount'}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={splitMode === 'equal' ? 'default' : 'outline'}
+                          className="h-9 rounded-xl text-xs font-semibold"
+                          onClick={() => {
+                            setSplitMode('equal');
+                            setPaymentStep('idle');
+                          }}
+                        >
+                          {t.pos?.splitEqually || 'Split Equally'}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Equal Split Details */}
+                    {splitMode === 'equal' && (
+                      <div className="space-y-3 p-3 bg-zinc-950/40 border border-zinc-800/50 rounded-xl">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-zinc-400 font-semibold">{t.pos?.numberOfGuests || 'Split Count'}</span>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="h-7 w-7 rounded-lg p-0"
+                              disabled={splitCount <= 2}
+                              onClick={() => setSplitCount(prev => prev - 1)}
+                            >
+                              <Minus className="size-3" />
+                            </Button>
+                            <span className="text-sm font-black w-6 text-center text-zinc-100">{splitCount}</span>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="h-7 w-7 rounded-lg p-0"
+                              disabled={splitCount >= 12}
+                              onClick={() => setSplitCount(prev => prev + 1)}
+                            >
+                              <Plus className="size-3" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="text-xs flex items-center justify-between pt-1 border-t border-zinc-800/50">
+                          <span className="text-zinc-500 font-medium">{t.pos?.eachShare || 'Each Share'}:</span>
+                          <span className="font-bold text-zinc-200">${(activeBillTotal / splitCount).toFixed(2)}</span>
+                        </div>
+
+                        {/* Shares Grid */}
+                        <div className="grid grid-cols-2 gap-1.5 pt-2">
+                          {Array.from({ length: splitCount }).map((_, idx) => {
+                            const isPaid = paidShareIndexes.includes(idx);
+                            const isSelected = selectedShareIndex === idx;
+                            return (
+                              <Button
+                                key={idx}
+                                type="button"
+                                variant={isPaid ? 'ghost' : isSelected ? 'default' : 'outline'}
+                                className={cn(
+                                  "h-8 rounded-lg text-[10px] font-bold relative",
+                                  isPaid && "bg-emerald-950/20 border border-emerald-900/30 text-emerald-450 hover:bg-emerald-950/20 cursor-default"
+                                )}
+                                disabled={isPaid}
+                                onClick={() => {
+                                  setSelectedShareIndex(idx);
+                                  setPaymentStep('idle');
+                                }}
+                              >
+                                {isPaid ? (
+                                  <span className="flex items-center gap-1">
+                                    <Check className="size-3 shrink-0" />
+                                    Share {idx + 1} Paid
+                                  </span>
+                                ) : (
+                                  <span>Share {idx + 1} (${(activeBillTotal / splitCount).toFixed(2)})</span>
+                                )}
+                              </Button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tip Selection */}
+                    {paymentStep === 'idle' && (
+                      <div className="space-y-2">
+                        <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Add a Tip</label>
+                        <div className="grid grid-cols-5 gap-1.5">
+                          {[0, 10, 15, 20].map((pct) => (
+                            <Button
+                              key={pct}
+                              type="button"
+                              variant={tipPercent === pct && !customTip ? 'default' : 'outline'}
+                              className="h-8 rounded-lg text-xs font-bold p-0"
+                              onClick={() => {
+                                setTipPercent(pct);
+                                setCustomTip('');
+                              }}
+                            >
+                              {pct === 0 ? 'No Tip' : `${pct}%`}
+                            </Button>
+                          ))}
+                          <Input
+                            placeholder="Custom $"
+                            type="number"
+                            value={customTip}
+                            onChange={(e) => {
+                              setTipPercent(0);
+                              setCustomTip(e.target.value);
+                            }}
+                            className="h-8 rounded-lg bg-zinc-950 border-zinc-800 text-xs font-bold px-2 text-right"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Payment methods */}
+                    {paymentStep === 'idle' && (
+                      <div className="space-y-3 pt-2">
+                        <div className="flex items-center justify-between text-xs font-black border-t border-zinc-800 pt-3">
+                          <span className="text-zinc-400">Total to Authorize:</span>
+                          <span className="text-emerald-400 text-sm">
+                            ${(
+                              (splitMode === 'equal' ? activeBillTotal / splitCount : activeBillTotal) +
+                              (tipPercent > 0
+                                ? (splitMode === 'equal' ? activeBillTotal / splitCount : activeBillTotal) * (tipPercent / 100)
+                                : parseFloat(customTip) || 0)
+                            ).toFixed(2)}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2.5">
+                          <Button
+                            type="button"
+                            variant={paymentMethod === 'CARD' ? 'default' : 'outline'}
+                            className="h-14 rounded-2xl flex flex-col gap-1 text-[10px] font-bold"
+                            onClick={() => setPaymentMethod('CARD')}
+                          >
+                            <span>Credit Card</span>
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={paymentMethod === 'APPLE_PAY' ? 'default' : 'outline'}
+                            className="h-14 rounded-2xl flex flex-col gap-1 text-[10px] font-bold"
+                            onClick={() => setPaymentMethod('APPLE_PAY')}
+                          >
+                            <span>Apple Pay</span>
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={paymentMethod === 'CASH' ? 'default' : 'outline'}
+                            className="h-14 rounded-2xl flex flex-col gap-1 text-[10px] font-bold"
+                            onClick={() => setPaymentMethod('CASH')}
+                          >
+                            <span>Cash</span>
+                          </Button>
+                        </div>
+
+                        {paymentMethod === 'CASH' ? (
+                          <Button
+                            type="button"
+                            className="w-full h-11 rounded-2xl bg-zinc-800 border border-zinc-700 text-zinc-100 hover:bg-zinc-700 font-bold text-xs"
+                            onClick={handleCallStaffCash}
+                          >
+                            Alert Staff for Cash Checkout
+                          </Button>
+                        ) : (
+                          <Button
+                            type="button"
+                            className="w-full h-11 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-black font-extrabold text-xs"
+                            onClick={() => {
+                              const base = splitMode === 'equal' ? activeBillTotal / splitCount : activeBillTotal;
+                              handleCheckout(base, splitMode === 'equal', selectedShareIndex);
+                            }}
+                          >
+                            Proceed with {paymentMethod === 'APPLE_PAY' ? 'Apple Pay' : 'Card'}
+                          </Button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Progress States */}
+                    {paymentStep === 'processing' && (
+                      <div className="flex flex-col items-center justify-center py-8 text-center space-y-4">
+                        <Loader2 className="size-8 animate-spin text-emerald-500 animate-duration-1000" />
+                        <p className="text-xs font-semibold text-zinc-300">{paymentStatusText}</p>
+                      </div>
+                    )}
+
+                    {paymentStep === 'success' && (
+                      <div className="flex flex-col items-center justify-center py-6 text-center space-y-3">
+                        <CheckCircle2 className="size-10 text-emerald-400" />
+                        <h4 className="text-sm font-black text-zinc-100">Payment Successful!</h4>
+                        <p className="text-[11px] text-zinc-400 max-w-xs leading-relaxed">
+                          Your transaction has been recorded. {splitMode === 'equal' && paidShareIndexes.length + 1 < splitCount 
+                            ? 'Please coordinate other shares to finish settling the table.' 
+                            : 'Table is fully paid! Thank you for dining with us.'}
+                        </p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-8 rounded-lg text-xs"
+                          onClick={() => {
+                            setPaymentStep('idle');
+                            if (activeOrders.length === 0) {
+                              setActiveTab('menu');
+                            }
+                          }}
+                        >
+                          Dismiss
+                        </Button>
+                      </div>
+                    )}
+
+                    {paymentStep === 'cash_requested' && (
+                      <div className="flex flex-col items-center justify-center py-6 text-center space-y-3">
+                        <Clock className="size-10 text-amber-400 animate-pulse" />
+                        <h4 className="text-sm font-black text-zinc-100">Staff Call Placed</h4>
+                        <p className="text-[11px] text-zinc-400 max-w-xs leading-relaxed">
+                          A Front of House team member has been alerted to collect cash at Table {currentTable.number}. Please have your cash ready.
+                        </p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-8 rounded-lg text-xs"
+                          onClick={() => setPaymentStep('idle')}
+                        >
+                          Back
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-zinc-900 border border-zinc-850 flex items-center justify-center mb-4">
+                  <ShoppingCart className="size-6 text-zinc-700" />
+                </div>
+                <h3 className="text-sm font-bold text-zinc-300">No Active Bill</h3>
+                <p className="text-xs text-zinc-500 max-w-xs mt-1.5 leading-relaxed">
+                  No orders have been submitted yet. Go back to the{' '}
+                  <button onClick={() => setActiveTab('menu')} className="text-emerald-500 font-semibold hover:underline">
+                    menu
+                  </button>{' '}
+                  to add items.
                 </p>
               </div>
             )}

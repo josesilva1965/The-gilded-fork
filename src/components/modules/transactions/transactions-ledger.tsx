@@ -23,6 +23,7 @@ import {
   AlertTriangle,
   Percent,
   Receipt,
+  Download,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -70,6 +71,35 @@ export function TransactionsLedger() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+
+  const handleExportCSV = () => {
+    if (transactions.length === 0) return;
+    const headers = ['ID', 'Category', 'Description', 'Source/Party', 'Operator', 'Method', 'Status', 'Amount', 'Date'];
+    const rows = transactions.map((tx) => [
+      tx.id,
+      tx.category,
+      tx.description || '',
+      tx.partyName || '',
+      tx.user?.name || '',
+      tx.method || '',
+      tx.status || '',
+      tx.type === 'OUTFLOW' ? `-${tx.amount}` : `+${tx.amount}`,
+      new Date(tx.createdAt).toLocaleDateString()
+    ]);
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(r => r.map(val => `"${val.toString().replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `transactions_ledger_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const fetchTransactions = useCallback(async () => {
     setIsLoading(true);
@@ -409,6 +439,17 @@ export function TransactionsLedger() {
                 className="pl-9 h-9 bg-zinc-950 border-zinc-800 text-xs placeholder:text-zinc-600 focus-visible:ring-emerald-500/50"
               />
             </div>
+
+            <Button
+              onClick={handleExportCSV}
+              disabled={transactions.length === 0}
+              variant="outline"
+              size="sm"
+              className="h-9 border-zinc-850 hover:bg-zinc-800 text-zinc-300 gap-1.5 rounded-lg text-xs cursor-pointer"
+            >
+              <Download className="size-3.5 text-emerald-400" />
+              <span>Export CSV</span>
+            </Button>
 
             {/* Type Filter Buttons */}
             <div className="flex items-center gap-1 bg-zinc-950 p-1 border border-zinc-850 rounded-lg shrink-0 w-full sm:w-auto">

@@ -26,6 +26,7 @@ import {
   Edit3,
   Check,
   Printer,
+  Download,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { useT, useLocale, useLocaleConfig } from '@/stores/locale-store';
@@ -1172,6 +1173,63 @@ export function Inventory() {
     return matchesSearch && matchesCategory && matchesStorage && matchesLowStock;
   });
 
+  const handleExportStockCSV = () => {
+    if (filteredIngredients.length === 0) return;
+    const headers = ['ID', 'Name', 'Category', 'Storage Location', 'Current Stock', 'Min Stock', 'Max Stock', 'Cost Per Unit', 'Vendor'];
+    const rows = filteredIngredients.map((ing) => [
+      ing.id,
+      ing.name,
+      ing.category || '—',
+      ing.storageLocation || '—',
+      `${ing.currentStock} ${ing.unit}`,
+      `${ing.minStock} ${ing.unit}`,
+      `${ing.maxStock} ${ing.unit}`,
+      ing.costPerUnit,
+      ing.vendor?.name || '—'
+    ]);
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(r => r.map(val => `"${val.toString().replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `inventory_stock_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleExportWastageCSV = () => {
+    const logs = wastageData?.wastageLogs || [];
+    if (logs.length === 0) return;
+    const headers = ['Date', 'Ingredient', 'Quantity', 'Reason', 'Cost Value', 'Reported By', 'Notes'];
+    const rows = logs.map((log) => [
+      new Date(log.createdAt).toLocaleDateString(),
+      log.ingredient?.name || '—',
+      `${log.quantity} ${log.ingredient?.unit || ''}`,
+      log.reason,
+      log.value,
+      log.reporter?.name || '—',
+      log.notes || ''
+    ]);
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(r => r.map(val => `"${val.toString().replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `inventory_wastage_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   /* Handlers */
   const handleEditStock = useCallback((ingredient: Ingredient) => {
     setEditingIngredient(ingredient);
@@ -1537,6 +1595,16 @@ export function Inventory() {
               )}
             </div>
             <div className="flex gap-2">
+              <Button
+                onClick={handleExportStockCSV}
+                disabled={filteredIngredients.length === 0}
+                variant="outline"
+                size="sm"
+                className="border-zinc-800 hover:bg-zinc-800 text-zinc-300 gap-1.5 h-10 text-xs cursor-pointer"
+              >
+                <Download className="size-3.5 text-emerald-400" />
+                <span>Export CSV</span>
+              </Button>
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                 <SelectTrigger className="w-[130px] bg-zinc-900 border-zinc-800 text-zinc-300 h-10 text-xs">
                   <Filter className="size-3 mr-1" />
@@ -1647,13 +1715,25 @@ export function Inventory() {
                 This week&apos;s wastage: <span className="text-amber-400 font-mono">{fmtCur(weekWastageValue)}</span>
               </p>
             </div>
-            <Button
-              onClick={() => setWastageDialogOpen(true)}
-              className="bg-amber-600 hover:bg-amber-700 text-white text-xs h-9"
-            >
-              <Plus className="size-3.5 mr-1" />
-              Log Wastage
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={handleExportWastageCSV}
+                disabled={!wastageData?.wastageLogs || wastageData.wastageLogs.length === 0}
+                variant="outline"
+                size="sm"
+                className="border-zinc-800 hover:bg-zinc-800 text-zinc-300 gap-1.5 h-9 text-xs cursor-pointer"
+              >
+                <Download className="size-3.5 text-emerald-400" />
+                <span>Export CSV</span>
+              </Button>
+              <Button
+                onClick={() => setWastageDialogOpen(true)}
+                className="bg-amber-600 hover:bg-amber-700 text-white text-xs h-9 cursor-pointer"
+              >
+                <Plus className="size-3.5 mr-1" />
+                Log Wastage
+              </Button>
+            </div>
           </div>
 
           <Card className="bg-zinc-900 border-zinc-800">

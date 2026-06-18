@@ -347,6 +347,7 @@ function ScheduleTab({ staff, onRefresh }: { staff: StaffUser[]; onRefresh: () =
   const [formEndTime, setFormEndTime] = useState('');
   const [formPosition, setFormPosition] = useState('SERVER');
   const [formNotes, setFormNotes] = useState('');
+  const [swapWithId, setSwapWithId] = useState('');
 
   // Fetch templates from API
   useEffect(() => {
@@ -428,6 +429,48 @@ function ScheduleTab({ staff, onRefresh }: { staff: StaffUser[]; onRefresh: () =
     setFormNotes(assignment.notes || '');
     
     setIsDialogOpen(true);
+  };
+
+  const dateShifts = useMemo(() => {
+    if (!formDate) return [];
+    const targetDateStr = new Date(formDate).toDateString();
+    
+    const list: Array<{ shift: ShiftAssignment; user: StaffUser }> = [];
+    staff.forEach((u) => {
+      u.shifts.forEach((s) => {
+        if (new Date(s.date).toDateString() === targetDateStr && s.id !== editingAssignment?.id) {
+          list.push({ shift: s, user: u });
+        }
+      });
+    });
+    return list;
+  }, [staff, formDate, editingAssignment]);
+
+  const handleSwapShifts = async () => {
+    if (!editingAssignment || !swapWithId) return;
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/staff/shifts/swap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignmentId1: editingAssignment.id,
+          assignmentId2: swapWithId,
+        }),
+      });
+
+      if (!res.ok) throw new Error('Swap failed');
+
+      addNotification('Shifts swapped successfully', 'success');
+      onRefresh();
+      setIsDialogOpen(false);
+      setSwapWithId('');
+    } catch (err) {
+      console.error(err);
+      addNotification('Failed to swap shifts', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -940,6 +983,36 @@ function ScheduleTab({ staff, onRefresh }: { staff: StaffUser[]; onRefresh: () =
                   placeholder={t.staff.additionalInstructions}
                 />
               </div>
+
+              {/* Swap Shift Option */}
+              {editingAssignment && dateShifts.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-zinc-900">
+                  <Label htmlFor="swapWithId" className="text-xs text-zinc-450 font-bold uppercase tracking-wider">🔄 Swap with another shift</Label>
+                  <div className="flex gap-2">
+                    <select
+                      id="swapWithId"
+                      value={swapWithId}
+                      onChange={(e) => setSwapWithId(e.target.value)}
+                      className="flex-1 bg-zinc-905 border border-zinc-800 text-zinc-100 rounded-lg p-2 text-xs focus:outline-none focus:border-emerald-600 cursor-pointer"
+                    >
+                      <option value="">-- Select Shift to Trade --</option>
+                      {dateShifts.map((entry) => (
+                        <option key={entry.shift.id} value={entry.shift.id}>
+                          {entry.user.name} - {entry.shift.position || entry.shift.shiftTemplate.name} ({entry.shift.startTime || entry.shift.shiftTemplate.startTime}–{entry.shift.endTime || entry.shift.shiftTemplate.endTime})
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      type="button"
+                      disabled={!swapWithId || isSubmitting}
+                      onClick={handleSwapShifts}
+                      className="bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs font-bold hover:bg-zinc-700 h-9"
+                    >
+                      Trade
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <DialogFooter className="gap-2 sm:gap-0 flex flex-row items-center justify-between mt-6">

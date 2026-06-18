@@ -53,6 +53,7 @@ interface OrderItem {
     name: string;
     type: string;
     station: string;
+    prepTime?: number;
   };
   quantity: number;
   seatNumber: number | null;
@@ -444,8 +445,24 @@ function OrderTicket({
 }) {
   const t = useT();
   const locale = useLocale();
-  const urgency = getUrgencyLevel(order.createdAt);
   const [, setTick] = useState(0);
+
+  // Dynamic urgency level based on prepTime estimates of items in this order
+  const urgency = useMemo(() => {
+    const maxPrepTime = order.items
+      .filter((i) => i.status !== 'CANCELLED')
+      .reduce((max, i) => {
+        const prep = i.menuItem.prepTime || 15;
+        return prep > max ? prep : max;
+      }, 5);
+
+    const elapsedMs = Date.now() - new Date(order.createdAt).getTime();
+    const elapsedMinutes = elapsedMs / 60000;
+
+    if (elapsedMinutes < maxPrepTime * 0.6) return 'green';
+    if (elapsedMinutes < maxPrepTime) return 'amber';
+    return 'red';
+  }, [order.createdAt, order.items]);
 
   useEffect(() => {
     const interval = setInterval(() => setTick((t) => t + 1), 1000);
