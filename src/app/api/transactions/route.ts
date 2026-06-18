@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getAuthenticatedUser } from '@/lib/auth-util';
 
 export async function GET(request: Request) {
   try {
+    const authUser = await getAuthenticatedUser(request, ['ADMIN', 'MANAGER']);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') || 'week'; // day, week, month, all
     const type = searchParams.get('type') || 'all'; // all, inflow, outflow

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import { notifyBrandingChange } from '@/lib/socket-server';
+import { getAuthenticatedUser } from '@/lib/auth-util';
 
 const CONFIG_PATH = path.join(process.cwd(), 'db', 'branding.json');
 
@@ -33,6 +34,11 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const authUser = await getAuthenticatedUser(request, ['ADMIN', 'MANAGER']);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const updates = {
       themeMode: body.themeMode || 'dark',

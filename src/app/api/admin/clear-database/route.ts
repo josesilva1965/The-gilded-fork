@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getAuthenticatedUser } from '@/lib/auth-util';
 
 export async function DELETE(request: Request) {
   try {
+    const authUser = await getAuthenticatedUser(request, ['ADMIN']);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     // Start wiping from the leaves up to avoid FK constraint errors
 
     // 1. Order-related data

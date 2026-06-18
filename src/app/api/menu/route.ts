@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getAuthenticatedUser } from '@/lib/auth-util';
 
 export async function GET() {
   try {
@@ -31,6 +32,11 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
   try {
+    const authUser = await getAuthenticatedUser(request, ['ADMIN', 'MANAGER']);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { id, categoryId, name, description, price, cost, type, station, prepTime, isAvailable, isPopular, imageUrl, allergies, spiceLevel, extras } = body;
     
@@ -77,6 +83,11 @@ export async function PATCH(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const authUser = await getAuthenticatedUser(request, ['ADMIN', 'MANAGER']);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { categoryId, name, description, price, cost, type, station, prepTime, isAvailable, isPopular, imageUrl, allergies, spiceLevel, extras } = body;
     
@@ -118,6 +129,11 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const authUser = await getAuthenticatedUser(request, ['ADMIN', 'MANAGER']);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     if (!id) {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield,
@@ -19,6 +19,7 @@ import {
   XCircle,
   Info,
   X,
+  ArrowLeft,
 } from 'lucide-react';
 import { useAuthStore, ROLE_COLORS } from '@/stores/auth-store';
 import { useAppStore } from '@/stores/app-store';
@@ -148,27 +149,149 @@ function getRoleLabel(role: string, t: any): string {
   return map[role] || role;
 }
 
-/* ─── Role Selection Screen ─── */
+/* ─── Role Selection Screen with PIN verification ─── */
 function RoleSelectionScreen() {
   const login = useAuthStore((s) => s.login);
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<any | null>(null);
+  const [pinInput, setPinInput] = useState('');
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [staff, setStaff] = useState<any[]>([]);
+  const [isLoadingStaff, setIsLoadingStaff] = useState(true);
   const t = useT();
   const { logoText, logoIconType, logoEmoji, logoUrl, restaurantName } = useBranding();
 
-  function handleRoleSelect(role: string) {
-    setSelectedRole(role);
-    const mockUser = MOCK_USERS[role];
-    if (!mockUser) return;
-    login({
-      id: mockUser.id,
-      email: mockUser.email,
-      name: mockUser.name,
-      role: role as any,
-      pin: mockUser.pin,
-    });
-  }
+  // Load the active staff list (without PINs)
+  useEffect(() => {
+    async function loadStaff() {
+      try {
+        const res = await fetch('/api/staff');
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            setStaff(data);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch staff list:', err);
+      } finally {
+        setIsLoadingStaff(false);
+      }
+    }
+    loadStaff();
+  }, []);
 
   const roles = ['ADMIN', 'MANAGER', 'KITCHEN', 'BAR', 'FOH'];
+
+  // Handle clicking a role
+  function handleRoleSelect(role: string) {
+    setSelectedRole(role);
+    setLoginError(null);
+    setPinInput('');
+    
+    // Find staff members matching this role
+    const matchingStaff = staff.filter((s) => s.role === role);
+    
+    if (matchingStaff.length === 1) {
+      // If exactly one user has this role, auto-select them
+      setSelectedUser(matchingStaff[0]);
+    } else if (matchingStaff.length === 0) {
+      // Fallback to mock user if no staff in DB matches this role
+      const mockUser = MOCK_USERS[role];
+      if (mockUser) {
+        setSelectedUser({
+          id: mockUser.id,
+          name: mockUser.name,
+          email: mockUser.email,
+          role: role,
+        });
+      }
+    }
+    // If matchingStaff.length > 1, selectedUser remains null so they can choose which name they are
+  }
+
+  // Handle clicking a specific staff member name (if multiple users have the same role)
+  function handleUserSelect(user: any) {
+    setSelectedUser(user);
+    setLoginError(null);
+    setPinInput('');
+  }
+
+  // Handle PIN pad digit click
+  function handlePinDigit(digit: string) {
+    if (pinInput.length < 4) {
+      setPinInput((prev) => prev + digit);
+      setLoginError(null);
+    }
+  }
+
+  // Handle backspace
+  function handleBackspace() {
+    setPinInput((prev) => prev.slice(0, -1));
+  }
+
+  // Handle clearing PIN
+  function handleClear() {
+    setPinInput('');
+    setLoginError(null);
+  }
+
+  // Submit PIN for verification
+  const handleVerify = useCallback(async (pinToVerify: string) => {
+    if (!selectedUser) return;
+    setIsLoggingIn(true);
+    setLoginError(null);
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: selectedUser.id, pin: pinToVerify }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        login({
+          ...data.user,
+          pin: pinToVerify,
+        });
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setLoginError(data.error || 'Invalid PIN');
+        setPinInput('');
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setLoginError('Server connection failed. Try again.');
+      setPinInput('');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  }, [selectedUser, login]);
+
+  // Auto-submit when 4 digits are entered
+  useEffect(() => {
+    if (pinInput.length === 4) {
+      const timer = setTimeout(() => {
+        handleVerify(pinInput);
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [pinInput, handleVerify]);
+
+  function handleBack() {
+    if (selectedUser && staff.filter((s) => s.role === selectedRole).length > 1) {
+      setSelectedUser(null);
+    } else {
+      setSelectedRole(null);
+      setSelectedUser(null);
+    }
+    setPinInput('');
+    setLoginError(null);
+  }
+
+  const roleStaffList = selectedRole ? staff.filter((s) => s.role === selectedRole) : [];
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-zinc-955 p-4">
@@ -184,95 +307,224 @@ function RoleSelectionScreen() {
         transition={{ duration: 0.5, ease: 'easeOut' }}
         className="relative z-10 w-full max-w-lg"
       >
-        <Card className="bg-zinc-900 border-zinc-800 shadow-2xl shadow-black/50 animate-in zoom-in-95 duration-350">
-          <CardHeader className="text-center pb-2">
+        <Card className="bg-zinc-900 border-zinc-800 shadow-2xl shadow-black/50 overflow-hidden animate-in zoom-in-95 duration-350">
+          <CardHeader className="text-center pb-2 relative">
+            {(selectedRole !== null) && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleBack}
+                className="absolute left-4 top-4 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
+              >
+                <ArrowLeft className="size-4" />
+              </Button>
+            )}
             <div className="flex items-center justify-center mb-4">
               <div className={cn(
-                "flex items-center justify-center w-20 h-20 rounded-2xl text-white shadow-lg overflow-hidden shrink-0",
+                "flex items-center justify-center w-16 h-16 rounded-2xl text-white shadow-lg overflow-hidden shrink-0",
                 logoIconType === 'url' && logoUrl ? "" : "bg-emerald-600 shadow-emerald-600/25"
               )}>
                 {logoIconType === 'emoji' ? (
-                  <span className="text-4xl">{logoEmoji}</span>
+                  <span className="text-3xl">{logoEmoji}</span>
                 ) : logoIconType === 'url' && logoUrl ? (
                   <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-2xl font-bold tracking-wider">{logoText || 'GF'}</span>
+                  <span className="text-xl font-bold tracking-wider">{logoText || 'GF'}</span>
                 )}
               </div>
             </div>
-            <CardTitle className="text-2xl font-bold text-zinc-100 tracking-tight">
+            <CardTitle className="text-xl font-bold text-zinc-100 tracking-tight">
               {restaurantName || t.auth.restaurantName}
             </CardTitle>
-            <CardDescription className="text-zinc-500 text-sm">
-              {t.auth.managementSystem}
+            <CardDescription className="text-zinc-500 text-xs">
+              {selectedUser ? `${getRoleLabel(selectedUser.role, t)} / ${selectedUser.name}` : t.auth.managementSystem}
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-4">
-            <p className="text-center text-xs text-zinc-500 mb-6">
-              {t.auth.selectRole}
-            </p>
-            <div className="grid gap-3">
-              {roles.map((role, idx) => {
-                const IconComp = ROLE_ICON_COMPONENTS[role];
-                const colors = ROLE_CARD_COLORS[role];
-                const isSelected = selectedRole === role;
+            <AnimatePresence mode="wait">
+              {/* Step 1: Select Role */}
+              {selectedRole === null && (
+                <motion.div
+                  key="role-select"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 10 }}
+                  transition={{ duration: 0.2 }}
+                  className="grid gap-3"
+                >
+                  <p className="text-center text-xs text-zinc-500 mb-2">
+                    {t.auth.selectRole}
+                  </p>
+                  {roles.map((role, idx) => {
+                    const IconComp = ROLE_ICON_COMPONENTS[role];
+                    const colors = ROLE_CARD_COLORS[role];
 
-                return (
-                  <motion.div
-                    key={role}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.08, duration: 0.3 }}
-                  >
-                    <Button
-                      variant="outline"
-                      disabled={selectedRole !== null && !isSelected}
-                      onClick={() => handleRoleSelect(role)}
-                      className={cn(
-                        'w-full h-16 justify-start gap-4 px-4 border transition-all duration-200',
-                        'bg-zinc-900 border-zinc-700/50 hover:border-zinc-600',
-                        colors.bg,
-                        colors.hover,
-                        colors.border,
-                        isSelected && 'ring-2 ring-emerald-500/50',
-                        selectedRole !== null && !isSelected && 'opacity-30'
-                      )}
-                    >
-                      <div
+                    return (
+                      <Button
+                        key={role}
+                        variant="outline"
+                        onClick={() => handleRoleSelect(role)}
                         className={cn(
-                          'flex items-center justify-center w-10 h-10 rounded-lg shrink-0',
+                          'w-full h-14 justify-start gap-4 px-4 border transition-all duration-200',
+                          'bg-zinc-900 border-zinc-800 hover:border-zinc-700',
                           colors.bg,
-                          colors.border,
-                          'border'
+                          colors.hover,
+                          colors.border
                         )}
                       >
-                        <IconComp className={cn('size-5', colors.icon)} />
-                      </div>
-                      <div className="text-left">
-                        <p className={cn('text-sm font-semibold', colors.text)}>
-                          {getRoleLabel(role, t)}
-                        </p>
-                        <p className="text-[11px] text-zinc-500">
-                          {MOCK_USERS[role]?.email}
-                        </p>
-                      </div>
-                      <div className="ml-auto">
                         <div
                           className={cn(
-                            'w-2 h-2 rounded-full',
-                            ROLE_COLORS[role as keyof typeof ROLE_COLORS]
+                            'flex items-center justify-center w-8 h-8 rounded-lg shrink-0 border',
+                            colors.bg,
+                            colors.border
                           )}
-                        />
-                      </div>
-                    </Button>
-                  </motion.div>
-                );
-              })}
-            </div>
+                        >
+                          <IconComp className={cn('size-4', colors.icon)} />
+                        </div>
+                        <div className="text-left">
+                          <p className={cn('text-sm font-semibold', colors.text)}>
+                            {getRoleLabel(role, t)}
+                          </p>
+                        </div>
+                        <div className="ml-auto">
+                          <div
+                            className={cn(
+                              'w-2 h-2 rounded-full',
+                              ROLE_COLORS[role as keyof typeof ROLE_COLORS]
+                            )}
+                          />
+                        </div>
+                      </Button>
+                    );
+                  })}
+                </motion.div>
+              )}
 
-            <p className="text-center text-[10px] text-zinc-600 mt-6">
-              {t.auth.demoMode}
-            </p>
+              {/* Step 2: Select Name (if multiple users for a role) */}
+              {selectedRole !== null && selectedUser === null && (
+                <motion.div
+                  key="name-select"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 10 }}
+                  transition={{ duration: 0.2 }}
+                  className="space-y-4"
+                >
+                  <p className="text-center text-xs text-zinc-400 mb-2">
+                    Select your name:
+                  </p>
+                  <div className="grid gap-2 max-h-[280px] overflow-y-auto pr-1">
+                    {roleStaffList.map((member) => (
+                      <Button
+                        key={member.id}
+                        variant="outline"
+                        onClick={() => handleUserSelect(member)}
+                        className="w-full h-12 justify-start px-4 bg-zinc-900/60 border-zinc-800 hover:border-zinc-700 text-zinc-200"
+                      >
+                        <span className="text-sm font-medium">{member.name}</span>
+                        <span className="ml-auto text-[10px] text-zinc-500">{member.email}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Step 3: Enter PIN */}
+              {selectedUser !== null && (
+                <motion.div
+                  key="pin-entry"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex flex-col items-center space-y-4"
+                >
+                  <div className="text-center">
+                    <p className="text-xs text-zinc-400">
+                      Enter 4-digit PIN for
+                    </p>
+                    <p className="text-sm font-semibold text-zinc-200 mt-0.5">
+                      {selectedUser.name}
+                    </p>
+                  </div>
+
+                  {/* Dot Indicators */}
+                  <div className="flex gap-4 my-2">
+                    {[0, 1, 2, 3].map((i) => (
+                      <div
+                        key={i}
+                        className={cn(
+                          'w-3.5 h-3.5 rounded-full border border-zinc-700 transition-all duration-150',
+                          i < pinInput.length
+                            ? 'bg-emerald-500 border-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.5)] scale-110'
+                            : 'bg-zinc-950 scale-100'
+                        )}
+                      />
+                    ))}
+                  </div>
+
+                  {loginError ? (
+                    <p className="text-xs font-medium text-red-400 min-h-4">
+                      {loginError}
+                    </p>
+                  ) : (
+                    <div className="h-4" />
+                  )}
+
+                  {/* PIN Pad Grid */}
+                  <div className="grid grid-cols-3 gap-3 w-full max-w-[260px] mx-auto pb-2">
+                    {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
+                      <Button
+                        key={num}
+                        variant="outline"
+                        disabled={isLoggingIn}
+                        onClick={() => handlePinDigit(num)}
+                        className="h-12 text-lg font-mono font-bold bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-zinc-200 shadow-md"
+                      >
+                        {num}
+                      </Button>
+                    ))}
+                    <Button
+                      variant="outline"
+                      disabled={isLoggingIn}
+                      onClick={handleClear}
+                      className="h-12 text-xs font-semibold bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-zinc-400"
+                    >
+                      CLEAR
+                    </Button>
+                    <Button
+                      variant="outline"
+                      disabled={isLoggingIn}
+                      onClick={() => handlePinDigit('0')}
+                      className="h-12 text-lg font-mono font-bold bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-zinc-200 shadow-md"
+                    >
+                      0
+                    </Button>
+                    <Button
+                      variant="outline"
+                      disabled={isLoggingIn || pinInput.length === 0}
+                      onClick={handleBackspace}
+                      className="h-12 text-xs font-semibold bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-zinc-400"
+                    >
+                      ⌫
+                    </Button>
+                  </div>
+
+                  {isLoggingIn && (
+                    <div className="flex items-center gap-2 text-xs text-zinc-500 mt-2">
+                      <div className="animate-spin size-3.5 border-2 border-emerald-500 border-t-transparent rounded-full" />
+                      <span>Verifying PIN...</span>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {selectedRole === null && (
+              <p className="text-center text-[10px] text-zinc-600 mt-6">
+                {t.auth.demoMode}
+              </p>
+            )}
           </CardContent>
         </Card>
       </motion.div>

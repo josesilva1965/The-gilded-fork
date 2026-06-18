@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getAuthenticatedUser } from '@/lib/auth-util';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const authUser = await getAuthenticatedUser(request, ['ADMIN', 'MANAGER', 'KITCHEN', 'BAR']);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 

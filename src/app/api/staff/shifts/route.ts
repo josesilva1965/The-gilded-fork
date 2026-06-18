@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getAuthenticatedUser } from '@/lib/auth-util';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const authUser = await getAuthenticatedUser(request, ['ADMIN', 'MANAGER', 'KITCHEN', 'BAR', 'FOH']);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const templates = await db.shiftTemplate.findMany({
       orderBy: { startTime: 'asc' },
     });
@@ -15,6 +21,11 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    const authUser = await getAuthenticatedUser(req, ['ADMIN', 'MANAGER']);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await req.json();
     const { userId, shiftTemplateId, date, startTime, endTime, position, notes } = body;
 
@@ -46,6 +57,11 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   try {
+    const authUser = await getAuthenticatedUser(req, ['ADMIN', 'MANAGER']);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await req.json();
     const { id, shiftTemplateId, date, startTime, endTime, position, notes } = body;
 
@@ -78,6 +94,11 @@ export async function PUT(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
+    const authUser = await getAuthenticatedUser(req, ['ADMIN', 'MANAGER']);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 

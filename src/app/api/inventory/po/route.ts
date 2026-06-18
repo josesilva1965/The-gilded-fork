@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getAuthenticatedUser } from '@/lib/auth-util';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const authUser = await getAuthenticatedUser(request, ['ADMIN', 'MANAGER', 'KITCHEN', 'BAR', 'FOH']);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const purchaseOrders = await db.purchaseOrder.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
@@ -24,6 +30,11 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const authUser = await getAuthenticatedUser(request, ['ADMIN', 'MANAGER']);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { vendorId, items, notes } = body;
 
@@ -34,13 +45,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // Calculate total
     const totalAmount = items.reduce(
       (sum: number, item: { totalPrice: number }) => sum + item.totalPrice,
       0
     );
 
-    // Create purchase order with items
     const purchaseOrder = await db.purchaseOrder.create({
       data: {
         vendorId,

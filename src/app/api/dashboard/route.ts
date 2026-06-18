@@ -2,8 +2,14 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { safeDbCall } from '@/lib/db-fallback';
 import { MOCK_DASHBOARD } from '@/lib/mock-data';
+import { getAuthenticatedUser } from '@/lib/auth-util';
 
-export async function GET() {
+export async function GET(request: Request) {
+  const authUser = await getAuthenticatedUser(request, ['ADMIN', 'MANAGER']);
+  if (!authUser) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const data = await safeDbCall(async () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);

@@ -1417,48 +1417,37 @@ function ClockInOutTab({ staff, onClockAction }: { staff: StaffUser[]; onClockAc
 
   const handleSubmit = useCallback(async () => {
     if (pinInput.length !== 4) return;
-    const user = staff.find((u) => u.pin === pinInput);
-    if (!user) {
-      setClockMessage({ text: 'Invalid PIN. Please try again.', type: 'error' });
-      setPinInput('');
-      return;
-    }
-
-    const currentlyIn = isClockedIn(user);
-    const action = currentlyIn ? 'OUT' : 'IN';
 
     setIsProcessing(true);
+    setClockMessage(null);
     try {
       const res = await fetch('/api/staff/clock', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, action }),
+        body: JSON.stringify({ pin: pinInput }),
       });
 
-      if (!res.ok) throw new Error('Clock failed');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Clock failed');
+      }
 
-      if (action === 'IN') {
-        setClockMessage({ text: `Welcome, ${user.name}!`, type: 'success' });
+      const data = await res.json();
+      if (data.action === 'IN') {
+        setClockMessage({ text: `Welcome, ${data.userName}!`, type: 'success' });
       } else {
-        const clockedInTime = getClockedInTime(user);
-        let workedText = '';
-        if (clockedInTime) {
-          const diffMs = Date.now() - clockedInTime.getTime();
-          const hours = Math.floor(diffMs / 3600000);
-          const minutes = Math.floor((diffMs % 3600000) / 60000);
-          workedText = ` Worked: ${hours}h ${minutes}m`;
-        }
-        setClockMessage({ text: `Goodbye, ${user.name}!${workedText}`, type: 'success' });
+        setClockMessage({ text: `Goodbye, ${data.userName}!${data.workedText || ''}`, type: 'success' });
       }
 
       onClockAction();
       setPinInput('');
-    } catch {
-      setClockMessage({ text: 'Error processing clock. Try again.', type: 'error' });
+    } catch (err: any) {
+      setClockMessage({ text: err.message || 'Error processing clock. Try again.', type: 'error' });
+      setPinInput('');
     } finally {
       setIsProcessing(false);
     }
-  }, [pinInput, staff, onClockAction]);
+  }, [pinInput, onClockAction]);
 
   // Auto-submit when PIN is 4 digits
   useEffect(() => {

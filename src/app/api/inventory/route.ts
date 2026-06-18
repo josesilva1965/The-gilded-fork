@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { notifyStockChange } from '@/lib/socket-server';
+import { getAuthenticatedUser } from '@/lib/auth-util';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const authUser = await getAuthenticatedUser(request, ['ADMIN', 'MANAGER', 'KITCHEN', 'BAR', 'FOH']);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const ingredients = await db.ingredient.findMany({
       orderBy: { name: 'asc' },
       include: { vendor: true },
@@ -22,6 +28,11 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const authUser = await getAuthenticatedUser(request, ['ADMIN', 'MANAGER']);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { name, unit, currentStock, minStock, maxStock, costPerUnit, storageLocation, category, vendorId } = body;
     if (!name || !unit) {
@@ -65,6 +76,11 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
+    const authUser = await getAuthenticatedUser(request, ['ADMIN', 'MANAGER']);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { id, currentStock, minStock, maxStock, costPerUnit, name, unit, storageLocation, category, vendorId, reason } = body;
     const oldIngredient = await db.ingredient.findUnique({ where: { id } });
@@ -98,20 +114,23 @@ export async function PATCH(request: Request) {
       await db.stockLedger.create({
         data: {
           ingredientId: id,
-          change,
-          reason: reason || 'ADJUSTMENT',
+          change: change,
+          reason: reason || (change > 0 ? 'RESTOCK' : 'WASTAGE'),
+          notes: `Updated stock from ${oldIngredient.currentStock} to ${currentStock}`,
         },
       });
     }
+
     notifyStockChange({
       name: ingredient.name,
       currentStock: ingredient.currentStock,
       minStock: ingredient.minStock,
       unit: ingredient.unit,
     });
+
     return NextResponse.json(ingredient);
   } catch (error) {
     console.error('Error updating ingredient:', error);
-    return NextResponse.json({ error: 'Failed to update ingredient' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to update product' }, { status: 500 });
   }
 }

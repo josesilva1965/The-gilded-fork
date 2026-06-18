@@ -31,6 +31,44 @@ export function Providers({ children }: { children: React.ReactNode }) {
           });
       });
     }
+
+    // Intercept fetch to automatically append user headers if logged in
+    if (typeof window !== 'undefined') {
+      const originalFetch = window.fetch;
+      window.fetch = async (input, init) => {
+        let url = '';
+        if (typeof input === 'string') {
+          url = input;
+        } else if (input instanceof URL) {
+          url = input.href;
+        } else if (input && typeof input === 'object' && 'url' in input) {
+          url = (input as any).url;
+        }
+
+        if (url.startsWith('/api/') || url.includes(window.location.origin + '/api/')) {
+          try {
+            const { useAuthStore } = require('@/stores/auth-store');
+            const state = useAuthStore.getState();
+            if (state && state.user) {
+              const headers = new Headers(init?.headers);
+              if (!headers.has('x-user-id') && state.user.id) {
+                headers.set('x-user-id', state.user.id);
+              }
+              if (!headers.has('x-user-pin') && state.user.pin) {
+                headers.set('x-user-pin', state.user.pin);
+              }
+              return originalFetch(input, {
+                ...init,
+                headers,
+              });
+            }
+          } catch (e) {
+            console.error('Error in fetch interceptor:', e);
+          }
+        }
+        return originalFetch(input, init);
+      };
+    }
   }, []);
 
   return (

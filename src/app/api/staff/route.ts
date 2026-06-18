@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { safeDbCall } from '@/lib/db-fallback';
 import { MOCK_USERS } from '@/lib/mock-data';
+import { getAuthenticatedUser } from '@/lib/auth-util';
 
-export async function GET() {
+export async function GET(req: Request) {
   const users = await safeDbCall(
     () => db.user.findMany({
       where: { active: true },
@@ -15,11 +16,29 @@ export async function GET() {
     }),
     MOCK_USERS
   );
-  return NextResponse.json(users);
+  
+  // Check if the caller is authenticated as ADMIN or MANAGER
+  const authUser = await getAuthenticatedUser(req, ['ADMIN', 'MANAGER']);
+
+  // Omit pin from the output unless the caller is an ADMIN or MANAGER
+  const sanitizedUsers = users.map((u: any) => {
+    if (authUser) {
+      return u; // Return full user details including pin
+    }
+    const { pin, ...rest } = u;
+    return rest;
+  });
+
+  return NextResponse.json(sanitizedUsers);
 }
 
 export async function POST(req: Request) {
   try {
+    const authUser = await getAuthenticatedUser(req, ['ADMIN', 'MANAGER']);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const data = await req.json();
     const { name, email, role, pin, hourlyRate, phone } = data;
 
@@ -50,7 +69,8 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json(user, { status: 201 });
+    const { pin: _, ...sanitizedUser } = user as any;
+    return NextResponse.json(sanitizedUser, { status: 201 });
   } catch (error) {
     console.error('Error creating staff:', error);
     return NextResponse.json({ error: 'Failed to create staff' }, { status: 500 });
@@ -59,6 +79,11 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   try {
+    const authUser = await getAuthenticatedUser(req, ['ADMIN', 'MANAGER']);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const data = await req.json();
     const { id, name, email, role, pin, hourlyRate, phone, active } = data;
 
@@ -94,7 +119,8 @@ export async function PUT(req: Request) {
       data: updateData,
     });
 
-    return NextResponse.json(user, { status: 200 });
+    const { pin: _, ...sanitizedUser } = user as any;
+    return NextResponse.json(sanitizedUser, { status: 200 });
   } catch (error) {
     console.error('Error updating staff:', error);
     return NextResponse.json({ error: 'Failed to update staff' }, { status: 500 });

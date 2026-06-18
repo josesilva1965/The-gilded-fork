@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { notifyStockChange } from '@/lib/socket-server';
+import { getAuthenticatedUser } from '@/lib/auth-util';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const authUser = await getAuthenticatedUser(request, ['ADMIN', 'MANAGER', 'KITCHEN', 'BAR', 'FOH']);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const wastageLogs = await db.wastageLog.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
@@ -14,7 +20,6 @@ export async function GET() {
       take: 100,
     });
 
-    // Calculate this week's wastage value
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
     const weekWastage = await db.wastageLog.aggregate({
@@ -34,6 +39,11 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const authUser = await getAuthenticatedUser(request, ['ADMIN', 'MANAGER', 'KITCHEN', 'BAR']);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { ingredientId, quantity, reason, notes, reportedBy } = body;
 
@@ -44,7 +54,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get ingredient for cost calculation
     const ingredient = await db.ingredient.findUnique({
       where: { id: ingredientId },
     });
@@ -55,7 +64,6 @@ export async function POST(request: Request) {
 
     const value = parseFloat((quantity * ingredient.costPerUnit).toFixed(2));
 
-    // Create wastage log
     const wastageLog = await db.wastageLog.create({
       data: {
         ingredientId,
@@ -71,14 +79,12 @@ export async function POST(request: Request) {
       },
     });
 
-    // Deduct from ingredient stock
     const newStock = Math.max(0, ingredient.currentStock - parseFloat(quantity));
     const updatedIngredient = await db.ingredient.update({
       where: { id: ingredientId },
       data: { currentStock: newStock },
     });
 
-    // Create stock ledger entry
     await db.stockLedger.create({
       data: {
         ingredientId,

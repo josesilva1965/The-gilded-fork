@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getAuthenticatedUser } from '@/lib/auth-util';
 
 const DEFAULT_MULTIPLIERS = {
   ADMIN: 0,
@@ -9,8 +10,13 @@ const DEFAULT_MULTIPLIERS = {
   FOH: 1.0,
 };
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const authUser = await getAuthenticatedUser(request, ['ADMIN', 'MANAGER']);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const users = await db.user.findMany({
       select: { role: true, tipPointValue: true },
     });
@@ -34,6 +40,11 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const authUser = await getAuthenticatedUser(request, ['ADMIN']);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { ADMIN, MANAGER, KITCHEN, BAR, FOH } = body;
 

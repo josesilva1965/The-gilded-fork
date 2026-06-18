@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { safeDbCall } from '@/lib/db-fallback';
 import { MOCK_TABLES } from '@/lib/mock-data';
+import { getAuthenticatedUser } from '@/lib/auth-util';
 
 const TABLE_INCLUDE = {
   orders: {
@@ -36,6 +37,11 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
   try {
+    const authUser = await getAuthenticatedUser(request, ['ADMIN', 'MANAGER']);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { id, status, x, y, width, height, capacity, serverId, section, shape, name, customerId } = body;
 
@@ -65,6 +71,11 @@ export async function PATCH(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const authUser = await getAuthenticatedUser(request, ['ADMIN', 'MANAGER']);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json().catch(() => ({}));
     const { section = 'MAIN', shape = 'ROUND', capacity = 4 } = body;
 
@@ -99,6 +110,11 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const authUser = await getAuthenticatedUser(request, ['ADMIN', 'MANAGER']);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     if (!id) {

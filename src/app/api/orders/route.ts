@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { LOCALE_CONFIGS, type Locale } from '@/lib/i18n/locales';
+import { getAuthenticatedUser } from '@/lib/auth-util';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const authUser = await getAuthenticatedUser(request, ['ADMIN', 'MANAGER', 'KITCHEN', 'BAR', 'FOH']);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const orders = await db.order.findMany({
       where: { 
         status: { not: 'CANCELLED' },
@@ -52,6 +58,14 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     let { tableId, createdBy, items, type, guestCount, notes, customerId, locale } = body;
+
+    // Verify staff credentials if a specific staff user ID is provided in createdBy
+    if (createdBy && createdBy !== 'self-service') {
+      const authUser = await getAuthenticatedUser(request, ['ADMIN', 'MANAGER', 'KITCHEN', 'BAR', 'FOH']);
+      if (!authUser || authUser.id !== createdBy) {
+        return NextResponse.json({ error: 'Unauthorized staff operation' }, { status: 401 });
+      }
+    }
 
     console.log('[POST /api/orders] body:', JSON.stringify({ tableId, createdBy, itemCount: items?.length, type, guestCount, customerId, locale }));
 
@@ -189,6 +203,11 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
+    const authUser = await getAuthenticatedUser(request, ['ADMIN', 'MANAGER', 'KITCHEN', 'BAR', 'FOH']);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     let { id, tableId, items, type, guestCount, notes, action, paymentMethod, customerId, locale } = body;
 
@@ -446,8 +465,12 @@ export async function PATCH(request: Request) {
   }
 }
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
   try {
+    const authUser = await getAuthenticatedUser(request, ['ADMIN', 'MANAGER']);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     // Delete all order items to satisfy foreign keys
     await db.orderItem.deleteMany();
     // Delete all orders
