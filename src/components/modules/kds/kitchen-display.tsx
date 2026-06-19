@@ -16,6 +16,7 @@ import {
   Users,
   Search,
   LayoutGrid,
+  ShoppingBag,
 } from 'lucide-react';
 import { useAuthStore, type UserRole } from '@/stores/auth-store';
 import { useAppStore } from '@/stores/app-store';
@@ -506,10 +507,19 @@ function OrderTicket({
           <div className="flex items-start justify-between">
             <div>
               <CardTitle className="text-xl font-bold text-zinc-100 flex items-center gap-2">
-                {order.table.name}
+                {order.type === 'TAKEAWAY' ? (
+                  <span className="flex items-center gap-1.5 text-emerald-400">
+                    <ShoppingBag className="size-5" />
+                    {t.pos.takeaway}
+                  </span>
+                ) : (
+                  order.table.name
+                )}
               </CardTitle>
               <p className="text-xs text-zinc-500 mt-0.5">
-                {order.type === 'DINE_IN' ? t.floorPlan.statusSeated : order.type} · {order.guestCount} {order.guestCount !== 1 ? t.floorPlan.guests : t.floorPlan.guest}
+                {order.type === 'DINE_IN'
+                  ? t.floorPlan.statusSeated
+                  : (order.type === 'TAKEAWAY' ? t.pos.takeaway : order.type)} · {order.guestCount} {order.guestCount !== 1 ? t.floorPlan.guests : t.floorPlan.guest}
               </p>
             </div>
             <div className="text-right">

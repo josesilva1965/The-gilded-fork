@@ -343,6 +343,7 @@ export function POSSystem() {
   const [fireConfirmOpen, setFireConfirmOpen] = useState(false);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<ActiveOrderData | null>(null);
+  const [orderType, setOrderType] = useState<'DINE_IN' | 'TAKEAWAY'>('DINE_IN');
 
   const [activePayShare, setActivePayShare] = useState<{ reference: string; amount: number } | null>(null);
   const [splitPaymentMethod, setSplitPaymentMethod] = useState<'CASH' | 'CARD' | 'CREDIT'>('CASH');
@@ -471,11 +472,12 @@ export function POSSystem() {
     setGuestCount(1);
     setOrderNotes('');
     setEditingOrder(null);
+    setOrderType('DINE_IN');
   }, []);
 
   /* ─── Submit Order ─── */
   const handleSubmitOrder = useCallback(async () => {
-    const targetTableId = selectedTableId || quickBarTableId;
+    const targetTableId = orderType === 'TAKEAWAY' ? quickBarTableId : (selectedTableId || quickBarTableId);
     if (!targetTableId || orderItems.length === 0 || !user) return;
     setIsSubmitting(true);
     const isEditing = !!editingOrder;
@@ -493,8 +495,8 @@ export function POSSystem() {
           notes: i.notes || null,
           extras: i.extras || [],
         })),
-        type: 'DINE_IN',
-        guestCount,
+        type: orderType,
+        guestCount: orderType === 'TAKEAWAY' ? 1 : guestCount,
         notes: orderNotes || null,
       };
       const res = await fetch('/api/orders', {
@@ -521,12 +523,13 @@ export function POSSystem() {
         }
       }
 
-      addNotification(
-        isEditing
-          ? `Order updated for ${tables.find(t => t.id === targetTableId)?.name ?? (targetTableId === quickBarTableId ? 'Quick Bar' : '')}`
-          : `Order fired for ${tables.find(t => t.id === targetTableId)?.name ?? (targetTableId === quickBarTableId ? 'Quick Bar' : '')}`,
-        'success'
-      );
+      const notificationMsg = orderType === 'TAKEAWAY'
+        ? (isEditing ? 'Takeaway order updated' : 'Takeaway order fired')
+        : (isEditing
+            ? `Order updated for ${tables.find(t => t.id === targetTableId)?.name ?? (targetTableId === quickBarTableId ? 'Quick Bar' : '')}`
+            : `Order fired for ${tables.find(t => t.id === targetTableId)?.name ?? (targetTableId === quickBarTableId ? 'Quick Bar' : '')}`);
+
+      addNotification(notificationMsg, 'success');
       clearOrder();
       queryClient.invalidateQueries({ queryKey: ['active-orders'] });
       queryClient.invalidateQueries({ queryKey: ['tables'] });
@@ -536,7 +539,7 @@ export function POSSystem() {
       setIsSubmitting(false);
       setFireConfirmOpen(false);
     }
-  }, [selectedTableId, orderItems, user, guestCount, orderNotes, tables, addNotification, clearOrder, queryClient, quickBarTableId]);
+  }, [selectedTableId, orderItems, user, guestCount, orderNotes, tables, addNotification, clearOrder, queryClient, quickBarTableId, orderType]);
 
   /* ─── Confirm Split Payment ─── */
   const handleConfirmSplitPayment = useCallback(async () => {
@@ -642,6 +645,7 @@ export function POSSystem() {
     setEditingOrder(order);
     setSelectedTableId(order.tableId);
     setGuestCount(order.guestCount);
+    setOrderType(order.type === 'TAKEAWAY' ? 'TAKEAWAY' : 'DINE_IN');
     setOrderItems(
       order.items.map((i: any) => ({
         tempId: i.id,
@@ -663,6 +667,7 @@ export function POSSystem() {
     setEditingOrder(order);
     setSelectedTableId(order.tableId);
     setGuestCount(order.guestCount);
+    setOrderType(order.type === 'TAKEAWAY' ? 'TAKEAWAY' : 'DINE_IN');
     setOrderItems(
       order.items.map((i: any) => ({
         tempId: i.id,
@@ -980,11 +985,16 @@ export function POSSystem() {
           {/* Header row */}
           <div className="flex items-center justify-between gap-2 mb-2">
             <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-zinc-800 text-zinc-200 font-bold text-sm">
-                {order.table.number}
+              <div className={cn(
+                "flex items-center justify-center w-9 h-9 rounded-lg font-bold text-sm",
+                order.type === 'TAKEAWAY' ? "bg-emerald-600/20 text-emerald-400" : "bg-zinc-800 text-zinc-200"
+              )}>
+                {order.type === 'TAKEAWAY' ? <ShoppingBag className="size-4" /> : order.table.number}
               </div>
               <div>
-                <p className="text-sm font-medium text-zinc-100">{order.table.name}</p>
+                <p className="text-sm font-medium text-zinc-100">
+                  {order.type === 'TAKEAWAY' ? t.pos.takeaway : order.table.name}
+                </p>
                 <p className="text-[11px] text-zinc-500">
                   {order.creator.name} · <TimeElapsed createdAt={order.createdAt} />
                 </p>
@@ -1013,10 +1023,16 @@ export function POSSystem() {
               <ShoppingBag className="size-3" />
               {order.items.length} items
             </span>
-            <span className="flex items-center gap-1">
-              <Users className="size-3" />
-              {order.guestCount} guests
-            </span>
+            {order.type === 'TAKEAWAY' ? (
+              <Badge className="bg-emerald-600/20 text-emerald-400 border-none text-[9px] h-4 py-0 px-1 font-semibold">
+                {t.pos.takeaway}
+              </Badge>
+            ) : (
+              <span className="flex items-center gap-1">
+                <Users className="size-3" />
+                {order.guestCount} guests
+              </span>
+            )}
             <span className="font-bold text-emerald-400">{fmtCurrency(order.totalAmount)}</span>
           </div>
 
@@ -1259,61 +1275,117 @@ export function POSSystem() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-col min-h-0 px-4 pb-4 gap-3">
-                  {/* Table Selector */}
+                  {/* Order Type Toggle */}
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">{t.pos.table}</label>
-                    <Select value={selectedTableId} onValueChange={setSelectedTableId}>
-                      <SelectTrigger className="bg-zinc-800 border-zinc-700 h-11 text-zinc-200">
-                        <SelectValue placeholder={t.pos.selectTable} />
-                      </SelectTrigger>
-                      <SelectContent className="bg-zinc-900 border-zinc-700">
-                        <SelectItem value={quickBarTableId} className="text-zinc-200 focus:bg-zinc-850 focus:text-emerald-400 font-semibold text-emerald-500">
-                          ⚡ Quick Bar Order (No Table)
-                        </SelectItem>
-                        {occupiedTables
-                          .filter((tbl) => tbl.id !== quickBarTableId && tbl.number !== 99 && tbl.name !== 'Quick Bar')
-                          .map((tbl) => (
-                            <SelectItem key={tbl.id} value={tbl.id} className="text-zinc-200 focus:bg-zinc-800 focus:text-zinc-100">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium">{tbl.name}</span>
-                                <span className="text-[10px] text-zinc-500">({tbl.capacity} {t.floorPlan.seats})</span>
-                                {tbl.status !== 'FREE' && (
-                                  <Badge className="text-[9px] px-1 py-0 h-3.5 bg-amber-600/20 text-amber-400">
-                                    {tbl.status}
-                                  </Badge>
-                                )}
-                              </div>
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Guest Count */}
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">{t.pos.guests}</label>
-                    <div className="flex items-center gap-2">
+                    <label className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">
+                      Order Type
+                    </label>
+                    <div className="grid grid-cols-2 gap-1 bg-zinc-800 p-1 rounded-lg border border-zinc-700">
                       <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-9 w-9 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-600 bg-zinc-800"
-                        onClick={() => setGuestCount(Math.max(1, guestCount - 1))}
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className={cn(
+                          "h-8 text-xs font-semibold gap-1.5 transition-all",
+                          orderType === 'DINE_IN'
+                            ? "bg-zinc-700 text-white shadow-sm"
+                            : "text-zinc-400 hover:text-zinc-200"
+                        )}
+                        onClick={() => setOrderType('DINE_IN')}
                       >
-                        <Minus className="size-4" />
+                        <UtensilsCrossed className="size-3.5" />
+                        {t.pos.dineIn}
                       </Button>
-                      <div className="flex items-center justify-center w-12 h-9 bg-zinc-800 rounded-md border border-zinc-700">
-                        <span className="text-sm font-medium text-zinc-100">{guestCount}</span>
-                      </div>
                       <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-9 w-9 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-600 bg-zinc-800"
-                        onClick={() => setGuestCount(guestCount + 1)}
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className={cn(
+                          "h-8 text-xs font-semibold gap-1.5 transition-all",
+                          orderType === 'TAKEAWAY'
+                            ? "bg-emerald-600 text-white shadow-sm"
+                            : "text-zinc-400 hover:text-zinc-200"
+                        )}
+                        onClick={() => setOrderType('TAKEAWAY')}
                       >
-                        <Plus className="size-4" />
+                        <ShoppingBag className="size-3.5" />
+                        {t.pos.takeaway}
                       </Button>
                     </div>
                   </div>
+
+                  {/* Table Selector */}
+                  {orderType === 'DINE_IN' ? (
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">{t.pos.table}</label>
+                      <Select value={selectedTableId} onValueChange={setSelectedTableId}>
+                        <SelectTrigger className="bg-zinc-800 border-zinc-700 h-11 text-zinc-200">
+                          <SelectValue placeholder={t.pos.selectTable} />
+                        </SelectTrigger>
+                        <SelectContent className="bg-zinc-900 border-zinc-700">
+                          <SelectItem value={quickBarTableId} className="text-zinc-200 focus:bg-zinc-850 focus:text-emerald-400 font-semibold text-emerald-500">
+                            ⚡ Quick Bar Order (No Table)
+                          </SelectItem>
+                          {occupiedTables
+                            .filter((tbl) => tbl.id !== quickBarTableId && tbl.number !== 99 && tbl.name !== 'Quick Bar')
+                            .map((tbl) => (
+                              <SelectItem key={tbl.id} value={tbl.id} className="text-zinc-200 focus:bg-zinc-800 focus:text-zinc-100">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">{tbl.name}</span>
+                                  <span className="text-[10px] text-zinc-500">({tbl.capacity} {t.floorPlan.seats})</span>
+                                  {tbl.status !== 'FREE' && (
+                                    <Badge className="text-[9px] px-1 py-0 h-3.5 bg-amber-600/20 text-amber-400">
+                                      {tbl.status}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">{t.pos.table}</label>
+                      <div className="flex items-center justify-between bg-zinc-800/40 border border-zinc-800 h-11 px-3 rounded-md text-zinc-400 text-sm">
+                        <span className="flex items-center gap-2 font-medium">
+                          <ShoppingBag className="size-4 text-emerald-400" />
+                          Takeaway Order
+                        </span>
+                        <Badge className="bg-emerald-600/20 text-emerald-400 text-[10px]">
+                          No Table
+                        </Badge>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Guest Count */}
+                  {orderType === 'DINE_IN' && (
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">{t.pos.guests}</label>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-600 bg-zinc-800"
+                          onClick={() => setGuestCount(Math.max(1, guestCount - 1))}
+                        >
+                          <Minus className="size-4" />
+                        </Button>
+                        <div className="flex items-center justify-center w-12 h-9 bg-zinc-800 rounded-md border border-zinc-700">
+                          <span className="text-sm font-medium text-zinc-100">{guestCount}</span>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-600 bg-zinc-800"
+                          onClick={() => setGuestCount(guestCount + 1)}
+                        >
+                          <Plus className="size-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
 
                   <Separator className="bg-zinc-800" />
 
@@ -1409,7 +1481,7 @@ export function POSSystem() {
                             ? "bg-zinc-700 hover:bg-zinc-600 shadow-zinc-900/20" 
                             : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20"
                         )}
-                        disabled={orderItems.length === 0 || isSubmitting || (!selectedTableId && !canFireWithoutTable)}
+                        disabled={orderItems.length === 0 || isSubmitting || (orderType === 'DINE_IN' && !selectedTableId && !canFireWithoutTable)}
                         onClick={() => setFireConfirmOpen(true)}
                       >
                         {isSubmitting ? (
@@ -1420,7 +1492,13 @@ export function POSSystem() {
                         {editingOrder ? 'Update Order' : 'Fire Order'}
                       </Button>
                     </div>
-                    {!selectedTableId && orderItems.length > 0 && (
+                    {orderType === 'TAKEAWAY' && orderItems.length > 0 && (
+                      <p className="text-[11px] text-emerald-400 flex items-center gap-1">
+                        <Check className="size-3" />
+                        Takeaway Order (Will be prepared for pickup)
+                      </p>
+                    )}
+                    {orderType === 'DINE_IN' && !selectedTableId && orderItems.length > 0 && (
                       canFireWithoutTable ? (
                         <p className="text-[11px] text-emerald-400 flex items-center gap-1">
                           <Check className="size-3" />
@@ -1963,16 +2041,22 @@ export function POSSystem() {
           <div className="space-y-2 py-2">
             <div className="flex justify-between text-sm">
               <span className="text-zinc-400">Table</span>
-              <span className="text-zinc-200">{tables.find((t) => t.id === selectedTableId)?.name ?? (selectedTableId === quickBarTableId || !selectedTableId ? 'Quick Bar' : '—')}</span>
+              <span className="text-zinc-200">
+                {orderType === 'TAKEAWAY'
+                  ? 'Takeaway (No Table)'
+                  : (tables.find((t) => t.id === selectedTableId)?.name ?? (selectedTableId === quickBarTableId || !selectedTableId ? 'Quick Bar' : '—'))}
+              </span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-zinc-400">Items</span>
               <span className="text-zinc-200">{orderItems.length} items ({orderItems.reduce((s, i) => s + i.quantity, 0)} total)</span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-zinc-400">Guests</span>
-              <span className="text-zinc-200">{guestCount}</span>
-            </div>
+            {orderType === 'DINE_IN' && (
+              <div className="flex justify-between text-sm">
+                <span className="text-zinc-400">Guests</span>
+                <span className="text-zinc-200">{guestCount}</span>
+              </div>
+            )}
             <Separator className="bg-zinc-800" />
             <div className="flex justify-between text-base font-bold">
               <span className="text-zinc-100">Total</span>

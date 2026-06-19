@@ -211,6 +211,8 @@ export interface Translations {
 
   // ─── POS ───
   pos: {
+    dineIn: string;
+    takeaway: string;
     newOrder: string;
     activeOrders: string;
     currentOrder: string;
@@ -986,6 +988,8 @@ export const enGB: Translations = {
     clickEditLayoutToMove: 'Click "Edit Layout" to reposition tables',
   },
   pos: {
+    dineIn: 'Dine In',
+    takeaway: 'Takeaway',
     newOrder: 'New Order',
     activeOrders: 'Active Orders',
     currentOrder: 'Current Order',
@@ -1734,6 +1738,8 @@ export const ptPT: Translations = {
     clickEditLayoutToMove: 'Clique em "Editar Planta" para reposicionar',
   },
   pos: {
+    dineIn: 'Consumo Local',
+    takeaway: 'Para Levar',
     newOrder: 'Novo Pedido',
     activeOrders: 'Pedidos Ativos',
     currentOrder: 'Pedido Atual',
@@ -2482,6 +2488,8 @@ export const frFR: Translations = {
     clickEditLayoutToMove: 'Cliquez sur "Modifier le Plan" pour repositionner',
   },
   pos: {
+    dineIn: 'Sur Place',
+    takeaway: 'À Emporter',
     newOrder: 'Nouvelle Commande',
     activeOrders: 'Commandes Actives',
     currentOrder: 'Commande Actuelle',
@@ -3230,6 +3238,8 @@ export const esES: Translations = {
     clickEditLayoutToMove: 'Haga clic en "Editar Plano" para reposicionar',
   },
   pos: {
+    dineIn: 'En el local',
+    takeaway: 'Para Llevar',
     newOrder: 'Nuevo Pedido',
     activeOrders: 'Pedidos Activos',
     currentOrder: 'Pedido Actual',
