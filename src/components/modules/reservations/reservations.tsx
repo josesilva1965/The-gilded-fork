@@ -138,6 +138,21 @@ const TIME_COLORS: Record<string, { dot: string; line: string; text: string }> =
   future: { dot: 'bg-zinc-400', line: 'bg-zinc-800', text: 'text-zinc-300' },
 };
 
+/* ─── Helper: Date string formatters for timezone-safety ─── */
+function getLocalDateString(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const date = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${date}`;
+}
+
+function getUTCDateString(d: Date): string {
+  const year = d.getUTCFullYear();
+  const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const date = String(d.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${date}`;
+}
+
 /* ─── Helper: format 24h time to 12h ─── */
 function formatTime12(time: string): string {
   const [h, m] = time.split(':').map(Number);
@@ -350,7 +365,7 @@ function TableSeatingGrid({
 /* ─── Summary Cards ─── */
 function SummaryCards({ reservations, tables }: { reservations: ReservationData[]; tables: TableData[] }) {
   const t = useT();
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalDateString(new Date());
   const todayReservations = reservations.filter(
     (r) => r.reservationDate.startsWith(today) && !r.isWalkIn
   );
@@ -842,8 +857,8 @@ function NewReservationDialog({
 
   // Helper to calculate available tables for a slot
   const getSlotAvailability = useCallback((targetTime: string, size: number, targetDate: Date) => {
-    const targetDateStr = targetDate.toISOString().split('T')[0];
-    const todayDateStr = new Date().toISOString().split('T')[0];
+    const targetDateStr = getUTCDateString(targetDate);
+    const todayDateStr = getLocalDateString(new Date());
     const isToday = targetDateStr === todayDateStr;
 
     const now = new Date();
@@ -955,7 +970,7 @@ function NewReservationDialog({
 
   // Count reservations on a specific date for calendar dots
   const getResCountForDate = useCallback((d: Date) => {
-    const dStr = d.toISOString().split('T')[0];
+    const dStr = getUTCDateString(d);
     return reservations.filter((r) => {
       if (r.status === 'CANCELLED' || r.status === 'NO_SHOW') return false;
       return r.reservationDate.split('T')[0] === dStr;
@@ -1122,10 +1137,10 @@ function NewReservationDialog({
                     </div>
                   ))}
                   {calendarDays.map((dayObj, index) => {
-                    const dStr = dayObj.date.toISOString().split('T')[0];
-                    const isSelected = dStr === date.toISOString().split('T')[0];
+                    const dStr = getUTCDateString(dayObj.date);
+                    const isSelected = dStr === getUTCDateString(date);
                     
-                    const todayStr = new Date().toISOString().split('T')[0];
+                    const todayStr = getLocalDateString(new Date());
                     const isToday = dStr === todayStr;
                     
                     const resCount = getResCountForDate(dayObj.date);
@@ -1529,7 +1544,7 @@ export function Reservations() {
   }, [refetchReservations]);
 
   /* ─── Today's reservations (non-walk-in) ─── */
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalDateString(new Date());
   const todayReservations = reservations
     .filter((r) => r.reservationDate.startsWith(today) && !r.isWalkIn)
     .sort((a, b) => a.reservationTime.localeCompare(b.reservationTime));
@@ -1540,7 +1555,7 @@ export function Reservations() {
     .sort((a, b) => (a.waitListPosition ?? 999) - (b.waitListPosition ?? 999));
 
   /* ─── All reservations for selected date ─── */
-  const selectedDateStr = selectedDate.toISOString().split('T')[0];
+  const selectedDateStr = getLocalDateString(selectedDate);
   const dateReservations = reservations
     .filter((r) => {
       const matchesDate = r.reservationDate.startsWith(selectedDateStr);
