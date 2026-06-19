@@ -49,18 +49,18 @@ export async function GET(request: Request) {
           paymentStatus: { in: ['PENDING', 'PARTIAL'] },
         },
       }),
-      db.order.aggregate({
-        _sum: { totalAmount: true },
+      db.payment.aggregate({
+        _sum: { amount: true },
         where: {
           createdAt: { gte: today },
-          status: { in: ['IN_PROGRESS', 'READY', 'SERVED'] },
+          status: 'COMPLETED',
         },
       }),
-      db.order.aggregate({
-        _sum: { totalAmount: true },
+      db.payment.aggregate({
+        _sum: { amount: true },
         where: {
           createdAt: { gte: yesterday, lt: today },
-          status: { in: ['IN_PROGRESS', 'READY', 'SERVED'] },
+          status: 'COMPLETED',
         },
       }),
       db.restaurantTable.count({ where: { active: true } }),
@@ -128,8 +128,8 @@ export async function GET(request: Request) {
       }),
     ]);
 
-    const todayRevenue = todayRevenueAgg._sum.totalAmount || 0;
-    const yesterdayRevenue = yesterdayRevenueAgg._sum.totalAmount || 0;
+    const todayRevenue = todayRevenueAgg._sum.amount || 0;
+    const yesterdayRevenue = yesterdayRevenueAgg._sum.amount || 0;
 
     // Revenue change %
     const revenueChange = yesterdayRevenue > 0

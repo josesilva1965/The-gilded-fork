@@ -294,6 +294,19 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: 'Order not found' }, { status: 404 });
       }
 
+      // Create new payment record
+      const tipAmount = body.tipAmount ? parseFloat(body.tipAmount) : 0;
+      await db.payment.create({
+        data: {
+          orderId: id,
+          amount: order.totalAmount,
+          method: paymentMethod || 'CASH',
+          status: 'COMPLETED',
+          reference: 'POS Full Payment',
+          tipAmount: tipAmount,
+        },
+      });
+
       const updatedOrder = await db.order.update({
         where: { id },
         data: {
@@ -307,6 +320,7 @@ export async function PATCH(request: Request) {
           table: true,
           creator: { select: { id: true, name: true } },
           customer: true,
+          payments: true,
         },
       });
 

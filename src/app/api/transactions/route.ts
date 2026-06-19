@@ -28,25 +28,49 @@ export async function GET(request: Request) {
       startDate.setDate(startDate.getDate() - 30);
     }
 
-    // 1. Fetch Orders (Inflows)
+    // 1. Fetch Completed Payments (Inflows)
+    const paymentWhere: any = {
+      status: 'COMPLETED',
+    };
+    if (startDate) {
+      paymentWhere.createdAt = { gte: startDate };
+    }
+    const payments = await db.payment.findMany({
+      where: paymentWhere,
+      include: {
+        order: {
+          include: {
+            table: true,
+            creator: true,
+            customer: true,
+            items: { include: { menuItem: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // 2. Fetch Open/Unpaid/Partially Paid Orders Created in Period
     const orderWhere: any = {
       status: { not: 'CANCELLED' },
+      paymentStatus: { in: ['PENDING', 'PARTIAL'] },
     };
     if (startDate) {
       orderWhere.createdAt = { gte: startDate };
     }
-    const orders = await db.order.findMany({
+    const openOrders = await db.order.findMany({
       where: orderWhere,
       include: {
         table: true,
         creator: true,
         customer: true,
         items: { include: { menuItem: true } },
+        payments: true,
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    // 2. Fetch Purchase Orders (Outflows)
+    // 3. Fetch Purchase Orders (Outflows)
     const poWhere: any = {
       status: { in: ['SENT', 'CONFIRMED', 'DELIVERED'] }, // skip DRAFT/CANCELLED
     };
@@ -62,7 +86,7 @@ export async function GET(request: Request) {
       orderBy: { createdAt: 'desc' },
     });
 
-    // 3. Fetch Wastage (Outflows)
+    // 4. Fetch Wastage (Outflows)
     const wastageWhere: any = {};
     if (startDate) {
       wastageWhere.createdAt = { gte: startDate };
@@ -77,7 +101,7 @@ export async function GET(request: Request) {
       orderBy: { createdAt: 'desc' },
     });
 
-    // 4. Fetch Daily Snapshots for Labor costs
+    // 5. Fetch Daily Snapshots for Labor costs
     const snapshotWhere: any = {};
     if (startDate) {
       snapshotWhere.date = { gte: startDate };
@@ -90,27 +114,60 @@ export async function GET(request: Request) {
     // Map into unified transaction format
     const transactions: any[] = [];
 
-    // Map orders
-    orders.forEach((o) => {
+    // Map completed payments
+    payments.forEach((p) => {
+      const o = p.order;
+      if (!o) return;
       transactions.push({
-        id: o.id,
+        id: p.id,
         type: 'INFLOW',
         category: 'SALE',
-        description: `Sale - Table ${o.table.name} (${o.type})`,
+        description: `Sale - Table ${o.table.name} (${o.type})${p.reference ? ` - ${p.reference}` : ''}`,
         source: o.customer ? `${o.customer.firstName} ${o.customer.lastName}` : 'Walk-in Guest',
-        amount: o.totalAmount,
-        paymentMethod: o.paymentMethod || 'CASH',
+        amount: p.amount,
+        paymentMethod: p.method || 'CASH',
         operator: o.creator.name,
-        status: o.paymentStatus,
-        createdAt: o.createdAt,
+        status: 'COMPLETED',
+        createdAt: p.createdAt,
         details: {
           subtotal: o.subtotal,
           taxAmount: o.taxAmount,
           guestCount: o.guestCount,
           notes: o.notes,
           items: o.items.map(i => `${i.quantity}x ${i.menuItem.name} @ $${i.unitPrice}`),
+          tipAmount: p.tipAmount,
         }
       });
+    });
+
+    // Map open orders (remaining unpaid balance)
+    openOrders.forEach((o) => {
+      const totalPaid = o.payments
+        .filter(p => p.status === 'COMPLETED')
+        .reduce((sum, p) => sum + p.amount, 0);
+      const remainingBalance = o.totalAmount - totalPaid;
+      
+      if (remainingBalance > 0.05) {
+        transactions.push({
+          id: o.id,
+          type: 'INFLOW',
+          category: 'SALE',
+          description: `Sale - Table ${o.table.name} (${o.type}) - Unpaid`,
+          source: o.customer ? `${o.customer.firstName} ${o.customer.lastName}` : 'Walk-in Guest',
+          amount: remainingBalance,
+          paymentMethod: o.paymentMethod || 'CASH',
+          operator: o.creator.name,
+          status: o.paymentStatus,
+          createdAt: o.createdAt,
+          details: {
+            subtotal: o.subtotal,
+            taxAmount: o.taxAmount,
+            guestCount: o.guestCount,
+            notes: o.notes,
+            items: o.items.map(i => `${i.quantity}x ${i.menuItem.name} @ $${i.unitPrice}`),
+          }
+        });
+      }
     });
 
     // Map purchase orders
