@@ -19,6 +19,9 @@ import {
   StickyNote,
   Search,
   ChevronRight,
+  ChevronLeft,
+  Sun,
+  Moon,
   Timer,
   MessageSquare,
   Trash2,
@@ -780,13 +783,24 @@ function NewReservationDialog({
   const [guestPhone, setGuestPhone] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
   const [partySize, setPartySize] = useState(2);
-  const [date, setDate] = useState<Date>(new Date());
+  const [date, setDate] = useState<Date>(() => {
+    const now = new Date();
+    return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0));
+  });
   const [time, setTime] = useState('19:00');
   const [tableId, setTableId] = useState('');
   const [notes, setNotes] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showCustomerSearch, setShowCustomerSearch] = useState(false);
 
+  // Month display state
+  const [currentMonth, setCurrentMonth] = useState<Date>(() => {
+    const init = new Date();
+    init.setDate(1);
+    return init;
+  });
+
+  // Reset inputs when opened
   useEffect(() => {
     if (open) {
       const timer = setTimeout(() => {
@@ -795,17 +809,21 @@ function NewReservationDialog({
         setGuestPhone('');
         setGuestEmail('');
         setPartySize(2);
-        setDate(new Date());
+        const now = new Date();
+        setDate(new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0)));
         setTime('19:00');
         setNotes('');
         setSearchQuery('');
         setShowCustomerSearch(false);
+        const initMonth = new Date();
+        initMonth.setDate(1);
+        setCurrentMonth(initMonth);
       }, 0);
       return () => clearTimeout(timer);
     }
   }, [open, preSelectedTableId]);
 
-  // Auto-fill from CRM
+  // CRM search logic
   const filteredCustomers = customers.filter(
     (c) =>
       searchQuery.length > 0 &&
@@ -820,6 +838,95 @@ function NewReservationDialog({
     setGuestEmail(c.email || '');
     setSearchQuery('');
     setShowCustomerSearch(false);
+  };
+
+  // Helper to calculate available tables for a slot
+  const getSlotAvailability = useCallback((targetTime: string, size: number, targetDate: Date) => {
+    const targetDateStr = targetDate.toISOString().split('T')[0];
+    const todayDateStr = new Date().toISOString().split('T')[0];
+    const isToday = targetDateStr === todayDateStr;
+
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const targetStart = parseTimeToMinutes(targetTime);
+    const targetEnd = targetStart + 120; // Default duration: 2 hours
+
+    // Find other active reservations on the target date that overlap in time
+    const overlappingRes = reservations.filter((r) => {
+      if (r.status === 'CANCELLED' || r.status === 'NO_SHOW') return false;
+      const rDateStr = r.reservationDate.split('T')[0];
+      if (rDateStr !== targetDateStr) return false;
+      return timesOverlap(targetTime, 120, r.reservationTime, r.estimatedDuration || 120);
+    });
+
+    const reservedTableIds = new Set(overlappingRes.map((r) => r.tableId).filter(Boolean));
+
+    const freeTables = tables.filter((tbl) => {
+      // 1. Capacity must be sufficient
+      if (tbl.capacity < size) return false;
+      
+      // 2. Must not be reserved
+      if (reservedTableIds.has(tbl.id)) return false;
+
+      // 3. Real-time occupancy check if today and slot covers current time
+      if (isToday && targetStart <= nowMinutes && nowMinutes < targetEnd) {
+        const isOccupiedRealTime = tbl.status !== 'FREE' && tbl.status !== 'RESERVED';
+        if (isOccupiedRealTime) return false;
+      }
+
+      return true;
+    });
+
+    return {
+      count: freeTables.length,
+      tables: freeTables
+    };
+  }, [tables, reservations]);
+
+  // Handle selected table list matching current date/time slot
+  const availableTables = useMemo(() => {
+    const res = getSlotAvailability(time, partySize, date);
+    return res.tables;
+  }, [getSlotAvailability, time, partySize, date]);
+
+  // Date selection updates table if current selection becomes invalid
+  const handleSelectDate = (d: Date) => {
+    setDate(d);
+    const slotInfo = getSlotAvailability(time, partySize, d);
+    const isStillAvailable = slotInfo.tables.some((t) => t.id === tableId);
+    if (!isStillAvailable) {
+      if (slotInfo.tables.length > 0) {
+        const sorted = [...slotInfo.tables].sort((a, b) => a.capacity - b.capacity);
+        setTableId(sorted[0].id);
+      } else {
+        setTableId('__none__');
+      }
+    }
+  };
+
+  // Time slot selection auto-assigns first matching table
+  const handleSelectSlot = (slot: string) => {
+    setTime(slot);
+    const slotInfo = getSlotAvailability(slot, partySize, date);
+    if (slotInfo.tables.length > 0) {
+      const sorted = [...slotInfo.tables].sort((a, b) => a.capacity - b.capacity);
+      setTableId(sorted[0].id);
+    } else {
+      setTableId('__none__');
+    }
+  };
+
+  // Party size changes update best table
+  const handleSelectPartySize = (size: number) => {
+    setPartySize(size);
+    const slotInfo = getSlotAvailability(time, size, date);
+    if (slotInfo.tables.length > 0) {
+      const sorted = [...slotInfo.tables].sort((a, b) => a.capacity - b.capacity);
+      setTableId(sorted[0].id);
+    } else {
+      setTableId('__none__');
+    }
   };
 
   const handleSubmit = () => {
@@ -841,57 +948,133 @@ function NewReservationDialog({
     setGuestPhone('');
     setGuestEmail('');
     setPartySize(2);
-    setDate(new Date());
-    setTime('19:00');
     setTableId('');
     setNotes('');
     onOpenChange(false);
   };
 
-  // Filter available tables based on target reservation date/time overlap
-  const availableTables = useMemo(() => {
-    const targetDateStr = date.toISOString().split('T')[0];
-    const todayDateStr = new Date().toISOString().split('T')[0];
-    const isToday = targetDateStr === todayDateStr;
-
-    // Current time in minutes since midnight
-    const now = new Date();
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
-
-    // Proposed reservation slot
-    const targetStart = parseTimeToMinutes(time);
-    const targetEnd = targetStart + 120; // 120 minutes default duration
-
-    // Find other active reservations on the target date that overlap in time
-    const overlappingRes = reservations.filter((r) => {
+  // Count reservations on a specific date for calendar dots
+  const getResCountForDate = useCallback((d: Date) => {
+    const dStr = d.toISOString().split('T')[0];
+    return reservations.filter((r) => {
       if (r.status === 'CANCELLED' || r.status === 'NO_SHOW') return false;
-      const rDateStr = r.reservationDate.split('T')[0];
-      if (rDateStr !== targetDateStr) return false;
-      return timesOverlap(time, 120, r.reservationTime, r.estimatedDuration || 120);
+      return r.reservationDate.split('T')[0] === dStr;
+    }).length;
+  }, [reservations]);
+
+  // Generate calendar days
+  const calendarDays = useMemo(() => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+
+    const firstDayIndex = new Date(year, month, 1).getDay();
+    const totalDays = new Date(year, month + 1, 0).getDate();
+    const prevMonthTotalDays = new Date(year, month, 0).getDate();
+
+    const days: { date: Date; isCurrentMonth: boolean }[] = [];
+
+    // Prev month padding
+    for (let i = firstDayIndex - 1; i >= 0; i--) {
+      const d = prevMonthTotalDays - i;
+      days.push({
+        date: new Date(Date.UTC(month === 0 ? year - 1 : year, month === 0 ? 11 : month - 1, d, 12, 0, 0)),
+        isCurrentMonth: false,
+      });
+    }
+
+    // Current month days
+    for (let i = 1; i <= totalDays; i++) {
+      days.push({
+        date: new Date(Date.UTC(year, month, i, 12, 0, 0)),
+        isCurrentMonth: true,
+      });
+    }
+
+    // Next month padding to fill a 42-day grid (6 rows)
+    const remainingCells = 42 - days.length;
+    for (let i = 1; i <= remainingCells; i++) {
+      days.push({
+        date: new Date(Date.UTC(month === 11 ? year + 1 : year, month === 11 ? 0 : month + 1, i, 12, 0, 0)),
+        isCurrentMonth: false,
+      });
+    }
+
+    return days;
+  }, [currentMonth]);
+
+  // Generate weekday headers using the browser localizer for exact Translation/Locale support
+  const weekdays = useMemo(() => {
+    const baseDate = new Date(Date.UTC(2026, 5, 14, 12, 0, 0)); // June 14, 2026 (Sunday)
+    return Array.from({ length: 7 }).map((_, i) => {
+      const d = new Date(baseDate);
+      d.setUTCDate(baseDate.getUTCDate() + i);
+      return d.toLocaleDateString(locale, { weekday: 'short' });
     });
+  }, [locale]);
 
-    const reservedTableIds = new Set(overlappingRes.map((r) => r.tableId).filter(Boolean));
+  const monthHeader = currentMonth.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
 
-    return tables.filter((tbl) => {
-      // 1. If the table is reserved via an overlapping reservation on the target date/time, it is not available.
-      if (reservedTableIds.has(tbl.id)) return false;
+  // Standard slot definitions
+  const lunchSlots = ['12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00'];
+  const dinnerSlots = ['18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00', '22:30'];
 
-      // 2. If the reservation is for today, and the slot covers the current time,
-      //    check if the table is currently occupied in real-time (not FREE or RESERVED).
-      if (isToday && targetStart <= nowMinutes && nowMinutes < targetEnd) {
-        const isOccupiedRealTime = tbl.status !== 'FREE' && tbl.status !== 'RESERVED';
-        if (isOccupiedRealTime) return false;
-      }
+  const renderTimeSlot = (slot: string) => {
+    const slotInfo = getSlotAvailability(slot, partySize, date);
+    const isSelected = slot === time;
+    const isFullyBooked = slotInfo.count === 0;
 
-      return true;
-    });
-  }, [tables, reservations, date, time]);
+    let bgClass = '';
+    let textClass = '';
+    let borderClass = '';
+    let statusText = '';
+    let dotClass = '';
+
+    if (isFullyBooked) {
+      bgClass = 'bg-zinc-800/20 opacity-40 cursor-not-allowed';
+      textClass = 'text-zinc-600';
+      borderClass = 'border-zinc-800/40';
+      statusText = t.reservations.fullyBooked;
+      dotClass = 'bg-rose-500';
+    } else if (slotInfo.count >= 3) {
+      bgClass = isSelected ? 'bg-emerald-600' : 'bg-emerald-950/15 hover:bg-emerald-900/25';
+      textClass = isSelected ? 'text-white' : 'text-emerald-400';
+      borderClass = isSelected ? 'border-emerald-600' : 'border-emerald-900/30';
+      statusText = t.reservations.available;
+      dotClass = isSelected ? 'bg-white' : 'bg-emerald-400';
+    } else {
+      bgClass = isSelected ? 'bg-amber-600' : 'bg-amber-950/15 hover:bg-amber-900/25';
+      textClass = isSelected ? 'text-white' : 'text-amber-400';
+      borderClass = isSelected ? 'border-amber-600' : 'border-amber-900/30';
+      statusText = `${slotInfo.count} ${slotInfo.count === 1 ? t.reservations.tableFree : t.reservations.tablesFree}`;
+      dotClass = isSelected ? 'bg-white' : 'bg-amber-400';
+    }
+
+    return (
+      <button
+        key={slot}
+        type="button"
+        disabled={isFullyBooked}
+        onClick={() => handleSelectSlot(slot)}
+        className={`
+          flex flex-col items-center justify-center p-2 rounded-lg border text-center transition-all duration-200
+          ${bgClass} ${textClass} ${borderClass}
+          ${isSelected ? 'font-semibold ring-2 ring-emerald-500/20 shadow-lg' : ''}
+        `}
+      >
+        <span className="text-sm font-semibold">{formatTime12(slot)}</span>
+        <span className="text-[10px] mt-0.5 flex items-center gap-1 opacity-90">
+          <span className={`size-1.5 rounded-full ${dotClass}`} />
+          {statusText}
+        </span>
+      </button>
+    );
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-zinc-900 border-zinc-800 text-zinc-100 sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+      <DialogContent className="bg-zinc-900 border-zinc-800 text-zinc-100 sm:max-w-5xl max-h-[95vh] overflow-y-auto">
+        <DialogHeader className="px-1 pt-2">
+          <DialogTitle className="flex items-center gap-2 text-xl font-bold">
             <CalendarDays className="size-5 text-emerald-400" />
             {t.reservations.newReservation}
           </DialogTitle>
@@ -899,210 +1082,273 @@ function NewReservationDialog({
             {t.reservations.createResOrCreateWalkIn}
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-2">
-          {/* CRM Lookup */}
-          <div className="grid gap-2 relative">
-            <Label className="text-zinc-400 text-xs flex items-center gap-1.5">
-              <Search className="size-3" />
-              {t.reservations.crmLookup}
-            </Label>
-            <div className="relative">
-              <Input
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setShowCustomerSearch(e.target.value.length > 0);
-                }}
-                placeholder={t.reservations.searchCrmPlaceholder}
-                className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-600 pr-8"
-              />
-              {searchQuery && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 size-6 p-0 text-zinc-500 hover:text-zinc-300"
-                  onClick={() => { setSearchQuery(''); setShowCustomerSearch(false); }}
-                >
-                  <X className="size-3" />
-                </Button>
-              )}
-            </div>
-            {showCustomerSearch && filteredCustomers.length > 0 && (
-              <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl max-h-40 overflow-y-auto">
-                {filteredCustomers.map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => selectCustomer(c)}
-                    className="w-full text-left px-3 py-2 hover:bg-zinc-700 transition-colors flex items-center justify-between"
-                  >
-                    <div>
-                      <p className="text-sm text-zinc-100">{c.firstName} {c.lastName}</p>
-                      <p className="text-xs text-zinc-500">{c.phone || c.email || '-'}</p>
-                    </div>
-                    <Badge variant="outline" className="text-[10px] border-zinc-600 text-zinc-400">
-                      {c.loyaltyTier}
-                    </Badge>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
 
-          <Separator className="bg-zinc-800" />
-
-          {/* Guest Name */}
-          <div className="grid gap-2">
-            <Label className="text-zinc-400 text-xs">{t.reservations.guestName} *</Label>
-            <Input
-              value={guestName}
-              onChange={(e) => setGuestName(e.target.value)}
-              placeholder={t.reservations.guestName}
-              className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-600"
-            />
-          </div>
-
-          {/* Phone + Email */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="grid gap-2">
-              <Label className="text-zinc-400 text-xs flex items-center gap-1">
-                <Phone className="size-3" /> {t.reservations.phone}
-              </Label>
-              <Input
-                value={guestPhone}
-                onChange={(e) => setGuestPhone(e.target.value)}
-                placeholder="+1-555-0000"
-                className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-600"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label className="text-zinc-400 text-xs flex items-center gap-1">
-                <Mail className="size-3" /> {t.common.email}
-              </Label>
-              <Input
-                value={guestEmail}
-                onChange={(e) => setGuestEmail(e.target.value)}
-                placeholder="guest@email.com"
-                className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-600"
-              />
-            </div>
-          </div>
-
-          {/* Party Size + Table */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="grid gap-2">
-              <Label className="text-zinc-400 text-xs flex items-center gap-1">
-                <Users className="size-3" /> {t.reservations.partySize}
-              </Label>
-              <Select value={String(partySize)} onValueChange={(v) => setPartySize(Number(v))}>
-                <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-800 border-zinc-700">
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16].map((n) => (
-                    <SelectItem key={n} value={String(n)} className="text-zinc-100 focus:bg-zinc-700 focus:text-zinc-100">
-                      {n} {n === 1 ? t.floorPlan.guest : t.floorPlan.guests}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label className="text-zinc-400 text-xs flex items-center gap-1">
-                <Armchair className="size-3" /> {t.pos.table}
-              </Label>
-              <Select value={tableId} onValueChange={setTableId}>
-                <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100">
-                  <SelectValue placeholder={t.reservations.selectTablePlaceholder} />
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-800 border-zinc-700">
-                  <SelectItem value="__none__" className="text-zinc-100 focus:bg-zinc-700 focus:text-zinc-100">
-                    {t.reservations.noTableAssigned}
-                  </SelectItem>
-                  {availableTables
-                    .filter((tbl) => tbl.capacity >= partySize || tbl.id === tableId)
-                    .map((tbl) => (
-                      <SelectItem key={tbl.id} value={tbl.id} className="text-zinc-100 focus:bg-zinc-700 focus:text-zinc-100">
-                        {tbl.name} ({tbl.capacity} {t.floorPlan.seats}, {getSectionLabels(t)[tbl.section] || tbl.section})
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Date + Time */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="grid gap-2">
-              <Label className="text-zinc-400 text-xs flex items-center gap-1">
-                <Calendar className="size-3" /> {t.reservations.date}
-              </Label>
-              <Popover>
-                <PopoverTrigger asChild>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-2 pb-2">
+          {/* Left Column: Date Calendar and Time Availability Grids */}
+          <div className="lg:col-span-7 space-y-4">
+            {/* Calendar Selector Card */}
+            <Card className="bg-zinc-950/40 border-zinc-800/80 shadow-md animate-in fade-in duration-200">
+              <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-sm font-semibold text-zinc-300">
+                  {t.reservations.date}
+                </CardTitle>
+                <div className="flex items-center gap-1.5">
                   <Button
-                    variant="outline"
-                    className="bg-zinc-800 border-zinc-700 text-zinc-100 hover:bg-zinc-700 justify-start text-left font-normal"
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
+                    onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
                   >
-                    <CalendarDays className="size-4 mr-2 text-zinc-500" />
-                    {formatDateByLocale(date, locale)}
+                    <ChevronLeft className="size-4" />
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-zinc-900 border-zinc-800" align="start">
-                  <CalendarComponent
-                    mode="single"
-                    selected={date}
-                    onSelect={(d) => d && setDate(d)}
-                    className="bg-zinc-900"
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-            <div className="grid gap-2">
-              <Label className="text-zinc-400 text-xs flex items-center gap-1">
-                <Clock className="size-3" /> {t.reservations.time}
-              </Label>
-              <Select value={time} onValueChange={setTime}>
-                <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-800 border-zinc-700 max-h-60">
-                  {Array.from({ length: 24 }, (_, h) =>
-                    [0, 15, 30, 45].map((m) => {
-                      const val = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-                      return (
-                        <SelectItem key={val} value={val} className="text-zinc-100 focus:bg-zinc-700 focus:text-zinc-100">
-                          {formatTime12(val)}
-                        </SelectItem>
-                      );
-                    })
-                  ).flat()}
-                </SelectContent>
-              </Select>
-            </div>
+                  <span className="text-sm font-medium text-zinc-100 min-w-[120px] text-center capitalize">
+                    {monthHeader}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
+                    onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
+                  >
+                    <ChevronRight className="size-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-7 gap-1 text-center text-xs">
+                  {weekdays.map((wd, index) => (
+                    <div key={index} className="text-zinc-500 font-medium py-1 capitalize">
+                      {wd}
+                    </div>
+                  ))}
+                  {calendarDays.map((dayObj, index) => {
+                    const dStr = dayObj.date.toISOString().split('T')[0];
+                    const isSelected = dStr === date.toISOString().split('T')[0];
+                    
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    const isToday = dStr === todayStr;
+                    
+                    const resCount = getResCountForDate(dayObj.date);
+
+                    return (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => handleSelectDate(dayObj.date)}
+                        className={`
+                          relative py-2 rounded-lg text-sm transition-all flex flex-col items-center justify-center h-12 w-full
+                          ${dayObj.isCurrentMonth ? 'text-zinc-200 hover:bg-zinc-800' : 'text-zinc-600 opacity-30 hover:bg-zinc-800/20'}
+                          ${isSelected ? 'bg-emerald-600 text-white font-semibold shadow-md shadow-emerald-900/30 hover:bg-emerald-600' : ''}
+                          ${isToday && !isSelected ? 'border border-emerald-500/50' : ''}
+                        `}
+                      >
+                        <span className="text-sm">{dayObj.date.getUTCDate()}</span>
+                        {resCount > 0 && (
+                          <span className={`
+                            absolute bottom-1.5 size-1 rounded-full
+                            ${isSelected ? 'bg-white' : 'bg-emerald-400'}
+                          `} />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Time Slot Availability Checker */}
+            <Card className="bg-zinc-950/40 border-zinc-800/80 shadow-md animate-in fade-in duration-200">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold text-zinc-300 flex items-center gap-1.5">
+                  <Clock className="size-4 text-emerald-400" />
+                  {t.reservations.availability}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-1">
+                {/* Lunch Grids */}
+                <div>
+                  <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <Sun className="size-3.5 text-amber-500" />
+                    Lunch (12:00 PM - 3:00 PM)
+                  </h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {lunchSlots.map(renderTimeSlot)}
+                  </div>
+                </div>
+
+                {/* Dinner Grids */}
+                <div>
+                  <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <Moon className="size-3.5 text-indigo-400" />
+                    Dinner (6:00 PM - 10:30 PM)
+                  </h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {dinnerSlots.map(renderTimeSlot)}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
-          {/* Notes */}
-          <div className="grid gap-2">
-            <Label className="text-zinc-400 text-xs flex items-center gap-1">
-              <StickyNote className="size-3" /> {t.reservations.notes}
-            </Label>
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder={t.reservations.specialRequestsPlaceholder}
-              className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-600 resize-none"
-              rows={2}
-            />
+          {/* Right Column: Guest Information details */}
+          <div className="lg:col-span-5 flex flex-col justify-between space-y-4">
+            <div className="space-y-4 bg-zinc-950/20 border border-zinc-850 p-4 rounded-xl">
+              {/* CRM Lookup */}
+              <div className="grid gap-1.5 relative">
+                <Label className="text-zinc-400 text-xs flex items-center gap-1.5">
+                  <Search className="size-3 text-zinc-500" />
+                  {t.reservations.crmLookup}
+                </Label>
+                <div className="relative">
+                  <Input
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setShowCustomerSearch(e.target.value.length > 0);
+                    }}
+                    placeholder={t.reservations.searchCrmPlaceholder}
+                    className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-650 pr-8"
+                  />
+                  {searchQuery && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 size-6 p-0 text-zinc-500 hover:text-zinc-300"
+                      onClick={() => { setSearchQuery(''); setShowCustomerSearch(false); }}
+                    >
+                      <X className="size-3" />
+                    </Button>
+                  )}
+                </div>
+                {showCustomerSearch && filteredCustomers.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl max-h-40 overflow-y-auto animate-in slide-in-from-top-1 duration-150">
+                    {filteredCustomers.map((c) => (
+                      <button
+                        key={c.id}
+                        onClick={() => selectCustomer(c)}
+                        className="w-full text-left px-3 py-2 hover:bg-zinc-700 transition-colors flex items-center justify-between"
+                      >
+                        <div>
+                          <p className="text-sm text-zinc-100">{c.firstName} {c.lastName}</p>
+                          <p className="text-xs text-zinc-500">{c.phone || c.email || '-'}</p>
+                        </div>
+                        <Badge variant="outline" className="text-[10px] border-zinc-600 text-zinc-400">
+                          {c.loyaltyTier}
+                        </Badge>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <Separator className="bg-zinc-800/60" />
+
+              {/* Guest Details */}
+              <div className="grid gap-1.5">
+                <Label className="text-zinc-400 text-xs">{t.reservations.guestName} *</Label>
+                <Input
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
+                  placeholder={t.reservations.guestName}
+                  className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-650"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1.5">
+                  <Label className="text-zinc-400 text-xs flex items-center gap-1">
+                    <Phone className="size-3 text-zinc-500" /> {t.reservations.phone}
+                  </Label>
+                  <Input
+                    value={guestPhone}
+                    onChange={(e) => setGuestPhone(e.target.value)}
+                    placeholder="+1-555-0000"
+                    className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-650 text-xs"
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label className="text-zinc-400 text-xs flex items-center gap-1">
+                    <Mail className="size-3 text-zinc-500" /> {t.common.email}
+                  </Label>
+                  <Input
+                    value={guestEmail}
+                    onChange={(e) => setGuestEmail(e.target.value)}
+                    placeholder="guest@email.com"
+                    className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-650 text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Party Size & Seating table */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1.5">
+                  <Label className="text-zinc-400 text-xs flex items-center gap-1">
+                    <Users className="size-3 text-zinc-500" /> {t.reservations.partySize}
+                  </Label>
+                  <Select value={String(partySize)} onValueChange={(v) => handleSelectPartySize(Number(v))}>
+                    <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-800 border-zinc-700">
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16].map((n) => (
+                        <SelectItem key={n} value={String(n)} className="text-zinc-100 focus:bg-zinc-700 focus:text-zinc-100">
+                          {n} {n === 1 ? t.floorPlan.guest : t.floorPlan.guests}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-1.5">
+                  <Label className="text-zinc-400 text-xs flex items-center gap-1">
+                    <Armchair className="size-3 text-zinc-500" /> {t.pos.table}
+                  </Label>
+                  <Select value={tableId} onValueChange={setTableId}>
+                    <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100">
+                      <SelectValue placeholder={t.reservations.selectTablePlaceholder} />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-800 border-zinc-700">
+                      <SelectItem value="__none__" className="text-zinc-100 focus:bg-zinc-700 focus:text-zinc-100">
+                        {t.reservations.noTableAssigned}
+                      </SelectItem>
+                      {availableTables
+                        .filter((tbl) => tbl.capacity >= partySize || tbl.id === tableId)
+                        .map((tbl) => (
+                          <SelectItem key={tbl.id} value={tbl.id} className="text-zinc-100 focus:bg-zinc-700 focus:text-zinc-100">
+                            {tbl.name} ({tbl.capacity} {t.floorPlan.seats}, {getSectionLabels(t)[tbl.section] || tbl.section})
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div className="grid gap-1.5">
+                <Label className="text-zinc-400 text-xs flex items-center gap-1">
+                  <StickyNote className="size-3 text-zinc-500" /> {t.reservations.notes}
+                </Label>
+                <Textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder={t.reservations.specialRequestsPlaceholder}
+                  className="bg-zinc-800 border-zinc-700 text-zinc-100 placeholder:text-zinc-600 resize-none text-xs"
+                  rows={2}
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="border-zinc-700 text-zinc-400 hover:text-zinc-100">
+                {t.common.cancel}
+              </Button>
+              <Button type="button" onClick={handleSubmit} disabled={!guestName.trim()} className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">
+                <Check className="size-4 mr-1.5" />
+                {t.reservations.newReservation}
+              </Button>
+            </DialogFooter>
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="border-zinc-700 text-zinc-400 hover:text-zinc-100">
-            {t.common.cancel}
-          </Button>
-          <Button onClick={handleSubmit} disabled={!guestName.trim()} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-            <Check className="size-4 mr-1.5" />
-            {t.reservations.newReservation}
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

@@ -426,6 +426,11 @@ export interface Translations {
     successCreated: string;
     errorCreated: string;
     smsNotified: string;
+    availability: string;
+    fullyBooked: string;
+    available: string;
+    tablesFree: string;
+    tableFree: string;
   };
 
   // ─── Inventory ───
@@ -1192,6 +1197,11 @@ export const enGB: Translations = {
     successCreated: 'Reservation created successfully',
     errorCreated: 'Failed to create reservation',
     smsNotified: 'SMS notification sent',
+    availability: 'Availability',
+    fullyBooked: 'Fully Booked',
+    available: 'Available',
+    tablesFree: 'tables free',
+    tableFree: 'table free',
   },
   inventory: {
     title: 'Inventory',
@@ -1942,6 +1952,11 @@ export const ptPT: Translations = {
     successCreated: 'Reserva criada com sucesso',
     errorCreated: 'Falha ao criar reserva',
     smsNotified: 'Notificação SMS enviada',
+    availability: 'Disponibilidade',
+    fullyBooked: 'Esgotado',
+    available: 'Disponível',
+    tablesFree: 'mesas livres',
+    tableFree: 'mesa livre',
   },
   inventory: {
     title: 'Inventário',
@@ -2692,6 +2707,11 @@ export const frFR: Translations = {
     successCreated: 'Réservation créée avec succès',
     errorCreated: 'Échec de la création de la réservation',
     smsNotified: 'Notification SMS envoyée',
+    availability: 'Disponibilité',
+    fullyBooked: 'Complet',
+    available: 'Disponible',
+    tablesFree: 'tables libres',
+    tableFree: 'table libre',
   },
   inventory: {
     title: 'Inventaire',
@@ -3442,6 +3462,11 @@ export const esES: Translations = {
     successCreated: 'Reserva creada con éxito',
     errorCreated: 'Error al crear la reserva',
     smsNotified: 'Notificación SMS enviada',
+    availability: 'Disponibilidad',
+    fullyBooked: 'Completo',
+    available: 'Disponible',
+    tablesFree: 'mesas libres',
+    tableFree: 'mesa libre',
   },
   inventory: {
     title: 'Inventario',
