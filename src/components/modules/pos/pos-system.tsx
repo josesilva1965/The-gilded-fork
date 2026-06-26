@@ -44,6 +44,7 @@ import { getSocket } from '@/lib/socket';
 import { useAuthStore } from '@/stores/auth-store';
 import { useAppStore } from '@/stores/app-store';
 import { useT, useLocale, useLocaleConfig } from '@/stores/locale-store';
+import { type Translations } from '@/lib/i18n/translations';
 import { formatCurrencyByLocale, getTaxRate, LOCALE_CONFIGS } from '@/lib/i18n/locales';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -172,7 +173,7 @@ const CATEGORY_ICON_MAP: Record<string, React.ElementType> = {
 
 /* ─── Station Badge Colors ─── */
 
-function StationBadge({ station, t }: { station: string; t: any }) {
+function StationBadge({ station, t }: { station: string; t: Translations }) {
   if (station === 'BAR') {
     return (
       <Badge className="bg-purple-600/20 text-purple-400 border-purple-600/30 text-[10px] px-1.5 py-0 h-5 font-medium">
@@ -240,7 +241,7 @@ function TimeElapsed({ createdAt }: { createdAt: string }) {
 
 /* ─── Order Item Status Badge ─── */
 
-function ItemStatusBadge({ status, t }: { status: string; t: any }) {
+function ItemStatusBadge({ status, t }: { status: string; t: Translations }) {
   const map: Record<string, { label: string; className: string }> = {
     PENDING: { label: t.pos.pending, className: 'bg-zinc-600/20 text-zinc-400 border-zinc-600/30' },
     FIRED: { label: t.pos.fired, className: 'bg-orange-600/20 text-orange-400 border-orange-600/30' },
@@ -259,7 +260,7 @@ function ItemStatusBadge({ status, t }: { status: string; t: any }) {
 
 /* ─── Order Status Badge ─── */
 
-function OrderStatusBadge({ status, t }: { status: string; t: any }) {
+function OrderStatusBadge({ status, t }: { status: string; t: Translations }) {
   const map: Record<string, { label: string; className: string }> = {
     PENDING: { label: t.pos.pending, className: 'bg-zinc-600/20 text-zinc-400 border-zinc-600/30' },
     IN_PROGRESS: { label: t.pos.inProgress, className: 'bg-amber-600/20 text-amber-400 border-amber-600/30' },

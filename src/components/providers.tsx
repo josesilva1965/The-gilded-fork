@@ -20,7 +20,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
+      const registerSW = () => {
         navigator.serviceWorker
           .register('/sw.js')
           .then((reg) => {
@@ -29,7 +29,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
           .catch((err) => {
             console.error('PWA Service Worker registration failed:', err);
           });
-      });
+      };
+
+      if (document.readyState === 'complete') {
+        registerSW();
+      } else {
+        window.addEventListener('load', registerSW);
+        return () => window.removeEventListener('load', registerSW);
+      }
     }
 
     // Intercept fetch to automatically append user headers if logged in

@@ -17,6 +17,8 @@ import {
 import { useAuthStore, ROLE_COLORS } from '@/stores/auth-store';
 import { useAppStore } from '@/stores/app-store';
 import { useT, useLocale } from '@/stores/locale-store';
+import { type Translations } from '@/lib/i18n/translations';
+import { useQuery } from '@tanstack/react-query';
 import { useBranding } from '@/stores/branding-store';
 import { NAV_ITEMS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
@@ -47,7 +49,7 @@ function getIcon(name: string): LucideIcon {
   return ICON_MAP[name] ?? LayoutDashboard;
 }
 
-function getTranslatedRoleLabel(role: string, t: any): string {
+function getTranslatedRoleLabel(role: string, t: Translations): string {
   const roleMap: Record<string, string> = {
     ADMIN: t.roles.admin,
     MANAGER: t.roles.manager,
@@ -58,7 +60,7 @@ function getTranslatedRoleLabel(role: string, t: any): string {
   return roleMap[role] || role;
 }
 
-function getNavLabel(view: string, t: any): string {
+function getNavLabel(view: string, t: Translations): string {
   const labelMap: Record<string, string> = {
     'dashboard': t.nav.dashboard,
     'floor-plan': t.nav.floorPlan,
@@ -81,6 +83,23 @@ export function Sidebar() {
   const sidebarOpen = useAppStore((s) => s.sidebarOpen);
   const t = useT();
   const { logoText, logoIconType, logoEmoji, logoUrl, restaurantName } = useBranding();
+
+  const { data: activeOrders = [] } = useQuery<any[]>({
+    queryKey: ['active-orders'],
+    queryFn: () => fetch('/api/orders').then((r) => r.json()),
+    enabled: sidebarOpen,
+    staleTime: 10000,
+  });
+
+  const { data: inventoryData } = useQuery<{ lowStock: any[] }>({
+    queryKey: ['inventory'],
+    queryFn: () => fetch('/api/inventory').then((r) => r.json()),
+    enabled: sidebarOpen,
+    staleTime: 30000,
+  });
+
+  const activeOrdersCount = activeOrders.length;
+  const lowStockCount = inventoryData?.lowStock?.length || 0;
 
   const filteredItems = useMemo(() => {
     if (!user) return [];
@@ -142,20 +161,20 @@ export function Sidebar() {
                 {sidebarOpen && (
                   <span className="truncate text-sm">{getNavLabel(item.view, t)}</span>
                 )}
-                {sidebarOpen && item.view === 'pos' && (
+                {sidebarOpen && item.view === 'pos' && activeOrdersCount > 0 && (
                   <Badge
                     variant="secondary"
                     className="ml-auto bg-emerald-600/20 text-emerald-400 text-[10px] px-1.5 py-0 h-5"
                   >
-                    3
+                    {activeOrdersCount}
                   </Badge>
                 )}
-                {sidebarOpen && item.view === 'inventory' && (
+                {sidebarOpen && item.view === 'inventory' && lowStockCount > 0 && (
                   <Badge
                     variant="secondary"
                     className="ml-auto bg-amber-600/20 text-amber-400 text-[10px] px-1.5 py-0 h-5"
                   >
-                    2
+                    {lowStockCount}
                   </Badge>
                 )}
               </Button>
