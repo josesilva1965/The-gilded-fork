@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { BrandingProvider } from '@/components/branding-provider';
+import { useAuthStore } from '@/stores/auth-store';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -20,22 +21,36 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-      const registerSW = () => {
-        navigator.serviceWorker
-          .register('/sw.js')
-          .then((reg) => {
-            console.log('PWA Service Worker registered successfully:', reg.scope);
-          })
-          .catch((err) => {
-            console.error('PWA Service Worker registration failed:', err);
-          });
-      };
+      if (process.env.NODE_ENV !== 'development' && process.env.NEXT_PUBLIC_IS_LOCAL_KIOSK !== 'true') {
+        const registerSW = () => {
+          navigator.serviceWorker
+            .register('/sw.js')
+            .then((reg) => {
+              console.log('PWA Service Worker registered successfully:', reg.scope);
+            })
+            .catch((err) => {
+              console.error('PWA Service Worker registration failed:', err);
+            });
+        };
 
-      if (document.readyState === 'complete') {
-        registerSW();
+        if (document.readyState === 'complete') {
+          registerSW();
+        } else {
+          window.addEventListener('load', registerSW);
+          return () => window.removeEventListener('load', registerSW);
+        }
       } else {
-        window.addEventListener('load', registerSW);
-        return () => window.removeEventListener('load', registerSW);
+        // Unregister service worker in dev or local kiosk mode to avoid caching stale assets
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          for (const registration of registrations) {
+            registration.unregister().then((success) => {
+              if (success) {
+                console.log('Unregistered active service worker for local kiosk');
+                window.location.reload();
+              }
+            });
+          }
+        });
       }
     }
 
@@ -54,7 +69,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
         if (url.startsWith('/api/') || url.includes(window.location.origin + '/api/')) {
           try {
-            const { useAuthStore } = require('@/stores/auth-store');
             const state = useAuthStore.getState();
             if (state && state.user) {
               const headers = new Headers(init?.headers);

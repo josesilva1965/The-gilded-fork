@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gilded-fork-cache-v1';
+const CACHE_NAME = 'gilded-fork-cache-v2';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
