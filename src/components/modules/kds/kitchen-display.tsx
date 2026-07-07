@@ -17,6 +17,8 @@ import {
   Search,
   LayoutGrid,
   ShoppingBag,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { useAuthStore, type UserRole } from '@/stores/auth-store';
 import { useAppStore } from '@/stores/app-store';
@@ -165,9 +167,10 @@ const URGENCY_BG: Record<string, string> = {
   red: 'bg-red-950/30',
 };
 
-function getElapsedText(createdAt: string): string {
-  const ms = Date.now() - new Date(createdAt).getTime();
-  const totalSeconds = Math.floor(ms / 1000);
+function getElapsedText(createdAt: string, nowMs?: number): string {
+  const referenceTime = nowMs ?? Date.now();
+  const ms = referenceTime - new Date(createdAt).getTime();
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
 
@@ -328,10 +331,12 @@ function OrderItemRow({
   item,
   onUpdate,
   updating,
+  onDoubleClick,
 }: {
   item: OrderItem;
   onUpdate: (itemId: string, status: OrderItemStatus) => void;
   updating: boolean;
+  onDoubleClick?: () => void;
 }) {
   const t = useT();
   const nextStatus = getNextStatus(item.status);
@@ -341,8 +346,9 @@ function OrderItemRow({
 
   return (
     <div
+      onDoubleClick={onDoubleClick}
       className={cn(
-        'flex items-start gap-2 rounded-lg border p-2 transition-all duration-200',
+        'flex items-start gap-2 rounded-lg border p-2 transition-all duration-200 cursor-pointer select-none hover:brightness-110 active:scale-[0.98]',
         item.status === 'SERVED' || item.status === 'CANCELLED'
           ? 'opacity-40 border-zinc-800 bg-zinc-900/30'
           : cn(config.bgColor, config.borderColor)
@@ -438,49 +444,55 @@ function OrderTicket({
   onUpdateItem,
   onBump,
   updatingItemId,
+  now,
+  onItemDoubleClick,
+  filterStation,
 }: {
   order: Order;
   onUpdateItem: (itemId: string, status: OrderItemStatus) => void;
   onBump: (orderId: string) => void;
   updatingItemId: string | null;
+  now: number;
+  onItemDoubleClick?: (itemId: string) => void;
+  filterStation?: 'KITCHEN' | 'BAR';
 }) {
   const t = useT();
   const locale = useLocale();
-  const [, setTick] = useState(0);
+
+  const relevantItems = useMemo(() => {
+    return filterStation 
+      ? order.items.filter((i) => i.station === filterStation)
+      : order.items;
+  }, [order.items, filterStation]);
 
   // Dynamic urgency level based on prepTime estimates of items in this order
   const urgency = useMemo(() => {
-    const maxPrepTime = order.items
+    const maxPrepTime = relevantItems
       .filter((i) => i.status !== 'CANCELLED')
       .reduce((max, i) => {
         const prep = i.menuItem.prepTime || 15;
         return prep > max ? prep : max;
       }, 5);
 
-    const elapsedMs = Date.now() - new Date(order.createdAt).getTime();
+    const elapsedMs = now - new Date(order.createdAt).getTime();
     const elapsedMinutes = elapsedMs / 60000;
 
     if (elapsedMinutes < maxPrepTime * 0.6) return 'green';
     if (elapsedMinutes < maxPrepTime) return 'amber';
     return 'red';
-  }, [order.createdAt, order.items]);
+  }, [order.createdAt, relevantItems, now]);
 
-  useEffect(() => {
-    const interval = setInterval(() => setTick((t) => t + 1), 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const allReady = order.items
+  const allReady = relevantItems
     .filter((i) => i.status !== 'CANCELLED')
     .every((i) => i.status === 'READY' || i.status === 'SERVED');
 
-  const allServed = order.items
+  const allServed = relevantItems
     .filter((i) => i.status !== 'CANCELLED')
     .every((i) => i.status === 'SERVED');
 
-  if (allServed) return null;
+  if (allServed || relevantItems.length === 0) return null;
 
-  const hasUnserved = order.items.some(
+  const hasUnserved = relevantItems.some(
     (i) => i.status !== 'SERVED' && i.status !== 'CANCELLED'
   );
 
@@ -535,7 +547,7 @@ function OrderTicket({
                   urgency === 'red' && 'text-red-400'
                 )}
               >
-                {getElapsedText(order.createdAt)}
+                {getElapsedText(order.createdAt, now)}
               </div>
             </div>
           </div>
@@ -557,7 +569,7 @@ function OrderTicket({
         <Separator className="bg-zinc-800" />
 
         <CardContent className="p-3 flex flex-col gap-2 max-h-80 overflow-y-auto custom-scrollbar">
-          {order.items
+          {relevantItems
             .filter((i) => i.status !== 'CANCELLED' && i.status !== 'SERVED')
             .sort((a, b) => {
               const statusOrder: Record<string, number> = { PENDING: 0, FIRED: 1, PREPARING: 2, READY: 3 };
@@ -569,6 +581,7 @@ function OrderTicket({
                 item={item}
                 onUpdate={onUpdateItem}
                 updating={updatingItemId === item.id}
+                onDoubleClick={() => onItemDoubleClick?.(item.id)}
               />
             ))}
         </CardContent>
@@ -593,13 +606,8 @@ function OrderTicket({
 }
 
 /* ─── Synthesized Ready Chime ─── */
-function playReadyChime() {
-  if (typeof window === 'undefined') return;
+function playReadyChime(ctx: AudioContext) {
   try {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContextClass) return;
-    const ctx = new AudioContextClass();
-    
     // Tone 1: C5 (523.25 Hz)
     const osc1 = ctx.createOscillator();
     const gain1 = ctx.createGain();
@@ -633,13 +641,8 @@ function playReadyChime() {
 }
 
 /* ─── Synthesized New Ticket Alert Beep ─── */
-function playNewTicketChime() {
-  if (typeof window === 'undefined') return;
+function playNewTicketChime(ctx: AudioContext) {
   try {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContextClass) return;
-    const ctx = new AudioContextClass();
-    
     // First high beep: A5 (880 Hz)
     const osc1 = ctx.createOscillator();
     const gain1 = ctx.createGain();
@@ -678,11 +681,15 @@ function KanbanCard({
   onUpdateItem,
   onDragStart,
   updating,
+  now,
+  onDoubleClick,
 }: {
   item: OrderItem & { tableName: string; orderCreatedAt: string; orderId: string };
   onUpdateItem: (itemId: string, status: OrderItemStatus) => void;
   onDragStart: (e: React.DragEvent, itemId: string) => void;
   updating: boolean;
+  now: number;
+  onDoubleClick?: () => void;
 }) {
   const t = useT();
   const nextStatus = getNextStatus(item.status);
@@ -693,10 +700,11 @@ function KanbanCard({
     <div
       draggable
       onDragStart={(e) => onDragStart(e, item.id)}
+      onDoubleClick={onDoubleClick}
       className={cn(
         'group cursor-grab active:cursor-grabbing select-none',
-        'flex flex-col gap-2 rounded-xl border p-3.5 transition-all duration-200',
-        'bg-zinc-900 border-zinc-800 hover:border-zinc-700/80 shadow-md',
+        'flex flex-col gap-2 rounded-xl border p-3.5 transition-all duration-200 cursor-pointer',
+        'bg-zinc-900 border-zinc-800 hover:border-zinc-700/80 shadow-md active:scale-[0.99] hover:brightness-105',
         urgency === 'red' && 'border-l-4 border-l-red-500 bg-red-950/5',
         urgency === 'amber' && 'border-l-4 border-l-amber-500 bg-amber-950/5',
         urgency === 'green' && 'border-l-4 border-l-emerald-500 bg-emerald-950/5'
@@ -740,7 +748,7 @@ function KanbanCard({
       <div className="flex items-center justify-between gap-2 mt-1 border-t border-zinc-850 pt-2 text-[10px] text-zinc-500 font-mono">
         <div className="flex items-center gap-1">
           <Clock className="size-3" />
-          <span>{getElapsedText(item.createdAt)}</span>
+          <span>{getElapsedText(item.createdAt, now)}</span>
         </div>
         {item.seatNumber && (
           <span>
@@ -753,7 +761,10 @@ function KanbanCard({
         <div className="mt-1">
           <Button
             size="sm"
-            onClick={() => onUpdateItem(item.id, nextStatus)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onUpdateItem(item.id, nextStatus);
+            }}
             disabled={updating}
             className={cn(
               'w-full h-8 text-xs font-bold gap-1 mt-1 cursor-pointer transition-colors',
@@ -817,10 +828,30 @@ export function KitchenDisplay() {
   const [flashNewOrder, setFlashNewOrder] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('kitchen');
   const prevOrderCountRef = useRef<number>(0);
-  const [, setTick] = useState(0);
+
+  // Centralized parent clock tick
+  const [now, setNow] = useState<number>(Date.now());
+
+  // Search & Filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'dine-in' | 'takeaway' | 'urgent'>('all');
+
+  // Audio Manager State
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('kds-sound-enabled') === 'true';
+    }
+    return false;
+  });
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const soundEnabledRef = useRef(false);
+
+  useEffect(() => {
+    soundEnabledRef.current = soundEnabled;
+  }, [soundEnabled]);
 
   // Kanban and Web Audio Chimes State
-  const [viewMode, setViewMode] = useState<'tickets' | 'kanban'>('tickets');
+  const [viewMode, setViewMode] = useState<'tickets' | 'kanban'>('kanban');
   const [draggedOverColumn, setDraggedOverColumn] = useState<string | null>(null);
   const knownReadyItemIdsRef = useRef<Set<string>>(new Set());
   const [activeAlertItem, setActiveAlertItem] = useState<{
@@ -831,219 +862,10 @@ export function KitchenDisplay() {
     station: ItemStation;
   } | null>(null);
 
-  // Sync effect to detect new READY items and trigger chime and banner
-  useEffect(() => {
-    if (orders.length === 0) return;
-
-    const currentReadyItems = orders.flatMap(o =>
-      o.items
-        .filter(i => i.status === 'READY')
-        .map(i => ({
-          id: i.id,
-          name: i.menuItem.name,
-          quantity: i.quantity,
-          tableName: o.table.name,
-          station: i.station
-        }))
-    );
-
-    let playsChime = false;
-    let newReadyItemToShow: {
-      id: string;
-      name: string;
-      quantity: number;
-      tableName: string;
-      station: ItemStation;
-    } | null = null;
-
-    currentReadyItems.forEach(item => {
-      if (!knownReadyItemIdsRef.current.has(item.id)) {
-        knownReadyItemIdsRef.current.add(item.id);
-        playsChime = true;
-        newReadyItemToShow = item;
-      }
-    });
-
-    const currentReadyIds = new Set(currentReadyItems.map(item => item.id));
-    knownReadyItemIdsRef.current.forEach(id => {
-      if (!currentReadyIds.has(id)) {
-        knownReadyItemIdsRef.current.delete(id);
-      }
-    });
-
-    if (playsChime) {
-      playReadyChime();
-      if (newReadyItemToShow) {
-        setActiveAlertItem(newReadyItemToShow);
-      }
-    }
-  }, [orders]);
-
-  useEffect(() => {
-    if (activeAlertItem) {
-      const timer = setTimeout(() => {
-        setActiveAlertItem(null);
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [activeAlertItem]);
-
-  // Drag and drop event handlers
-  const handleDragStart = (e: React.DragEvent, itemId: string) => {
-    e.dataTransfer.setData('text/plain', itemId);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
-
-  const handleDragEnter = (e: React.DragEvent, status: string) => {
-    e.preventDefault();
-    setDraggedOverColumn(status);
-  };
-
-  const handleDragLeave = () => {
-    setDraggedOverColumn(null);
-  };
-
-  const handleDrop = async (e: React.DragEvent, targetStatus: OrderItemStatus) => {
-    e.preventDefault();
-    setDraggedOverColumn(null);
-    const itemId = e.dataTransfer.getData('text/plain');
-    if (!itemId) return;
-
-    await handleUpdateItem(itemId, targetStatus);
-  };
-
-  const getKanbanItems = (station: string) => {
-    return orders.flatMap(order => 
-      order.items.map(item => ({
-        ...item,
-        tableName: order.table.name,
-        orderCreatedAt: order.createdAt,
-        orderId: order.id
-      }))
-    ).filter(item => {
-      if (item.status === 'SERVED' || item.status === 'CANCELLED') return false;
-      
-      const matchesStation = 
-        station === 'all' ? true :
-        station === 'kitchen' ? item.station === 'KITCHEN' :
-        station === 'bar' ? item.station === 'BAR' :
-        true;
-      
-      return matchesStation;
-    });
-  };
-
-  const renderKanbanBoard = (station: string) => {
-    const items = getKanbanItems(station);
-    const queuedItems = items.filter(i => i.status === 'PENDING' || i.status === 'FIRED');
-    const preparingItems = items.filter(i => i.status === 'PREPARING');
-    const readyItems = items.filter(i => i.status === 'READY');
-
-    const columns = [
-      {
-        id: 'queued' as const,
-        title: t.kds.queued || 'Queued',
-        items: queuedItems,
-        targetStatus: 'FIRED' as OrderItemStatus,
-        color: 'border-t-orange-500 bg-orange-950/5 border-orange-500/10',
-        headerColor: 'text-orange-400'
-      },
-      {
-        id: 'preparing' as const,
-        title: t.kds.preparing || 'Preparing',
-        items: preparingItems,
-        targetStatus: 'PREPARING' as OrderItemStatus,
-        color: 'border-t-amber-500 bg-amber-950/5 border-amber-500/10',
-        headerColor: 'text-amber-400'
-      },
-      {
-        id: 'ready' as const,
-        title: t.kds.ready || 'Ready',
-        items: readyItems,
-        targetStatus: 'READY' as OrderItemStatus,
-        color: 'border-t-emerald-500 bg-emerald-950/5 border-emerald-500/10',
-        headerColor: 'text-emerald-400'
-      }
-    ];
-
-    return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 h-[calc(100vh-250px)] min-h-[400px]">
-        {columns.map((col) => {
-          const isOver = draggedOverColumn === col.id;
-          return (
-            <div
-              key={col.id}
-              onDragOver={handleDragOver}
-              onDragEnter={(e) => handleDragEnter(e, col.id)}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, col.targetStatus)}
-              className={cn(
-                "flex flex-col rounded-xl border border-zinc-800 border-t-4 p-3 transition-all duration-200",
-                col.color,
-                isOver ? "border-zinc-500 ring-2 ring-zinc-500/20 scale-[1.01]" : ""
-              )}
-            >
-              <div className="flex items-center justify-between mb-3 px-1">
-                <h3 className={cn("font-bold text-sm", col.headerColor)}>
-                  {col.title}
-                </h3>
-                <Badge variant="outline" className="text-zinc-400 border-zinc-800 text-[10px]">
-                  {col.items.length}
-                </Badge>
-              </div>
-
-              <ScrollArea className="flex-1 pr-1">
-                <div className="flex flex-col gap-2 pb-4">
-                  {col.items.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-12 text-center text-xs text-zinc-500 font-medium">
-                      <span>No items in this stage</span>
-                    </div>
-                  ) : (
-                    col.items.map((item) => (
-                      <KanbanCard
-                        key={item.id}
-                        item={item}
-                        onUpdateItem={handleUpdateItem}
-                        onDragStart={handleDragStart}
-                        updating={updatingItemId === item.id}
-                      />
-                    ))
-                  )}
-                </div>
-              </ScrollArea>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  const showKitchen = role === 'KITCHEN' || role === 'ADMIN' || role === 'MANAGER';
-  const showBar = role === 'BAR' || role === 'ADMIN' || role === 'MANAGER';
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (role === 'KITCHEN') setActiveTab('kitchen');
-      else if (role === 'BAR') setActiveTab('bar');
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [role]);
-
   const loadOrders = useCallback(async () => {
     try {
       const data = await fetchOrders();
-      setOrders((prev) => {
-        if (prev.length > 0 && data.length > prevOrderCountRef.current) {
-          setFlashNewOrder(true);
-          setTimeout(() => setFlashNewOrder(false), 2000);
-        }
-        prevOrderCountRef.current = data.length;
-        return data;
-      });
+      setOrders(data);
       setError(null);
     } catch {
       setError('Failed to load orders');
@@ -1063,63 +885,6 @@ export function KitchenDisplay() {
     } catch (err) {
       console.error('Failed to load KDS production stats:', err);
     }
-  }, []);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      loadOrders();
-      loadProductionStats();
-    }, 0);
-    const interval = setInterval(() => {
-        loadOrders();
-        loadProductionStats();
-    }, 15000);
-    return () => {
-      clearTimeout(timer);
-      clearInterval(interval);
-    };
-  }, [loadOrders, loadProductionStats]);
-
-  // Listen for real-time WebSocket events to update KDS instantly
-  useEffect(() => {
-    const socket = getSocket();
-    if (!socket) return;
-
-    const handleNewTicket = () => {
-      // Trigger new ticket sound alert
-      playNewTicketChime();
-      // Reload orders and stats
-      loadOrders();
-      loadProductionStats();
-    };
-
-    const handleUpdate = () => {
-      loadOrders();
-      loadProductionStats();
-    };
-
-    socket.on('kitchen:new-ticket', handleNewTicket);
-    socket.on('bar:new-ticket', handleNewTicket);
-    socket.on('order:updated', handleUpdate);
-    socket.on('order:item-updated', handleUpdate);
-    socket.on('kitchen:item-updated', handleUpdate);
-    socket.on('bar:item-updated', handleUpdate);
-    socket.on('table:status-updated', handleUpdate);
-
-    return () => {
-      socket.off('kitchen:new-ticket', handleNewTicket);
-      socket.off('bar:new-ticket', handleNewTicket);
-      socket.off('order:updated', handleUpdate);
-      socket.off('order:item-updated', handleUpdate);
-      socket.off('kitchen:item-updated', handleUpdate);
-      socket.off('bar:item-updated', handleUpdate);
-      socket.off('table:status-updated', handleUpdate);
-    };
-  }, [loadOrders, loadProductionStats]);
-
-  useEffect(() => {
-    const interval = setInterval(() => setTick((t) => t + 1), 1000);
-    return () => clearInterval(interval);
   }, []);
 
   const handleUpdateItem = useCallback(async (itemId: string, status: OrderItemStatus) => {
@@ -1195,13 +960,449 @@ export function KitchenDisplay() {
     }
   }, [orders, loadOrders]);
 
-  const kitchenOrders = orders
-    .filter((o) => o.items.some((i) => i.station === 'KITCHEN' && i.status !== 'SERVED' && i.status !== 'CANCELLED'))
-    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  // Audio actions
+  const initAudio = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      if (!audioContextRef.current) {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioContextClass) {
+          audioContextRef.current = new AudioContextClass();
+        }
+      }
+      const ctx = audioContextRef.current;
+      if (ctx) {
+        if (ctx.state === 'suspended') {
+          ctx.resume();
+        }
+        // Play a short soft tone to activate/unlock context
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.value = 523.25; // C5
+        gain.gain.setValueAtTime(0.02, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.1);
+      }
+      setSoundEnabled(true);
+      localStorage.setItem('kds-sound-enabled', 'true');
+    } catch (err) {
+      console.error('Failed to init audio context:', err);
+    }
+  }, []);
 
-  const barOrders = orders
+  const disableAudio = useCallback(() => {
+    setSoundEnabled(false);
+    localStorage.setItem('kds-sound-enabled', 'false');
+  }, []);
+
+  const triggerReadyChime = useCallback(() => {
+    if (!soundEnabledRef.current || !audioContextRef.current) return;
+    const ctx = audioContextRef.current;
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(() => playReadyChime(ctx));
+    } else {
+      playReadyChime(ctx);
+    }
+  }, []);
+
+  const triggerNewTicketChime = useCallback(() => {
+    if (!soundEnabledRef.current || !audioContextRef.current) return;
+    const ctx = audioContextRef.current;
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(() => playNewTicketChime(ctx));
+    } else {
+      playNewTicketChime(ctx);
+    }
+  }, []);
+
+  const handleTestSound = useCallback(() => {
+    if (!audioContextRef.current) {
+      initAudio();
+    } else {
+      const ctx = audioContextRef.current;
+      if (ctx.state === 'suspended') {
+        ctx.resume().then(() => playReadyChime(ctx));
+      } else {
+        playReadyChime(ctx);
+      }
+    }
+  }, [initAudio]);
+
+
+  const isStationWatched = useCallback((station: string) => {
+    if (role === 'KITCHEN' && station === 'KITCHEN') return true;
+    if (role === 'BAR' && station === 'BAR') return true;
+    if (role === 'ADMIN' || role === 'MANAGER') {
+      if (activeTab === 'all') return true;
+      if (activeTab === 'kitchen' && station === 'KITCHEN') return true;
+      if (activeTab === 'bar' && station === 'BAR') return true;
+    }
+    return false;
+  }, [role, activeTab]);
+
+  // Sync effect to detect new READY items and trigger chime and banner
+  useEffect(() => {
+    if (orders.length === 0) return;
+
+    const currentReadyItems = orders.flatMap(o =>
+      o.items
+        .filter(i => i.status === 'READY' && isStationWatched(i.station))
+        .map(i => ({
+          id: i.id,
+          name: i.menuItem.name,
+          quantity: i.quantity,
+          tableName: o.table.name,
+          station: i.station
+        }))
+    );
+
+    let playsChime = false;
+    let newReadyItemToShow: {
+      id: string;
+      name: string;
+      quantity: number;
+      tableName: string;
+      station: ItemStation;
+    } | null = null;
+
+    currentReadyItems.forEach(item => {
+      if (!knownReadyItemIdsRef.current.has(item.id)) {
+        knownReadyItemIdsRef.current.add(item.id);
+        playsChime = true;
+        newReadyItemToShow = item;
+      }
+    });
+
+    const currentReadyIds = new Set(currentReadyItems.map(item => item.id));
+    knownReadyItemIdsRef.current.forEach(id => {
+      if (!currentReadyIds.has(id)) {
+        knownReadyItemIdsRef.current.delete(id);
+      }
+    });
+
+    if (playsChime) {
+      triggerReadyChime();
+      if (newReadyItemToShow) {
+        setActiveAlertItem(newReadyItemToShow);
+      }
+    }
+  }, [orders, triggerReadyChime, isStationWatched]);
+
+  useEffect(() => {
+    if (activeAlertItem) {
+      const timer = setTimeout(() => {
+        setActiveAlertItem(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [activeAlertItem]);
+
+  // Drag and drop event handlers
+  const handleDragStart = (e: React.DragEvent, itemId: string) => {
+    e.dataTransfer.setData('text/plain', itemId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDragEnter = (e: React.DragEvent, status: string) => {
+    e.preventDefault();
+    setDraggedOverColumn(status);
+  };
+
+  const handleDragLeave = () => {
+    setDraggedOverColumn(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetStatus: OrderItemStatus) => {
+    e.preventDefault();
+    setDraggedOverColumn(null);
+    const itemId = e.dataTransfer.getData('text/plain');
+    if (!itemId) return;
+
+    await handleUpdateItem(itemId, targetStatus);
+  };
+
+  // Double click gesture to advance status
+  const handleItemDoubleClick = useCallback((itemId: string) => {
+    let currentItem: OrderItem | undefined;
+    for (const order of orders) {
+      const found = order.items.find(i => i.id === itemId);
+      if (found) {
+        currentItem = found;
+        break;
+      }
+    }
+    if (!currentItem) return;
+
+    const nextStatus = getNextStatus(currentItem.status);
+    if (nextStatus) {
+      handleUpdateItem(itemId, nextStatus);
+    }
+  }, [orders, handleUpdateItem]);
+
+  const getKanbanItems = useCallback((station: string) => {
+    return orders.flatMap(order => {
+      // Apply active filter at order level
+      if (activeFilter === 'dine-in' && order.type !== 'DINE_IN') return [];
+      if (activeFilter === 'takeaway' && order.type !== 'TAKEAWAY') return [];
+      if (activeFilter === 'urgent') {
+        const maxPrep = order.items
+          .filter((i) => i.status !== 'CANCELLED')
+          .reduce((max, i) => {
+            const prep = i.menuItem.prepTime || 15;
+            return prep > max ? prep : max;
+          }, 5);
+        const elapsedMs = now - new Date(order.createdAt).getTime();
+        const elapsedMinutes = elapsedMs / 60000;
+        if (elapsedMinutes < maxPrep) return [];
+      }
+
+      return order.items.map(item => ({
+        ...item,
+        tableName: order.table.name,
+        orderCreatedAt: order.createdAt,
+        orderId: order.id
+      }));
+    }).filter(item => {
+      if (item.status === 'SERVED' || item.status === 'CANCELLED') return false;
+      
+      const matchesStation = 
+        station === 'all' ? true :
+        station === 'kitchen' ? item.station === 'KITCHEN' :
+        station === 'bar' ? item.station === 'BAR' :
+        true;
+      
+      if (!matchesStation) return false;
+
+      // Apply Search Query filter at item/table name level
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        const matchesName = item.menuItem.name.toLowerCase().includes(query);
+        const matchesTable = item.tableName.toLowerCase().includes(query);
+        if (!matchesName && !matchesTable) return false;
+      }
+
+      return true;
+    });
+  }, [orders, activeFilter, searchQuery, now]);
+
+  const renderKanbanBoard = (station: string) => {
+    const items = getKanbanItems(station);
+    const queuedItems = items.filter(i => i.status === 'PENDING' || i.status === 'FIRED');
+    const preparingItems = items.filter(i => i.status === 'PREPARING');
+    const readyItems = items.filter(i => i.status === 'READY');
+
+    const columns = [
+      {
+        id: 'queued' as const,
+        title: t.kds.queued || 'Queued',
+        items: queuedItems,
+        targetStatus: 'FIRED' as OrderItemStatus,
+        color: 'border-t-orange-500 bg-orange-950/5 border-orange-500/10',
+        headerColor: 'text-orange-400'
+      },
+      {
+        id: 'preparing' as const,
+        title: t.kds.preparing || 'Preparing',
+        items: preparingItems,
+        targetStatus: 'PREPARING' as OrderItemStatus,
+        color: 'border-t-amber-500 bg-amber-950/5 border-amber-500/10',
+        headerColor: 'text-amber-400'
+      },
+      {
+        id: 'ready' as const,
+        title: t.kds.ready || 'Ready',
+        items: readyItems,
+        targetStatus: 'READY' as OrderItemStatus,
+        color: 'border-t-emerald-500 bg-emerald-950/5 border-emerald-500/10',
+        headerColor: 'text-emerald-400'
+      }
+    ];
+
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 h-[calc(100vh-250px)] min-h-[400px]">
+        {columns.map((col) => {
+          const isOver = draggedOverColumn === col.id;
+          return (
+            <div
+              key={col.id}
+              onDragOver={handleDragOver}
+              onDragEnter={(e) => handleDragEnter(e, col.id)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, col.targetStatus)}
+              className={cn(
+                "flex flex-col rounded-xl border border-zinc-800 border-t-4 p-3 transition-all duration-200",
+                col.color,
+                isOver ? "border-zinc-550 ring-2 ring-zinc-550/20 scale-[1.01]" : ""
+              )}
+            >
+              <div className="flex items-center justify-between mb-3 px-1">
+                <h3 className={cn("font-bold text-sm", col.headerColor)}>
+                  {col.title}
+                </h3>
+                <Badge variant="outline" className="text-zinc-400 border-zinc-800 text-[10px]">
+                  {col.items.length}
+                </Badge>
+              </div>
+
+              <ScrollArea className="flex-1 pr-1">
+                <div className="flex flex-col gap-2 pb-4">
+                  {col.items.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-center text-xs text-zinc-500 font-medium">
+                      <span>No items in this stage</span>
+                    </div>
+                  ) : (
+                    col.items.map((item) => (
+                      <KanbanCard
+                        key={item.id}
+                        item={item}
+                        onUpdateItem={handleUpdateItem}
+                        onDragStart={handleDragStart}
+                        updating={updatingItemId === item.id}
+                        now={now}
+                        onDoubleClick={() => handleItemDoubleClick(item.id)}
+                      />
+                    ))
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const showKitchen = role === 'KITCHEN' || role === 'ADMIN' || role === 'MANAGER';
+  const showBar = role === 'BAR' || role === 'ADMIN' || role === 'MANAGER';
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (role === 'KITCHEN') setActiveTab('kitchen');
+      else if (role === 'BAR') setActiveTab('bar');
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [role]);
+
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadOrders();
+      loadProductionStats();
+    }, 0);
+    const interval = setInterval(() => {
+        loadOrders();
+        loadProductionStats();
+    }, 15000);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
+  }, [loadOrders, loadProductionStats]);
+
+  // Listen for real-time WebSocket events to update KDS instantly
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+
+    const handleKitchenNewTicket = () => {
+      if (isStationWatched('KITCHEN')) {
+        triggerNewTicketChime();
+        setFlashNewOrder(true);
+        setTimeout(() => setFlashNewOrder(false), 2000);
+      }
+      loadOrders();
+      loadProductionStats();
+    };
+
+    const handleBarNewTicket = () => {
+      if (isStationWatched('BAR')) {
+        triggerNewTicketChime();
+        setFlashNewOrder(true);
+        setTimeout(() => setFlashNewOrder(false), 2000);
+      }
+      loadOrders();
+      loadProductionStats();
+    };
+
+    const handleUpdate = () => {
+      loadOrders();
+      loadProductionStats();
+    };
+
+    socket.on('kitchen:new-ticket', handleKitchenNewTicket);
+    socket.on('bar:new-ticket', handleBarNewTicket);
+    socket.on('order:updated', handleUpdate);
+    socket.on('order:item-updated', handleUpdate);
+    socket.on('kitchen:item-updated', handleUpdate);
+    socket.on('bar:item-updated', handleUpdate);
+    socket.on('table:status-updated', handleUpdate);
+
+    return () => {
+      socket.off('kitchen:new-ticket', handleKitchenNewTicket);
+      socket.off('bar:new-ticket', handleBarNewTicket);
+      socket.off('order:updated', handleUpdate);
+      socket.off('order:item-updated', handleUpdate);
+      socket.off('kitchen:item-updated', handleUpdate);
+      socket.off('bar:item-updated', handleUpdate);
+      socket.off('table:status-updated', handleUpdate);
+    };
+  }, [loadOrders, loadProductionStats, triggerNewTicketChime, isStationWatched]);
+
+  // Central timer tick updates parent clock once a second
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+
+
+  // Dynamic order filtering logic
+  const filterOrder = useCallback((o: Order) => {
+    // 1. Filter by active filter type
+    if (activeFilter === 'dine-in' && o.type !== 'DINE_IN') return false;
+    if (activeFilter === 'takeaway' && o.type !== 'TAKEAWAY') return false;
+    if (activeFilter === 'urgent') {
+      const maxPrepTime = o.items
+        .filter((i) => i.status !== 'CANCELLED')
+        .reduce((max, i) => {
+          const prep = i.menuItem.prepTime || 15;
+          return prep > max ? prep : max;
+        }, 5);
+      const elapsedMs = now - new Date(o.createdAt).getTime();
+      const elapsedMinutes = elapsedMs / 60000;
+      if (elapsedMinutes < maxPrepTime) return false;
+    }
+
+    // 2. Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      const matchesTable = o.table.name.toLowerCase().includes(query);
+      const matchesType = o.type.toLowerCase().includes(query);
+      const matchesItem = o.items.some((i) =>
+        i.menuItem.name.toLowerCase().includes(query)
+      );
+      if (!matchesTable && !matchesType && !matchesItem) return false;
+    }
+
+    return true;
+  }, [activeFilter, searchQuery, now]);
+
+  const kitchenOrders = useMemo(() => orders
+    .filter((o) => o.items.some((i) => i.station === 'KITCHEN' && i.status !== 'SERVED' && i.status !== 'CANCELLED'))
+    .filter(filterOrder)
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()), [orders, filterOrder]);
+
+  const barOrders = useMemo(() => orders
     .filter((o) => o.items.some((i) => i.station === 'BAR' && i.status !== 'SERVED' && i.status !== 'CANCELLED'))
-    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    .filter(filterOrder)
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()), [orders, filterOrder]);
 
   const getVisibleOrders = (): Order[] => {
     if (role === 'KITCHEN') return kitchenOrders;
@@ -1300,6 +1501,69 @@ export function KitchenDisplay() {
         }}
       />
 
+      {/* Search & Filter Bar */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-zinc-900/40 border border-zinc-800/80 p-3 rounded-xl backdrop-blur-sm">
+        <div className="relative w-full sm:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-zinc-500" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t.kds.searchItems || "Search items..."}
+            className="w-full bg-zinc-950/40 border-zinc-800/80 focus:border-zinc-700/80 focus:ring-emerald-500/20 pl-9 text-xs text-zinc-100 placeholder:text-zinc-500 rounded-lg h-9"
+          />
+        </div>
+
+        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto no-scrollbar shrink-0">
+          {(['all', 'dine-in', 'takeaway', 'urgent'] as const).map((filter) => (
+            <Button
+              key={filter}
+              variant="outline"
+              size="sm"
+              onClick={() => setActiveFilter(filter)}
+              className={cn(
+                'h-8 px-3 text-xs font-semibold rounded-lg border-zinc-850 hover:bg-zinc-800 hover:text-zinc-100 transition-colors shrink-0',
+                activeFilter === filter
+                  ? 'bg-zinc-800 text-zinc-100 border-zinc-700'
+                  : 'text-zinc-400 bg-zinc-950/20'
+              )}
+            >
+              {filter === 'all' && 'All Tickets'}
+              {filter === 'dine-in' && 'Dine In'}
+              {filter === 'takeaway' && 'Takeaway'}
+              {filter === 'urgent' && 'Urgent'}
+            </Button>
+          ))}
+
+          <Separator orientation="vertical" className="h-6 bg-zinc-800 hidden sm:block mx-1" />
+
+          {/* Sound toggle control */}
+          <div className="flex items-center gap-1.5 bg-zinc-950/40 border border-zinc-850 p-1 rounded-lg shrink-0">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={soundEnabled ? disableAudio : initAudio}
+              className={cn(
+                'h-6 px-2 text-[11px] font-bold gap-1 rounded cursor-pointer transition-colors',
+                soundEnabled ? 'text-emerald-400 hover:bg-emerald-500/10' : 'text-zinc-500 hover:bg-zinc-800'
+              )}
+            >
+              {soundEnabled ? <Volume2 className="size-3.5" /> : <VolumeX className="size-3.5" />}
+              {soundEnabled ? t.kds.soundEnabled : t.kds.soundDisabled}
+            </Button>
+            {soundEnabled && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleTestSound}
+                className="h-6 px-2 text-[10px] font-semibold border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 rounded cursor-pointer transition-colors"
+              >
+                {t.kds.soundTest}
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+
       {showKitchen && showBar ? (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
           <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
@@ -1392,6 +1656,9 @@ export function KitchenDisplay() {
                           onUpdateItem={handleUpdateItem}
                           onBump={handleBump}
                           updatingItemId={updatingItemId}
+                          now={now}
+                          onItemDoubleClick={handleItemDoubleClick}
+                          filterStation="KITCHEN"
                         />
                       ))
                     )}
@@ -1419,6 +1686,9 @@ export function KitchenDisplay() {
                           onUpdateItem={handleUpdateItem}
                           onBump={handleBump}
                           updatingItemId={updatingItemId}
+                          now={now}
+                          onItemDoubleClick={handleItemDoubleClick}
+                          filterStation="BAR"
                         />
                       ))
                     )}
@@ -1441,6 +1711,9 @@ export function KitchenDisplay() {
                           onUpdateItem={handleUpdateItem}
                           onBump={handleBump}
                           updatingItemId={updatingItemId}
+                          now={now}
+                          onItemDoubleClick={handleItemDoubleClick}
+                          filterStation="KITCHEN"
                         />
                       ))
                     )}
@@ -1460,6 +1733,9 @@ export function KitchenDisplay() {
                           onUpdateItem={handleUpdateItem}
                           onBump={handleBump}
                           updatingItemId={updatingItemId}
+                          now={now}
+                          onItemDoubleClick={handleItemDoubleClick}
+                          filterStation="BAR"
                         />
                       ))
                     )}
@@ -1525,6 +1801,14 @@ export function KitchenDisplay() {
                       onUpdateItem={handleUpdateItem}
                       onBump={handleBump}
                       updatingItemId={updatingItemId}
+                      now={now}
+                      onItemDoubleClick={handleItemDoubleClick}
+                      filterStation={
+                        role === 'KITCHEN' ? 'KITCHEN' : 
+                        role === 'BAR' ? 'BAR' : 
+                        activeTab === 'kitchen' ? 'KITCHEN' : 
+                        activeTab === 'bar' ? 'BAR' : undefined
+                      }
                     />
                   ))
                 )}
