@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Smartphone, 
@@ -24,6 +25,7 @@ import {
   Minus,
   Coffee,
   Menu as MenuIcon,
+  Utensils,
   X,
   Globe,
   Award,
@@ -59,6 +61,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
 import { TRANSLATIONS as CC_TRANSLATIONS, TESTIMONIES_LOCALIZED as CC_TESTIMONIES } from '@/lib/i18n/cafe-creme-translations';
 
 // Seating Plan Table Structures
@@ -206,7 +209,7 @@ export default function LandingPage() {
       const stored = localStorage.getItem('gilded_fork_guest');
       if (stored) {
         try {
-          setLoggedInCustomer(JSON.parse(stored));
+          Promise.resolve().then(() => setLoggedInCustomer(JSON.parse(stored)));
         } catch (e) {}
       }
     }
@@ -436,7 +439,7 @@ export default function LandingPage() {
 
   // Load reviews initial testimonies
   useEffect(() => {
-    setReviews(CC_TESTIMONIES[ccLang] || CC_TESTIMONIES.en);
+    Promise.resolve().then(() => setReviews(CC_TESTIMONIES[ccLang] || CC_TESTIMONIES.en));
   }, [ccLang]);
 
   // Setup scroll event listeners
@@ -492,7 +495,7 @@ export default function LandingPage() {
     if (selectedTableId) {
       const table = tables.find(t => t.id === selectedTableId);
       if (table) {
-        router.push(`/table/${table.number}`);
+        window.location.href = `/table/${table.number}`;
         return;
       }
     }
@@ -500,13 +503,13 @@ export default function LandingPage() {
     // Fallback: browse using the first active table
     const firstTable = tables.length > 0 ? tables[0] : null;
     if (firstTable) {
-      router.push(`/table/${firstTable.number}?preview=true`);
+      window.location.href = `/table/${firstTable.number}?preview=true`;
       toast({
         title: 'Entering Menu Preview',
         description: `Browsing menu as guest. Select Table ${firstTable.number} or select another table on the plan to start ordering.`,
       });
     } else {
-      router.push('/table/1?preview=true');
+      window.location.href = '/table/1?preview=true';
     }
   };
 
@@ -514,7 +517,7 @@ export default function LandingPage() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-      setIsIOS(ios);
+      Promise.resolve().then(() => setIsIOS(ios));
     }
   }, []);
 
@@ -546,7 +549,7 @@ export default function LandingPage() {
   };
 
   useEffect(() => {
-    loadData();
+    Promise.resolve().then(() => loadData());
   }, []);
 
   // Auto-fit interactive inline map
@@ -2330,12 +2333,12 @@ export default function LandingPage() {
             &copy; {new Date().getFullYear()} {restaurantName}. Powered by Antigravity OS
           </p>
           
-          <button 
-            onClick={() => router.push('/management')}
+          <a 
+            href="/management"
             className="text-[8px] text-zinc-700 hover:text-emerald-400 transition-colors font-bold tracking-widest uppercase cursor-pointer"
           >
             {t.landing.staffPortalAccessBtn}
-          </button>
+          </a>
         </div>
       </footer>
 
