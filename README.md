@@ -127,3 +127,39 @@ To view or manually modify rows in the database tables, open Prisma Studio:
 npx prisma studio
 ```
 This runs a visual database explorer interface on **`http://localhost:5555`**.
+
+---
+
+## 🖥️ Windows Standalone POS & Kiosk App
+
+The system includes a dedicated, self-contained desktop build pipeline designed to package the server and POS interface into a local kiosk application on Windows machines using a local SQLite database.
+
+### How to Build the Standalone App
+
+1. Make sure you have installed the project dependencies:
+   ```bash
+   npm install
+   ```
+2. Run the Windows standalone builder:
+   ```bash
+   npm run build:windows
+   ```
+   This script will:
+   - Generate a SQLite-specific Prisma schema (`prisma/schema.sqlite.prisma`).
+   - Create a clean local SQLite database (`dev.db`).
+   - Run the DB sync and generate the SQLite Prisma client.
+   - Run the Next.js production compiler in standalone output mode.
+   - Package all static assets and server files into `.next/standalone`.
+   - Automatically write a `Start-Server.bat` script inside the standalone folder.
+   - Restore your original PostgreSQL Prisma config so the main development server remains untouched.
+
+### How to Run the Standalone App
+
+Once the build is complete, you can start the application at any time without opening a terminal:
+
+1. Locate the **`Launch-POS.bat`** file in the root directory.
+2. Double-click **`Launch-POS.bat`**.
+   - This starts the local background server on port `3000`.
+   - It will automatically launch Chrome or Edge in fullscreen **Kiosk App Mode** pointing directly to `/management`.
+   - It disables HTTP caching to ensure the interface always displays the latest menu items and layout configurations.
+3. To shut down the app and stop the server safely, click the **Exit App** (Power icon) button at the bottom of the management sidebar.
