@@ -68,6 +68,30 @@ try {
   fs.writeFileSync('.next/standalone/Start-Server.bat', batContent);
   console.log('✅ Generated Start-Server.bat executable');
 
+  // Generate Windows Shortcut (.lnk) with the beautiful app icon
+  console.log('⏳ Generating Windows Desktop Shortcut with Custom Icon...');
+  try {
+    const rootDir = process.cwd();
+    const shortcutPath = path.join(rootDir, 'The Gilded Fork POS.lnk');
+    const targetPath = path.join(rootDir, 'Launch-POS.bat');
+    const iconPath = path.join(rootDir, 'public', 'app-icon.ico');
+    
+    // PowerShell command to create shortcut
+    const psCommand = `
+      $WshShell = New-Object -ComObject WScript.Shell;
+      $Shortcut = $WshShell.CreateShortcut('${shortcutPath}');
+      $Shortcut.TargetPath = '${targetPath}';
+      $Shortcut.WorkingDirectory = '${rootDir}';
+      $Shortcut.IconLocation = '${iconPath}';
+      $Shortcut.Save();
+    `.replace(/\s+/g, ' ').trim();
+    
+    execSync(`powershell -Command "${psCommand}"`, { stdio: 'ignore' });
+    console.log('✅ Generated "The Gilded Fork POS" shortcut in root folder');
+  } catch (lnkError) {
+    console.warn('⚠️ Could not generate shortcut:', lnkError.message);
+  }
+
   console.log('--- Windows Build Complete! ---');
   console.log('The portable app is fully packaged in .next/standalone');
 
