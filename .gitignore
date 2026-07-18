@@ -65,3 +65,8 @@ dev.db
 /scratch/
 /query-*.js
 scratch.js
+
+# local secrets and environment variables
+.env
+.env.*
+!.env.example
