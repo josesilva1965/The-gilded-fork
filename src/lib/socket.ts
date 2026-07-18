@@ -7,9 +7,24 @@ let socketUrl: string | null = null;
 
 function getSocketUrl(): string {
   if (typeof window === 'undefined') return 'http://localhost:3003';
-  // Connect directly to the socket server port — works on localhost and LAN (iPad, etc.)
-  // without needing Caddy's XTransformPort proxy.
-  return `http://${window.location.hostname}:3003`;
+  
+  const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+  
+  // Check if we are running in a local/LAN environment
+  const isLocal = 
+    window.location.hostname === 'localhost' || 
+    window.location.hostname === '127.0.0.1' || 
+    window.location.hostname.startsWith('192.168.') || 
+    window.location.hostname.startsWith('10.') || 
+    window.location.hostname.startsWith('172.');
+
+  if (!isLocal) {
+    // Online production WebSocket URL
+    return `${protocol}//${window.location.hostname}`;
+  }
+  
+  // Local/LAN environment: connect directly to port 3003
+  return `${protocol}//${window.location.hostname}:3003`;
 }
 
 export function getSocket(): Socket {

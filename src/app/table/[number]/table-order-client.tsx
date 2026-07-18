@@ -26,7 +26,8 @@ import {
   Trash2,
   ListOrdered,
   Download,
-  Info
+  Info,
+  Loader2
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -182,7 +183,7 @@ export function TableOrderClient({ table, menu }: { table: Table; menu: MenuCate
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-      setIsIOS(ios);
+      Promise.resolve().then(() => setIsIOS(ios));
     }
   }, []);
 
@@ -195,14 +196,6 @@ export function TableOrderClient({ table, menu }: { table: Table; menu: MenuCate
   const [paymentStatusText, setPaymentStatusText] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<'CARD' | 'APPLE_PAY' | 'CASH'>('CARD');
   const [selectedShareIndex, setSelectedShareIndex] = useState<number>(0);
-
-  const existingPayments = useMemo(() => activeOrders.flatMap(o => o.payments || []), [activeOrders]);
-  const paidShareIndexes = useMemo(() => {
-    return existingPayments
-      .filter(p => p.reference?.startsWith('Share '))
-      .map(p => parseInt(p.reference!.replace('Share ', ''), 10) - 1)
-      .filter(idx => !isNaN(idx));
-  }, [existingPayments]);
 
   const handleCheckout = async (amountToPay: number, isSplit: boolean, shareIndex?: number) => {
     setPaymentStep('processing');
@@ -363,7 +356,16 @@ export function TableOrderClient({ table, menu }: { table: Table; menu: MenuCate
     }, 0);
   }, [cart]);
 
-  const activeOrders = useMemo(() => currentTable?.orders || [], [currentTable]);
+  const EMPTY_ORDERS: any[] = [];
+  const activeOrders = currentTable?.orders || EMPTY_ORDERS;
+
+  const existingPayments = useMemo(() => activeOrders.flatMap(o => o.payments || []), [activeOrders]);
+  const paidShareIndexes = useMemo(() => {
+    return existingPayments
+      .filter(p => p.reference?.startsWith('Share '))
+      .map(p => parseInt(p.reference!.replace('Share ', ''), 10) - 1)
+      .filter(idx => !isNaN(idx));
+  }, [existingPayments]);
   
   const activeBillTotal = useMemo(() => {
     return activeOrders.reduce((sum, o) => sum + o.totalAmount, 0);

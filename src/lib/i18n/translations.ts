@@ -335,6 +335,11 @@ export interface Translations {
     preparedTime: string;
     searchItems: string;
     noItemsPrepared: string;
+    soundSystem: string;
+    soundTest: string;
+    soundEnabled: string;
+    soundDisabled: string;
+    enableSound: string;
   };
 
   // ─── Transactions Ledger ───
@@ -398,6 +403,7 @@ export interface Translations {
     todayReservations: string;
     upcomingReservations: string;
     pastReservations: string;
+    archive: string;
     availableTables: string;
     noTablesAvailable: string;
     tablesOverview: string;
@@ -1110,6 +1116,11 @@ export const enGB: Translations = {
     preparedTime: 'Prepared Time',
     searchItems: 'Search items...',
     noItemsPrepared: 'No items prepared in this period',
+    soundSystem: 'Sound System',
+    soundTest: 'Test Sound',
+    soundEnabled: 'Sound Enabled',
+    soundDisabled: 'Sound Disabled',
+    enableSound: 'Enable Sound',
   },
   transactions: {
     title: 'Transactions Ledger',
@@ -1169,6 +1180,7 @@ export const enGB: Translations = {
     todayReservations: "Today's Reservations",
     upcomingReservations: 'Upcoming',
     pastReservations: 'Past',
+    archive: 'Archive',
     availableTables: 'Available Tables',
     noTablesAvailable: 'No tables available',
     tablesOverview: 'Tables Seating Overview',
@@ -1865,6 +1877,11 @@ export const ptPT: Translations = {
     preparedTime: 'Hora de Preparação',
     searchItems: 'Procurar itens...',
     noItemsPrepared: 'Nenhum item preparado neste período',
+    soundSystem: 'Sistema de Som',
+    soundTest: 'Testar Som',
+    soundEnabled: 'Som Ativado',
+    soundDisabled: 'Som Desativado',
+    enableSound: 'Ativar Som',
   },
   transactions: {
     title: 'Livro de Transações',
@@ -1924,6 +1941,7 @@ export const ptPT: Translations = {
     todayReservations: 'Reservas de Hoje',
     upcomingReservations: 'Próximas',
     pastReservations: 'Passadas',
+    archive: 'Arquivo',
     availableTables: 'Mesas Disponíveis',
     noTablesAvailable: 'Nenhuma mesa disponível',
     tablesOverview: 'Visão Geral das Mesas',
@@ -2620,6 +2638,11 @@ export const frFR: Translations = {
     preparedTime: 'Heure de Préparation',
     searchItems: 'Rechercher des articles...',
     noItemsPrepared: 'Aucun article préparé durant cette période',
+    soundSystem: 'Système Sonore',
+    soundTest: 'Tester le Son',
+    soundEnabled: 'Son Activé',
+    soundDisabled: 'Son Désactivé',
+    enableSound: 'Activer le Son',
   },
   transactions: {
     title: 'Livre de Comptes',
@@ -2679,6 +2702,7 @@ export const frFR: Translations = {
     todayReservations: "Réservations du Jour",
     upcomingReservations: 'À venir',
     pastReservations: 'Passées',
+    archive: 'Archives',
     availableTables: 'Tables Disponibles',
     noTablesAvailable: 'Aucune table disponible',
     tablesOverview: 'Aperçu du Placement des Tables',
@@ -3375,6 +3399,11 @@ export const esES: Translations = {
     preparedTime: 'Hora de Preparación',
     searchItems: 'Buscar artículos...',
     noItemsPrepared: 'No se prepararon artículos en este período',
+    soundSystem: 'Sistema de Sonido',
+    soundTest: 'Probar Sonido',
+    soundEnabled: 'Sonido Activado',
+    soundDisabled: 'Sonido Desactivado',
+    enableSound: 'Activar Sonido',
   },
   transactions: {
     title: 'Libro de Transacciones',
@@ -3434,6 +3463,7 @@ export const esES: Translations = {
     todayReservations: 'Reservas de Hoy',
     upcomingReservations: 'Próximas',
     pastReservations: 'Pasadas',
+    archive: 'Archivo',
     availableTables: 'Mesas Disponibles',
     noTablesAvailable: 'No hay mesas disponibles',
     tablesOverview: 'Resumen de Ocupación de Mesas',

@@ -1844,9 +1844,10 @@ function TipsTab({ staff }: { staff: StaffUser[] }) {
               <div className="animate-spin size-6 border-2 border-emerald-500 border-t-transparent rounded-full" />
             </div>
           ) : calculatedShares.length === 0 ? (
-            <div className="text-center py-12 text-zinc-500">
-              <Clock className="size-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">{t.staff.noStaffOnShift}</p>
+            <div className="text-center py-12 text-zinc-500 bg-zinc-900/50">
+              <Clock className="size-8 mx-auto mb-2 opacity-30 text-emerald-500" />
+              <p className="text-sm font-medium text-zinc-300">No staff clocked in today.</p>
+              <p className="text-xs text-zinc-500 mt-1">Staff must clock in to accumulate tip points.</p>
             </div>
           ) : (
             <ScrollArea className="max-h-[400px]">
@@ -1910,7 +1911,7 @@ function TipsTab({ staff }: { staff: StaffUser[] }) {
       </Card>
 
       {/* Summary & Actions */}
-      {calculatedShares.length > 0 && tipPoolAmount > 0 && (
+      {(tipPoolAmount > 0 || calculatedShares.length > 0) && (
         <Card className="bg-zinc-900 border-zinc-800">
           <CardContent className="p-4 md:p-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">

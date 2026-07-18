@@ -58,7 +58,10 @@ export function MenuManagement() {
   // Fetch Menu
   const { data: categories = [], isLoading } = useQuery<MenuCategoryData[]>({
     queryKey: ['menu', 'management'],
-    queryFn: () => fetch('/api/menu').then((r) => r.json()),
+    queryFn: () => fetch('/api/menu').then((r) => {
+      if (!r.ok) throw new Error('Failed to fetch menu');
+      return r.json();
+    }),
   });
 
   // Filtered categories

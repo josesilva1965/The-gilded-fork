@@ -31,6 +31,7 @@ import {
   Hash,
   ArrowUpDown,
   RefreshCw,
+  Archive,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -529,7 +530,7 @@ function TimelineReservation({
             </div>
 
             {/* Quick actions for CONFIRMED */}
-            {reservation.status === 'CONFIRMED' && (
+            {reservation.status === 'CONFIRMED' && !(reservation.reservationDate.split('T')[0] < getLocalDateString(new Date())) && (
               <div className="flex items-center gap-1 shrink-0">
                 <Button
                   size="sm"
@@ -1484,26 +1485,35 @@ export function Reservations() {
   // Fetch reservations
   const { data: reservations = [], isLoading: reservationsLoading, refetch: refetchReservations } = useQuery<ReservationData[]>({
     queryKey: ['reservations'],
-    queryFn: () => fetch('/api/reservations').then((r) => r.json()),
+    queryFn: () => fetch('/api/reservations').then((r) => {
+      if (!r.ok) throw new Error('Failed to fetch reservations');
+      return r.json();
+    }),
     refetchInterval: 30000,
   });
 
   // Fetch tables
   const { data: tables = [] } = useQuery<TableData[]>({
     queryKey: ['tables'],
-    queryFn: () => fetch('/api/tables').then((r) => r.json()),
+    queryFn: () => fetch('/api/tables').then((r) => {
+      if (!r.ok) throw new Error('Failed to fetch tables');
+      return r.json();
+    }),
     refetchInterval: 30000,
   });
 
   // Fetch customers for CRM lookup
   const { data: customers = [] } = useQuery<CustomerData[]>({
     queryKey: ['customers'],
-    queryFn: () => fetch('/api/customers').then((r) => r.json()),
+    queryFn: () => fetch('/api/customers').then((r) => {
+      if (!r.ok) throw new Error('Failed to fetch customers');
+      return r.json();
+    }),
   });
 
   // Clear focused reservation filter when the selected day changes
   useEffect(() => {
-    setFocusedReservation(null);
+    Promise.resolve().then(() => setFocusedReservation(null));
   }, [selectedDate]);
 
   // Compute table status based on overlaps with the focused reservation's time slot
@@ -1545,13 +1555,26 @@ export function Reservations() {
 
   /* ─── Today's reservations (non-walk-in) ─── */
   const today = getLocalDateString(new Date());
+  
+  // Helper to determine if a reservation date is in the past
+  const isArchived = useCallback((r: ReservationData) => {
+    const rDate = r.reservationDate.split('T')[0];
+    return rDate < today;
+  }, [today]);
+
+  const archivedReservations = useMemo(() => {
+    return reservations
+      .filter((r) => isArchived(r))
+      .sort((a, b) => b.reservationDate.localeCompare(a.reservationDate) || b.reservationTime.localeCompare(a.reservationTime));
+  }, [reservations, isArchived]);
+
   const todayReservations = reservations
     .filter((r) => r.reservationDate.startsWith(today) && !r.isWalkIn)
     .sort((a, b) => a.reservationTime.localeCompare(b.reservationTime));
 
   /* ─── Walk-in waitlist ─── */
   const walkIns = reservations
-    .filter((r) => r.isWalkIn && r.status === 'CONFIRMED')
+    .filter((r) => r.isWalkIn && r.status === 'CONFIRMED' && !isArchived(r))
     .sort((a, b) => (a.waitListPosition ?? 999) - (b.waitListPosition ?? 999));
 
   /* ─── All reservations for selected date ─── */
@@ -1753,6 +1776,15 @@ export function Reservations() {
               <TabsTrigger value="all" className="data-[state=active]:bg-sky-600/20 data-[state=active]:text-sky-400">
                 <Calendar className="size-4 mr-1.5" />
                 {t.common.all} {t.reservations.title}
+              </TabsTrigger>
+              <TabsTrigger value="archive" className="data-[state=active]:bg-zinc-800/40 data-[state=active]:text-zinc-400">
+                <Archive className="size-4 mr-1.5" />
+                {t.reservations.archive}
+                {archivedReservations.length > 0 && (
+                  <Badge variant="outline" className="ml-1.5 text-[10px] px-1.5 py-0 border-zinc-700 text-zinc-500">
+                    {archivedReservations.length}
+                  </Badge>
+                )}
               </TabsTrigger>
             </TabsList>
 
@@ -1956,7 +1988,7 @@ export function Reservations() {
                             {/* Status + Actions */}
                             <div className="flex items-center gap-2 shrink-0">
                               <StatusBadge status={r.status} />
-                              {r.status === 'CONFIRMED' && (
+                              {r.status === 'CONFIRMED' && !isArchived(r) && (
                                 <div className="flex items-center gap-0.5">
                                   <Button
                                     size="sm"
@@ -1978,6 +2010,89 @@ export function Reservations() {
                                   </Button>
                                 </div>
                               )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Archive Tab */}
+            <TabsContent value="archive" className="mt-0">
+              <Card className="bg-zinc-900/50 border-zinc-800">
+                <CardContent className="p-4 md:p-6">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
+                    <h3 className="text-sm font-semibold text-zinc-200">
+                      {t.reservations.pastReservations}
+                    </h3>
+                    <span className="text-xs text-zinc-500 ml-auto">
+                      {t.reservations.title}: {archivedReservations.length}
+                    </span>
+                  </div>
+                  
+                  <Separator className="bg-zinc-800 mb-4" />
+                  
+                  {archivedReservations.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <div className="size-12 rounded-xl bg-zinc-800 flex items-center justify-center mb-3">
+                        <Archive className="size-6 text-zinc-600" />
+                      </div>
+                      <p className="text-sm text-zinc-500">{t.reservations.noGuestsWaitlist || 'No archived reservations'}</p>
+                    </div>
+                  ) : (
+                    <ScrollArea className="max-h-[500px]">
+                      <div className="space-y-2">
+                        {archivedReservations.map((r) => (
+                          <div
+                            key={r.id}
+                            className="flex items-center gap-3 md:gap-4 p-3 rounded-lg border bg-zinc-900 border-zinc-800 opacity-75 hover:opacity-100 transition-opacity"
+                          >
+                            {/* Date & Time */}
+                            <div className="shrink-0 w-24 text-left">
+                              <p className="text-xs text-zinc-400 font-medium">
+                                {formatDateByLocale(new Date(r.reservationDate), locale)}
+                              </p>
+                              <p className="text-sm font-semibold text-zinc-300">
+                                {formatTime12(r.reservationTime)}
+                              </p>
+                            </div>
+                            
+                            {/* Guest Info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-medium text-zinc-100 truncate">{r.guestName}</p>
+                                {r.customer && (
+                                  <Badge variant="outline" className="text-[10px] border-zinc-600 text-zinc-500 shrink-0">
+                                    CRM
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-3 mt-0.5 text-xs text-zinc-500">
+                                <span className="flex items-center gap-1">
+                                  <Users className="size-3" />
+                                  {r.partySize}
+                                </span>
+                                {r.table && (
+                                  <span className="flex items-center gap-1">
+                                    <Armchair className="size-3" />
+                                    {r.table.name}
+                                  </span>
+                                )}
+                                {r.notes && (
+                                  <span className="hidden md:flex items-center gap-1 truncate text-zinc-500">
+                                    <StickyNote className="size-3 shrink-0" />
+                                    <span className="truncate">{r.notes}</span>
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {/* Status */}
+                            <div className="shrink-0">
+                              <StatusBadge status={r.status} />
                             </div>
                           </div>
                         ))}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   DndContext,
@@ -482,8 +482,39 @@ function SortableTableCard({
 
 /* ─── Canvas Table Card (Floor View) ─── */
 
+/* ─── Guides Drawing Helpers ─── */
+function drawGuides(container: HTMLDivElement, guides: Array<{ type: 'h' | 'v'; coord: number; min: number; max: number }>) {
+  container.innerHTML = '';
+  guides.forEach((g) => {
+    const el = document.createElement('div');
+    el.className = 'absolute border-cyan-400 pointer-events-none z-40';
+    if (g.type === 'v') {
+      el.style.borderLeft = '1.5px dashed rgb(34 211 238)'; // cyan-400
+      el.style.left = `${g.coord}px`;
+      el.style.top = `${g.min}px`;
+      el.style.width = '0px';
+      el.style.height = `${g.max - g.min}px`;
+    } else {
+      el.style.borderTop = '1.5px dashed rgb(34 211 238)';
+      el.style.left = `${g.min}px`;
+      el.style.top = `${g.coord}px`;
+      el.style.width = `${g.max - g.min}px`;
+      el.style.height = '0px';
+    }
+    container.appendChild(el);
+  });
+}
+
+function clearGuides(container: HTMLDivElement) {
+  container.innerHTML = '';
+}
+
 function CanvasTableCard({
   table,
+  x,
+  y,
+  width,
+  height,
   isSelected,
   onClick,
   onDragMove,
@@ -493,21 +524,41 @@ function CanvasTableCard({
   staff,
   onCapacityChange,
   onServerChange,
+  onTableUpdate,
   isLayoutEditable,
   zoom,
+  snapToGrid,
+  guidesContainerRef,
+  getStaticTablesBounds,
 }: {
   table: RestaurantTable;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
   isSelected: boolean;
   onClick: () => void;
-  onDragMove: (tableId: string, deltaX: number, deltaY: number) => void;
+  onDragMove: (tableId: string, x: number, y: number) => void;
   onDragEnd: (tableId: string) => void;
   onResize: (tableId: string, width: number, height: number) => void;
   onResizeEnd: (tableId: string) => void;
   staff: StaffMember[];
   onCapacityChange: (tableId: string, newCapacity: number) => void;
   onServerChange: (tableId: string, serverId: string | null) => void;
+  onTableUpdate: (tableId: string, updates: Record<string, unknown>) => Promise<void>;
   isLayoutEditable: boolean;
   zoom: number;
+  snapToGrid: boolean;
+  guidesContainerRef: React.RefObject<HTMLDivElement | null>;
+  getStaticTablesBounds: (tableId: string) => Array<{
+    id: string;
+    left: number;
+    right: number;
+    top: number;
+    bottom: number;
+    centerX: number;
+    centerY: number;
+  }>;
 }) {
   const t = useT();
   const elementRef = useRef<HTMLDivElement>(null);
@@ -522,12 +573,12 @@ function CanvasTableCard({
   );
 
   // Keep refs of dimensions to avoid constant listener re-bindings
-  const tableWidthRef = useRef(table.width);
-  const tableHeightRef = useRef(table.height);
+  const tableWidthRef = useRef(width);
+  const tableHeightRef = useRef(height);
   useEffect(() => {
-    tableWidthRef.current = table.width;
-    tableHeightRef.current = table.height;
-  }, [table.width, table.height]);
+    tableWidthRef.current = width;
+    tableHeightRef.current = height;
+  }, [width, height]);
 
   // Use refs for callbacks to avoid stale closures in document event listeners
   const onDragMoveRef = useRef(onDragMove);
@@ -557,14 +608,101 @@ function CanvasTableCard({
       const startX = e.clientX;
       const startY = e.clientY;
 
+      const staticTables = getStaticTablesBounds(table.id);
+
       const handlePointerMove = (moveEvent: PointerEvent) => {
         moveEvent.preventDefault();
         const deltaX = moveEvent.clientX - startX;
         const deltaY = moveEvent.clientY - startY;
 
+        let newWidth = startWidth + deltaX / zoom;
+        let newHeight = startHeight + deltaY / zoom;
+
+        // Snapping bottom-right corner during resize
+        let snapR: number | null = null;
+        let snapB: number | null = null;
+        const guidesToDraw: Array<{ type: 'h' | 'v'; coord: number; min: number; max: number }> = [];
+
+        const SNAP_TOLERANCE = 8;
+        const currentX = table.x;
+        const currentY = table.y;
+        const dR = currentX + newWidth;
+        const dB = currentY + newHeight;
+
+        staticTables.forEach((st) => {
+          if (Math.abs(dR - st.left) < SNAP_TOLERANCE) {
+            snapR = st.left;
+            guidesToDraw.push({ type: 'v', coord: st.left, min: Math.min(currentY, st.top), max: Math.max(currentY + newHeight, st.bottom) });
+          } else if (Math.abs(dR - st.right) < SNAP_TOLERANCE) {
+            snapR = st.right;
+            guidesToDraw.push({ type: 'v', coord: st.right, min: Math.min(currentY, st.top), max: Math.max(currentY + newHeight, st.bottom) });
+          }
+          if (Math.abs(dB - st.top) < SNAP_TOLERANCE) {
+            snapB = st.top;
+            guidesToDraw.push({ type: 'h', coord: st.top, min: Math.min(currentX, st.left), max: Math.max(currentX + newWidth, st.right) });
+          } else if (Math.abs(dB - st.bottom) < SNAP_TOLERANCE) {
+            snapB = st.bottom;
+            guidesToDraw.push({ type: 'h', coord: st.bottom, min: Math.min(currentX, st.left), max: Math.max(currentX + newWidth, st.right) });
+          }
+        });
+
+        if (snapR !== null) {
+          newWidth = snapR - currentX;
+        } else if (snapToGrid) {
+          newWidth = Math.round((startWidth + deltaX / zoom) / 20) * 20;
+        }
+
+        if (snapB !== null) {
+          newHeight = snapB - currentY;
+        } else if (snapToGrid) {
+          newHeight = Math.round((startHeight + deltaY / zoom) / 20) * 20;
+        }
+
         // Restrict size between 60px and 300px
-        const newWidth = Math.max(60, Math.min(300, startWidth + deltaX / zoom));
-        const newHeight = Math.max(40, Math.min(300, startHeight + deltaY / zoom));
+        newWidth = Math.max(60, Math.min(300, newWidth));
+        newHeight = Math.max(40, Math.min(300, newHeight));
+
+        // Directly manipulate style of the card element
+        if (elementRef.current) {
+          elementRef.current.style.width = `${newWidth}px`;
+          elementRef.current.style.height = `${newHeight}px`;
+        }
+
+        // Render guides
+        if (guidesContainerRef && guidesContainerRef.current) {
+          drawGuides(guidesContainerRef.current, guidesToDraw);
+        }
+
+        // Collision detection
+        const draggedRect = {
+          left: currentX,
+          right: currentX + newWidth,
+          top: currentY,
+          bottom: currentY + newHeight
+        };
+        const hasCollision = staticTables.some((st) => {
+          return !(
+            st.left >= draggedRect.right ||
+            st.right <= draggedRect.left ||
+            st.top >= draggedRect.bottom ||
+            st.bottom <= draggedRect.top
+          );
+        });
+
+        // Toggle warning styling directly on card DOM
+        if (elementRef.current) {
+          const cardEl = elementRef.current.firstElementChild as HTMLDivElement;
+          const warningIconEl = elementRef.current.querySelector('[data-warning-icon]') as HTMLElement;
+          if (hasCollision) {
+            cardEl?.classList.add('ring-red-500', 'border-red-500', 'shadow-[0_0_15px_rgba(239,68,68,0.4)]');
+            warningIconEl?.classList.remove('hidden');
+            warningIconEl?.classList.add('opacity-100');
+          } else {
+            cardEl?.classList.remove('ring-red-500', 'border-red-500', 'shadow-[0_0_15px_rgba(239,68,68,0.4)]');
+            warningIconEl?.classList.add('hidden');
+            warningIconEl?.classList.remove('opacity-100');
+          }
+        }
 
         onResizeRef.current(table.id, newWidth, newHeight);
       };
@@ -574,6 +712,10 @@ function CanvasTableCard({
         document.removeEventListener('pointerup', handlePointerUp);
         document.removeEventListener('pointercancel', handlePointerUp);
         
+        if (guidesContainerRef && guidesContainerRef.current) {
+          clearGuides(guidesContainerRef.current);
+        }
+
         onResizeEndRef.current(table.id);
       };
 
@@ -587,13 +729,14 @@ function CanvasTableCard({
     return () => {
       handleEl.removeEventListener('pointerdown', handlePointerDown);
     };
-  }, [table.id, isLayoutEditable, zoom]);
+  }, [table.id, table.x, table.y, isLayoutEditable, zoom, snapToGrid, getStaticTablesBounds, onResize, onResizeEnd]);
+
   // Document-level drag handling for robust pointer tracking
   useEffect(() => {
     const el = elementRef.current;
     if (!el || !isLayoutEditable) return;
 
-    let dragState: { isDragging: boolean; lastX: number; lastY: number } | null = null;
+    let dragState: { isDragging: boolean; startX: number; startY: number; startMouseX: number; startMouseY: number } | null = null;
 
     const handlePointerDown = (e: PointerEvent) => {
       // Don't start drag if clicking on buttons or interactive elements
@@ -605,8 +748,10 @@ function CanvasTableCard({
 
       dragState = {
         isDragging: false,
-        lastX: e.clientX,
-        lastY: e.clientY,
+        startX: table.x,
+        startY: table.y,
+        startMouseX: e.clientX,
+        startMouseY: e.clientY,
       };
 
       // Attach document-level listeners for reliable tracking
@@ -618,20 +763,140 @@ function CanvasTableCard({
     const handlePointerMove = (e: PointerEvent) => {
       if (!dragState) return;
 
-      const deltaX = e.clientX - dragState.lastX;
-      const deltaY = e.clientY - dragState.lastY;
+      const deltaMouseX = e.clientX - dragState.startMouseX;
+      const deltaMouseY = e.clientY - dragState.startMouseY;
 
       // Only start dragging after a minimum movement threshold
-      if (!dragState.isDragging && (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3)) {
+      if (!dragState.isDragging && (Math.abs(deltaMouseX) > 3 || Math.abs(deltaMouseY) > 3)) {
         dragState.isDragging = true;
         setIsDragging(true);
       }
 
       if (dragState.isDragging) {
         e.preventDefault();
-        onDragMoveRef.current(table.id, deltaX / zoom, deltaY / zoom);
-        dragState.lastX = e.clientX;
-        dragState.lastY = e.clientY;
+
+        let newX = dragState.startX + deltaMouseX / zoom;
+        let newY = dragState.startY + deltaMouseY / zoom;
+
+        // Snapping and guides
+        const staticTables = getStaticTablesBounds(table.id);
+        const w = table.width;
+        const h = table.height;
+
+        let snapX: number | null = null;
+        let snapY: number | null = null;
+        const guidesToDraw: Array<{ type: 'h' | 'v'; coord: number; min: number; max: number }> = [];
+
+        const SNAP_TOLERANCE = 8;
+
+        const dL = newX;
+        const dR = newX + w;
+        const dC = newX + w / 2;
+
+        const dT = newY;
+        const dB = newY + h;
+        const dC_y = newY + h / 2;
+
+        // Check vertical alignments
+        staticTables.forEach((st) => {
+          if (Math.abs(dL - st.left) < SNAP_TOLERANCE) {
+            snapX = st.left;
+            guidesToDraw.push({ type: 'v', coord: st.left, min: Math.min(newY, st.top), max: Math.max(newY + h, st.bottom) });
+          } else if (Math.abs(dR - st.right) < SNAP_TOLERANCE) {
+            snapX = st.right - w;
+            guidesToDraw.push({ type: 'v', coord: st.right, min: Math.min(newY, st.top), max: Math.max(newY + h, st.bottom) });
+          } else if (Math.abs(dC - st.centerX) < SNAP_TOLERANCE) {
+            snapX = st.centerX - w / 2;
+            guidesToDraw.push({ type: 'v', coord: st.centerX, min: Math.min(newY, st.top), max: Math.max(newY + h, st.bottom) });
+          } else if (Math.abs(dL - st.right) < SNAP_TOLERANCE) {
+            snapX = st.right;
+            guidesToDraw.push({ type: 'v', coord: st.right, min: Math.min(newY, st.top), max: Math.max(newY + h, st.bottom) });
+          } else if (Math.abs(dR - st.left) < SNAP_TOLERANCE) {
+            snapX = st.left - w;
+            guidesToDraw.push({ type: 'v', coord: st.left, min: Math.min(newY, st.top), max: Math.max(newY + h, st.bottom) });
+          }
+        });
+
+        // Check horizontal alignments
+        staticTables.forEach((st) => {
+          if (Math.abs(dT - st.top) < SNAP_TOLERANCE) {
+            snapY = st.top;
+            guidesToDraw.push({ type: 'h', coord: st.top, min: Math.min(newX, st.left), max: Math.max(newX + w, st.right) });
+          } else if (Math.abs(dB - st.bottom) < SNAP_TOLERANCE) {
+            snapY = st.bottom - h;
+            guidesToDraw.push({ type: 'h', coord: st.bottom, min: Math.min(newX, st.left), max: Math.max(newX + w, st.right) });
+          } else if (Math.abs(dC_y - st.centerY) < SNAP_TOLERANCE) {
+            snapY = st.centerY - h / 2;
+            guidesToDraw.push({ type: 'h', coord: st.centerY, min: Math.min(newX, st.left), max: Math.max(newX + w, st.right) });
+          } else if (Math.abs(dT - st.bottom) < SNAP_TOLERANCE) {
+            snapY = st.bottom;
+            guidesToDraw.push({ type: 'h', coord: st.bottom, min: Math.min(newX, st.left), max: Math.max(newX + w, st.right) });
+          } else if (Math.abs(dB - st.top) < SNAP_TOLERANCE) {
+            snapY = st.top - h;
+            guidesToDraw.push({ type: 'h', coord: st.top, min: Math.min(newX, st.left), max: Math.max(newX + w, st.right) });
+          }
+        });
+
+        // Apply snapping
+        if (snapX !== null) {
+          newX = snapX;
+        } else if (snapToGrid) {
+          newX = Math.round(newX / 20) * 20;
+        }
+
+        if (snapY !== null) {
+          newY = snapY;
+        } else if (snapToGrid) {
+          newY = Math.round(newY / 20) * 20;
+        }
+
+        // Limit coordinates to fit canvas bounds
+        newX = Math.max(0, Math.min(newX, CANVAS_MIN_WIDTH - w));
+        newY = Math.max(0, Math.min(newY, CANVAS_MIN_HEIGHT - h));
+
+        // Directly manipulate DOM coordinates
+        if (elementRef.current) {
+          elementRef.current.style.left = `${newX}px`;
+          elementRef.current.style.top = `${newY}px`;
+        }
+
+        // Render guides
+        if (guidesContainerRef && guidesContainerRef.current) {
+          drawGuides(guidesContainerRef.current, guidesToDraw);
+        }
+
+        // Collision detection
+        const draggedRect = {
+          left: newX,
+          right: newX + w,
+          top: newY,
+          bottom: newY + h
+        };
+        const hasCollision = staticTables.some((st) => {
+          return !(
+            st.left >= draggedRect.right ||
+            st.right <= draggedRect.left ||
+            st.top >= draggedRect.bottom ||
+            st.bottom <= draggedRect.top
+          );
+        });
+
+        // Toggle warning styling directly on card DOM
+        if (elementRef.current) {
+          const cardEl = elementRef.current.firstElementChild as HTMLDivElement;
+          const warningIconEl = elementRef.current.querySelector('[data-warning-icon]') as HTMLElement;
+          if (hasCollision) {
+            cardEl?.classList.add('ring-red-500', 'border-red-500', 'shadow-[0_0_15px_rgba(239,68,68,0.4)]');
+            warningIconEl?.classList.remove('hidden');
+            warningIconEl?.classList.add('opacity-100');
+          } else {
+            cardEl?.classList.remove('ring-red-500', 'border-red-500', 'shadow-[0_0_15px_rgba(239,68,68,0.4)]');
+            warningIconEl?.classList.add('hidden');
+            warningIconEl?.classList.remove('opacity-100');
+          }
+        }
+
+        onDragMove(table.id, newX, newY);
       }
     };
 
@@ -643,7 +908,10 @@ function CanvasTableCard({
       dragState = null;
       setIsDragging(false);
 
-      // Notify parent that drag ended - save position to API
+      if (guidesContainerRef && guidesContainerRef.current) {
+        clearGuides(guidesContainerRef.current);
+      }
+
       if (wasDragging) {
         onDragEndRef.current(table.id);
       }
@@ -662,8 +930,10 @@ function CanvasTableCard({
       document.removeEventListener('pointerup', handlePointerUp);
       document.removeEventListener('pointercancel', handlePointerUp);
     };
-  }, [table.id, isLayoutEditable, zoom]);
+  }, [table.id, table.x, table.y, table.width, table.height, isLayoutEditable, zoom, snapToGrid, getStaticTablesBounds, onDragMove, onDragEnd, onClick]);
+
   const eligibleStaff = staff.filter((s) => ['FOH', 'MANAGER', 'ADMIN'].includes(s.role));
+  const ShapeIcon = table.shape === 'ROUND' ? Circle : table.shape === 'SQUARE' ? Square : RectangleHorizontal;
 
   return (
     <div
@@ -673,16 +943,35 @@ function CanvasTableCard({
         isDragging && 'z-50',
       )}
       style={{
-        left: table.x,
-        top: table.y,
-        width: table.width,
-        height: table.height,
+        left: x,
+        top: y,
+        width: width,
+        height: height,
         zIndex: isDragging ? 50 : isSelected ? 30 : hovered ? 20 : 10,
         touchAction: 'none',
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={!isLayoutEditable ? onClick : undefined}
+      onDoubleClick={(e) => {
+        if (!isLayoutEditable) return;
+        e.stopPropagation();
+        const shapes: TableShape[] = ['ROUND', 'SQUARE', 'RECTANGLE'];
+        const nextIdx = (shapes.indexOf(table.shape) + 1) % shapes.length;
+        const nextShape = shapes[nextIdx];
+        
+        let newW = width;
+        let newH = height;
+        if (nextShape === 'RECTANGLE' && table.shape !== 'RECTANGLE') {
+          newW = 140;
+          newH = 70;
+        } else if (nextShape !== 'RECTANGLE' && table.shape === 'RECTANGLE') {
+          newW = 110;
+          newH = 110;
+        }
+
+        onTableUpdate(table.id, { shape: nextShape, width: newW, height: newH });
+      }}
     >
       <div
         className={cn(
@@ -714,7 +1003,7 @@ function CanvasTableCard({
           </div>
         )}
 
-        {/* Status dot / Alert dot */}
+        {/* Status dot / Alert dot / Collision warning */}
         <div className="absolute top-1 left-1 flex items-center gap-1 z-20">
           <span className={cn('block size-2 rounded-full', STATUS_DOT_COLORS[table.status])} />
           {hasReadyItems && (
@@ -723,14 +1012,19 @@ function CanvasTableCard({
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
           )}
+          {/* Collision warning indicator (hidden by default) */}
+          <AlertCircle data-warning-icon className="size-3 text-red-500 fill-red-500/10 hidden animate-bounce shrink-0" />
         </div>
 
         {/* Card content */}
         <div className="flex flex-col items-center justify-center h-full p-1.5 text-center gap-0.5">
           {/* Table name */}
-          <span className="text-[11px] font-semibold text-zinc-100 truncate max-w-full leading-tight">
-            {table.name}
-          </span>
+          <div className="flex items-center gap-1 leading-tight max-w-full justify-center">
+            <ShapeIcon className="size-2.5 opacity-60 shrink-0" />
+            <span className="text-[11px] font-semibold text-zinc-100 truncate max-w-full">
+              {table.name}
+            </span>
+          </div>
 
           {/* Capacity with +/- buttons - always visible */}
           <div className={cn("flex items-center gap-0.5 transition-opacity duration-150", (hovered || isDragging) ? "opacity-100" : "opacity-50")}>
@@ -856,6 +1150,24 @@ function CanvasTableCard({
   );
 }
 
+const MemoizedCanvasTableCard = memo(CanvasTableCard, (prev, next) => {
+  return (
+    prev.table.id === next.table.id &&
+    prev.x === next.x &&
+    prev.y === next.y &&
+    prev.width === next.width &&
+    prev.height === next.height &&
+    prev.table.status === next.table.status &&
+    prev.table.capacity === next.table.capacity &&
+    prev.table.serverId === next.table.serverId &&
+    (prev.table as any).customerId === (next.table as any).customerId &&
+    prev.isSelected === next.isSelected &&
+    prev.isLayoutEditable === next.isLayoutEditable &&
+    prev.zoom === next.zoom &&
+    prev.snapToGrid === next.snapToGrid
+  );
+});
+
 /* ─── Layout Scaling Helper for Grid Coordinate Translation ─── */
 
 function getInitialPixelPos(table: RestaurantTable): { x: number; y: number } {
@@ -894,6 +1206,7 @@ function FloorViewCanvas({
   onTableSizeChange,
   onCapacityChange,
   onServerChange,
+  onTableUpdate,
   staff,
   isLayoutEditable,
 }: {
@@ -904,6 +1217,7 @@ function FloorViewCanvas({
   onTableSizeChange: (tableId: string, width: number, height: number) => void;
   onCapacityChange: (tableId: string, newCapacity: number) => void;
   onServerChange: (tableId: string, serverId: string | null) => void;
+  onTableUpdate: (tableId: string, updates: Record<string, unknown>) => Promise<void>;
   staff: StaffMember[];
   isLayoutEditable: boolean;
 }) {
@@ -925,7 +1239,9 @@ function FloorViewCanvas({
 
   // Zoom & Auto-Fit state for Floor Plan
   const [zoom, setZoom] = useState(1);
+  const [snapToGrid, setSnapToGrid] = useState(true);
   const canvasWrapperRef = useRef<HTMLDivElement>(null);
+  const guidesContainerRef = useRef<HTMLDivElement>(null);
 
   const handleAutoFit = useCallback(() => {
     if (canvasWrapperRef.current) {
@@ -991,73 +1307,108 @@ function FloorViewCanvas({
     setInitialized(true);
   }, [tables]);
 
-  // During drag: only update local state for visual feedback (no API calls)
-  const handleDragMove = useCallback((tableId: string, deltaX: number, deltaY: number) => {
-    const current = localPositionsRef.current[tableId];
-    if (!current) return;
-
-    const newX = Math.round(Math.max(0, Math.min(current.x + deltaX, CANVAS_MIN_WIDTH - 80)));
-    const newY = Math.round(Math.max(0, Math.min(current.y + deltaY, CANVAS_MIN_HEIGHT - 60)));
-
-    // Mark this table as being actively dragged
+  // During drag: only update local ref (no state renders)
+  const handleDragMove = useCallback((tableId: string, x: number, y: number) => {
     draggingTableIdRef.current = tableId;
-
-    // Update ref immediately for next drag calculation
-    localPositionsRef.current[tableId] = { x: newX, y: newY };
-
-    // Update React state for rendering
-    setLocalPositions((prev) => ({ ...prev, [tableId]: { x: newX, y: newY } }));
+    localPositionsRef.current[tableId] = { x, y };
   }, []);
 
   // On drag end: save the final position to the API
   const handleDragEnd = useCallback((tableId: string) => {
     const finalPos = localPositionsRef.current[tableId];
     if (finalPos) {
-      // Snapping to nearest 20px matching background grid size
-      const snappedX = Math.round(finalPos.x / 20) * 20;
-      const snappedY = Math.round(finalPos.y / 20) * 20;
-
-      // Update ref and state immediately to show snapping visually
-      localPositionsRef.current[tableId] = { x: snappedX, y: snappedY };
-      setLocalPositions((prev) => ({ ...prev, [tableId]: { x: snappedX, y: snappedY } }));
-
-      // Save to API
-      onTablePositionChangeRef.current(tableId, snappedX, snappedY);
-
-      setTimeout(() => {
-        draggingTableIdRef.current = null;
-      }, 500);
-    } else {
-      draggingTableIdRef.current = null;
+      setLocalPositions((prev) => ({ ...prev, [tableId]: finalPos }));
+      onTablePositionChangeRef.current(tableId, finalPos.x, finalPos.y);
     }
+    setTimeout(() => {
+      draggingTableIdRef.current = null;
+    }, 100);
   }, []);
 
-  // During resize: only update local state for visual feedback
+  // During resize: only update local ref
   const handleResize = useCallback((tableId: string, width: number, height: number) => {
     resizingTableIdRef.current = tableId;
     localSizesRef.current[tableId] = { w: width, h: height };
-    setLocalSizes((prev) => ({ ...prev, [tableId]: { w: width, h: height } }));
   }, []);
 
   // On resize end: save the final dimensions to the API
   const handleResizeEnd = useCallback((tableId: string) => {
     const finalSize = localSizesRef.current[tableId];
     if (finalSize) {
-      const snappedW = Math.round(finalSize.w / 20) * 20;
-      const snappedH = Math.round(finalSize.h / 20) * 20;
-
-      localSizesRef.current[tableId] = { w: snappedW, h: snappedH };
-      setLocalSizes((prev) => ({ ...prev, [tableId]: { w: snappedW, h: snappedH } }));
-
-      onTableSizeChangeRef.current(tableId, snappedW, snappedH);
-
-      setTimeout(() => {
-        resizingTableIdRef.current = null;
-      }, 500);
-    } else {
-      resizingTableIdRef.current = null;
+      setLocalSizes((prev) => ({ ...prev, [tableId]: finalSize }));
+      onTableSizeChangeRef.current(tableId, finalSize.w, finalSize.h);
     }
+    setTimeout(() => {
+      resizingTableIdRef.current = null;
+    }, 100);
   }, []);
+
+  const getStaticTablesBounds = useCallback((tableId: string) => {
+    return tables
+      .filter((t) => t.id !== tableId)
+      .map((t) => {
+        const pos = localPositionsRef.current[t.id] || getInitialPixelPos(t);
+        const size = localSizesRef.current[t.id] || {
+          w: (!t.width || t.width <= 10) ? (t.shape === 'RECTANGLE' ? 140 : 110) : t.width,
+          h: (!t.height || t.height <= 10) ? (t.shape === 'RECTANGLE' ? 70 : 110) : t.height
+        };
+        return {
+          id: t.id,
+          left: pos.x,
+          right: pos.x + size.w,
+          top: pos.y,
+          bottom: pos.y + size.h,
+          centerX: pos.x + size.w / 2,
+          centerY: pos.y + size.h / 2
+        };
+      });
+  }, [tables]);
+
+  // Keyboard nudge adjustments
+  useEffect(() => {
+    if (!isLayoutEditable || !selectedTableId) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.hasAttribute('contenteditable') || activeEl.closest('[role="combobox"]'))) {
+        return;
+      }
+
+      const table = tables.find((t) => t.id === selectedTableId);
+      if (!table) return;
+
+      const increment = e.shiftKey ? 5 : 20;
+      let newX = table.x;
+      let newY = table.y;
+      let handled = false;
+
+      if (e.key === 'ArrowUp') {
+        newY = Math.max(0, table.y - increment);
+        handled = true;
+      } else if (e.key === 'ArrowDown') {
+        newY = Math.min(CANVAS_MIN_HEIGHT - (table.height || 110), table.y + increment);
+        handled = true;
+      } else if (e.key === 'ArrowLeft') {
+        newX = Math.max(0, table.x - increment);
+        handled = true;
+      } else if (e.key === 'ArrowRight') {
+        newX = Math.min(CANVAS_MIN_WIDTH - (table.width || 110), table.x + increment);
+        handled = true;
+      }
+
+      if (handled) {
+        e.preventDefault();
+        
+        localPositionsRef.current[selectedTableId] = { x: newX, y: newY };
+        setLocalPositions((prev) => ({ ...prev, [selectedTableId]: { x: newX, y: newY } }));
+        onTablePositionChangeRef.current(selectedTableId, newX, newY);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isLayoutEditable, selectedTableId, tables]);
+
   return (
     <div className="space-y-4">
       {/* Zoom Controls Bar */}
@@ -1065,44 +1416,63 @@ function FloorViewCanvas({
         <span className="text-xs font-semibold text-zinc-300">
           Floor Plan Sizing
         </span>
-        <div className="flex items-center gap-1.5 bg-zinc-955 border border-zinc-800 p-1 rounded-md">
-          <span className="text-[10px] font-bold text-emerald-400 px-2">
-            Zoom: {Math.round(zoom * 100)}%
-          </span>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Snap to grid toggle */}
           <Button
             type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => setZoom(prev => Math.max(0.4, prev - 0.1))}
-            className="size-7 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+            variant="outline"
+            size="sm"
+            onClick={() => setSnapToGrid(!snapToGrid)}
+            className={cn(
+              'h-8 text-xs font-semibold rounded-lg border-zinc-800 gap-1.5 transition-colors',
+              snapToGrid ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'text-zinc-400 hover:text-zinc-200'
+            )}
           >
-            <Minus className="size-3.5" />
+            <LayoutGrid className="size-3.5" />
+            Snap to Grid
           </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => setZoom(1)}
-            className="h-7 px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
-          >
-            100%
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={handleAutoFit}
-            className="h-7 px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
-          >
-            Fit
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => setZoom(prev => Math.min(1.5, prev + 0.1))}
-            className="size-7 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
-          >
-            <Plus className="size-3.5" />
-          </Button>
+
+          <Separator orientation="vertical" className="h-6 bg-zinc-800 hidden sm:block mx-1" />
+
+          <div className="flex items-center gap-1.5 bg-zinc-955 border border-zinc-800 p-1 rounded-md">
+            <span className="text-[10px] font-bold text-emerald-400 px-2">
+              Zoom: {Math.round(zoom * 100)}%
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => setZoom(prev => Math.max(0.4, prev - 0.1))}
+              className="size-7 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+            >
+              <Minus className="size-3.5" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setZoom(1)}
+              className="h-7 px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+            >
+              100%
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleAutoFit}
+              className="h-7 px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+            >
+              Fit
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => setZoom(prev => Math.min(1.5, prev + 0.1))}
+              className="size-7 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+            >
+              <Plus className="size-3.5" />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -1156,20 +1526,23 @@ function FloorViewCanvas({
               );
             })}
 
+            {/* Smart alignment guides container */}
+            <div ref={guidesContainerRef} className="absolute inset-0 pointer-events-none z-45" />
+
             {/* Table cards */}
             {tables.map((table) => {
               if (!initialized) return null;
               const pixelPos = localPositions[table.id] || getInitialPixelPos(table);
+              const tableWidth = localSizes[table.id]?.w ?? ((!table.width || table.width <= 10) ? (table.shape === 'RECTANGLE' ? 140 : 110) : table.width);
+              const tableHeight = localSizes[table.id]?.h ?? ((!table.height || table.height <= 10) ? (table.shape === 'RECTANGLE' ? 70 : 110) : table.height);
               return (
-                <CanvasTableCard
+                <MemoizedCanvasTableCard
                   key={table.id}
-                  table={{
-                    ...table,
-                    x: pixelPos.x,
-                    y: pixelPos.y,
-                    width: localSizes[table.id]?.w ?? ((!table.width || table.width <= 10) ? (table.shape === 'RECTANGLE' ? 140 : 110) : table.width),
-                    height: localSizes[table.id]?.h ?? ((!table.height || table.height <= 10) ? (table.shape === 'RECTANGLE' ? 70 : 110) : table.height),
-                  }}
+                  table={table}
+                  x={pixelPos.x}
+                  y={pixelPos.y}
+                  width={tableWidth}
+                  height={tableHeight}
                   isSelected={selectedTableId === table.id}
                   onClick={() => onSelectTable(table)}
                   onDragMove={handleDragMove}
@@ -1179,8 +1552,12 @@ function FloorViewCanvas({
                   staff={staff}
                   onCapacityChange={onCapacityChange}
                   onServerChange={onServerChange}
+                  onTableUpdate={onTableUpdate}
                   isLayoutEditable={isLayoutEditable}
                   zoom={zoom}
+                  snapToGrid={snapToGrid}
+                  guidesContainerRef={guidesContainerRef}
+                  getStaticTablesBounds={getStaticTablesBounds}
                 />
               );
             })}
@@ -2808,6 +3185,7 @@ export function FloorPlan() {
           onTableSizeChange={handleTableSizeChange}
           onCapacityChange={handleCapacityChange}
           onServerChange={handleServerChange}
+          onTableUpdate={handleTableUpdate}
           staff={staff}
           isLayoutEditable={isLayoutEditable}
         />

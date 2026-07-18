@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Cormorant_Garamond, Montserrat } from "next/font/goo
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { Providers } from "@/components/providers";
+import { LocalExitButton } from "@/components/local-exit-button";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -77,6 +78,7 @@ export default function RootLayout({
       >
         <Providers>
           {children}
+          <LocalExitButton />
         </Providers>
         <Toaster />
       </body>

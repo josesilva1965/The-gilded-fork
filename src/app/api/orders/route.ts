@@ -54,6 +54,74 @@ async function getOrCreateQuickBarTable() {
   return table;
 }
 
+async function checkStockAvailability(incomingItems: any[], existingItems: any[] = []) {
+  // 1. Calculate incoming quantities mapped by menuItemId
+  const incomingQtyMap = new Map<string, number>();
+  for (const item of incomingItems) {
+    if (item.menuItemId) {
+      incomingQtyMap.set(item.menuItemId, (incomingQtyMap.get(item.menuItemId) || 0) + item.quantity);
+    }
+  }
+
+  // 2. Calculate existing quantities mapped by menuItemId
+  const existingQtyMap = new Map<string, number>();
+  for (const item of existingItems) {
+    if (item.menuItemId) {
+      existingQtyMap.set(item.menuItemId, (existingQtyMap.get(item.menuItemId) || 0) + item.quantity);
+    }
+  }
+
+  // 3. Find the delta for each menuItemId (only positive increases matter for checking availability)
+  const deltaQtyMap = new Map<string, number>();
+  for (const [menuItemId, incomingQty] of incomingQtyMap.entries()) {
+    const existingQty = existingQtyMap.get(menuItemId) || 0;
+    const delta = incomingQty - existingQty;
+    if (delta > 0) {
+      deltaQtyMap.set(menuItemId, delta);
+    }
+  }
+
+  if (deltaQtyMap.size === 0) return []; // No net new items added
+
+  // 4. Fetch RecipeItems for the menuItems with a positive delta
+  const menuItemIds = Array.from(deltaQtyMap.keys());
+  const recipeItems = await db.recipeItem.findMany({
+    where: { menuItemId: { in: menuItemIds } },
+    include: { ingredient: true }
+  });
+
+  // 5. Aggregate required ingredients
+  const ingredientNeeds = new Map<string, { name: string, required: number, current: number, unit: string }>();
+
+  for (const ri of recipeItems) {
+    if (ri.ingredient) {
+      const deltaQty = deltaQtyMap.get(ri.menuItemId) || 0;
+      const totalQtyNeeded = ri.quantity * deltaQty;
+      
+      if (!ingredientNeeds.has(ri.ingredientId)) {
+        ingredientNeeds.set(ri.ingredientId, {
+          name: ri.ingredient.name,
+          required: 0,
+          current: ri.ingredient.currentStock,
+          unit: ri.ingredient.unit,
+        });
+      }
+      ingredientNeeds.get(ri.ingredientId)!.required += totalQtyNeeded;
+    }
+  }
+
+  // 6. Check for shortages
+  const shortages = [];
+  for (const [id, data] of ingredientNeeds.entries()) {
+    if (data.required > data.current) {
+      const missing = Number((data.required - data.current).toFixed(2));
+      shortages.push(`${data.name} (Missing ${missing} ${data.unit})`);
+    }
+  }
+
+  return shortages;
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -110,6 +178,12 @@ export async function POST(request: Request) {
     if (!userExists) {
       console.error('[POST /api/orders] User not found:', creatorId);
       return NextResponse.json({ error: `User ${creatorId} not found` }, { status: 400 });
+    }
+
+    // Validate Stock Availability
+    const shortages = await checkStockAvailability(items);
+    if (shortages.length > 0) {
+      return NextResponse.json({ error: `Insufficient stock:\n${shortages.join('\n')}` }, { status: 400 });
     }
 
     // Resolve customerId: must be null or a valid Customer.id
@@ -372,6 +446,12 @@ export async function PATCH(request: Request) {
     const idsToDelete = existingOrderItems
       .map((oi) => oi.id)
       .filter((dbId) => !incomingIds.includes(dbId));
+
+    // Validate Stock Availability (comparing incoming items vs existing items)
+    const shortages = await checkStockAvailability(items, existingOrderItems);
+    if (shortages.length > 0) {
+      return NextResponse.json({ error: `Insufficient stock:\n${shortages.join('\n')}` }, { status: 400 });
+    }
 
     const operations: any[] = [];
 

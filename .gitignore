@@ -55,3 +55,13 @@ server.log
 
 # Windows shortcuts
 *.lnk
+
+# local databases and backups
+dev.db
+/prisma/dev.db
+/db/
+
+# scratch scripts and configs
+/scratch/
+/query-*.js
+scratch.js

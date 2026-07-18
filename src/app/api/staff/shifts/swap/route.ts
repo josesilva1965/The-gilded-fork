@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getAuthenticatedUser } from '@/lib/auth-util';
+import { io } from 'socket.io-client';
 
 export async function POST(req: Request) {
   try {
@@ -39,7 +40,6 @@ export async function POST(req: Request) {
 
     // Emit socket notification to update rota for staff active sessions
     try {
-      const { io } = require('socket.io-client');
       const socket = io('http://localhost:3003', {
         transports: ['websocket'],
         autoConnect: true,

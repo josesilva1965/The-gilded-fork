@@ -58,11 +58,13 @@ export function Settings() {
 
   useEffect(() => {
     if (branding.mounted) {
-      setLocalRestaurantName(branding.restaurantName);
-      setLocalLogoText(branding.logoText);
-      setLocalLogoEmoji(branding.logoEmoji);
-      setLocalLogoUrl(branding.logoUrl);
-      setLocalLogoIconType(branding.logoIconType);
+      Promise.resolve().then(() => {
+        setLocalRestaurantName(branding.restaurantName);
+        setLocalLogoText(branding.logoText);
+        setLocalLogoEmoji(branding.logoEmoji);
+        setLocalLogoUrl(branding.logoUrl);
+        setLocalLogoIconType(branding.logoIconType);
+      });
     }
   }, [
     branding.mounted,

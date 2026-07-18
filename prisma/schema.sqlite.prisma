@@ -1,0 +1,548 @@
+// Bar & Restaurant CRM & Operations Management System
+// Comprehensive database schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// ============================================================
+// ENUMS (simulated via String with validation at app layer)
+// ============================================================
+
+// Role: ADMIN, MANAGER, KITCHEN, BAR, FOH
+// TableStatus: FREE, RESERVED, SEATED, ORDER_PLACED, APPETIZER, MAIN, DESSERT, BILL_REQUESTED, DIRTY
+// OrderStatus: PENDING, IN_PROGRESS, READY, SERVED, CANCELLED
+// OrderItemStatus: PENDING, FIRED, PREPARING, READY, SERVED, CANCELLED
+// PaymentStatus: PENDING, COMPLETED, REFUNDED, PARTIAL
+// ReservationStatus: CONFIRMED, CANCELLED, NO_SHOW, SEATED, COMPLETED
+// IngredientUnit: G, KG, ML, L, OZ, LB, UNIT, CUP, Tbsp, Tsp
+// StockUnit: G, KG, ML, L, OZ, LB, UNIT, CUP, Tbsp, Tsp
+// ShiftType: MORNING, AFTERNOON, EVENING, NIGHT, SPLIT
+// ClockAction: IN, OUT, BREAK_START, BREAK_END
+// WastageReason: SPOILED, SPILLED, COMPED, EXPIRED, DAMAGED, OTHER
+// LoyaltyTier: BRONZE, SILVER, GOLD, PLATINUM
+
+// ============================================================
+// USER & STAFF
+// ============================================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  pin           String    @default("0000") // 4-digit PIN for clock-in
+  role          String    @default("FOH") // ADMIN, MANAGER, KITCHEN, BAR, FOH
+  avatarUrl     String?
+  phone         String?
+  active        Boolean   @default(true)
+  hourlyRate    Float     @default(0)
+  tipPointValue Float     @default(1.0) // Weight for tip distribution
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  orders        Order[]       @relation("OrderCreator")
+  tables        RestaurantTable[] @relation("ServerTables")
+  clockLogs     ClockLog[]
+  shifts        ShiftAssignment[]
+  wastageLogs   WastageLog[]
+}
+
+// ============================================================
+// TABLE / FLOOR PLAN
+// ============================================================
+
+model RestaurantTable {
+  id        String   @id @default(cuid())
+  number    Int      @unique
+  name      String   // e.g. "Table 1", "Bar Seat 3", "VIP Booth"
+  capacity  Int      @default(4)
+  status    String   @default("FREE") // FREE, RESERVED, SEATED, ORDER_PLACED, APPETIZER, MAIN, DESSERT, BILL_REQUESTED, DIRTY
+  x         Int      @default(0) // Grid X position
+  y         Int      @default(0) // Grid Y position
+  width     Int      @default(1) // Grid width
+  height    Int      @default(1) // Grid height
+  section   String   @default("MAIN") // MAIN, BAR, PATIO, VIP, PRIVATE
+  shape     String   @default("ROUND") // ROUND, SQUARE, RECTANGLE
+  serverId  String?  // Assigned server/waiter
+  server    User?    @relation("ServerTables", fields: [serverId], references: [id])
+  notes      String?
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  reservations Reservation[]
+  orders       Order[]
+
+  @@index([serverId])
+  @@index([customerId])
+}
+
+// ============================================================
+// RESERVATION & WAITLIST
+// ============================================================
+
+model Reservation {
+  id             String   @id @default(cuid())
+  tableId        String?
+  table          RestaurantTable? @relation(fields: [tableId], references: [id])
+  customerId     String?
+  customer       Customer? @relation(fields: [customerId], references: [id])
+  guestName      String
+  guestPhone     String?
+  guestEmail     String?
+  partySize      Int
+  status         String   @default("CONFIRMED") // CONFIRMED, CANCELLED, NO_SHOW, SEATED, COMPLETED
+  reservationDate DateTime
+  reservationTime String  // "18:30" format
+  estimatedDuration Int   @default(120) // minutes
+  notes          String?
+  isWalkIn       Boolean  @default(false)
+  waitListPosition Int?
+  estimatedWait  Int?     // minutes
+  notifiedAt     DateTime?
+  seatedAt       DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([tableId])
+  @@index([customerId])
+  @@index([reservationDate])
+}
+
+// ============================================================
+// MENU
+// ============================================================
+
+model MenuCategory {
+  id        String   @id @default(cuid())
+  name      String
+  icon      String?  // Lucide icon name
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items     MenuItem[]
+}
+
+model MenuItem {
+  id          String   @id @default(cuid())
+  categoryId  String
+  category    MenuCategory @relation(fields: [categoryId], references: [id])
+  name        String
+  description String?
+  price       Float
+  cost        Float    @default(0) // Cost price for margin calculation
+  type        String   @default("FOOD") // FOOD, DRINK, DESSERT, APPETIZER, SIDE, SPECIAL
+  station     String   @default("KITCHEN") // KITCHEN, BAR, BOTH
+  prepTime    Int      @default(15) // estimated minutes
+  isAvailable Boolean  @default(true)
+  isPopular   Boolean  @default(false)
+  imageUrl    String?
+  allergies   String?  // comma-separated: "nuts,gluten,dairy"
+  spiceLevel  Int      @default(0) // 0-3
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  orderItems  OrderItem[]
+  recipeItems RecipeItem[]
+  favorites   CustomerFavorite[]
+  wastageLogs WastageLog[]
+  topSellingItems TopSellingItem[]
+  extras      MenuItemExtra[]
+
+  @@index([categoryId])
+}
+
+// ============================================================
+// INGREDIENTS & RECIPES
+// ============================================================
+
+model Ingredient {
+  id            String   @id @default(cuid())
+  name          String
+  unit          String   @default("UNIT") // G, KG, ML, L, OZ, LB, UNIT, CUP, Tbsp, Tsp
+  currentStock  Float    @default(0)
+  minStock      Float    @default(0) // Reorder threshold
+  maxStock      Float    @default(0)
+  costPerUnit   Float    @default(0)
+  storageLocation String? // DRY_STORAGE, FRIDGE, FREEZER, BAR
+  category      String?  // PRODUCE, MEAT, DAIRY, DRY, BEVERAGE, OTHER
+  vendorId      String?
+  vendor        Vendor?  @relation(fields: [vendorId], references: [id])
+  lastRestocked DateTime?
+  expiryDate    DateTime?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  recipeItems  RecipeItem[]
+  wastageLogs  WastageLog[]
+  stockLedger  StockLedger[]
+  purchaseOrderItems PurchaseOrderItem[]
+
+  @@index([vendorId])
+}
+
+model RecipeItem {
+  id            String   @id @default(cuid())
+  menuItemId    String
+  menuItem      MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  ingredientId  String
+  ingredient    Ingredient @relation(fields: [ingredientId], references: [id])
+  quantity      Float    // Amount of ingredient needed per 1 menu item
+  isOptional    Boolean  @default(false)
+  notes         String?
+
+  @@index([menuItemId])
+  @@index([ingredientId])
+}
+
+model StockLedger {
+  id            String   @id @default(cuid())
+  ingredientId  String
+  ingredient    Ingredient @relation(fields: [ingredientId], references: [id])
+  change        Float    // Positive for restock, negative for consumption
+  reason        String   // ORDER, RESTOCK, WASTAGE, ADJUSTMENT, INVENTORY
+  referenceId   String?  // Order ID, PO ID, Wastage ID etc
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  @@index([ingredientId])
+  @@index([createdAt])
+}
+
+model WastageLog {
+  id            String   @id @default(cuid())
+  ingredientId  String
+  ingredient    Ingredient @relation(fields: [ingredientId], references: [id])
+  menuItemId    String?
+  menuItem      MenuItem? @relation(fields: [menuItemId], references: [id])
+  quantity      Float
+  reason        String   // SPOILED, SPILLED, COMPED, EXPIRED, DAMAGED, OTHER
+  notes         String?
+  reportedBy    String
+  reporter      User     @relation(fields: [reportedBy], references: [id])
+  value         Float    @default(0) // Cost value of wastage
+  createdAt     DateTime @default(now())
+
+  @@index([ingredientId])
+  @@index([menuItemId])
+  @@index([reportedBy])
+}
+
+// ============================================================
+// VENDOR / SUPPLIER
+// ============================================================
+
+model Vendor {
+  id          String   @id @default(cuid())
+  name        String
+  contactName String?
+  email       String?
+  phone       String?
+  address     String?
+  category    String?  // PRODUCE, MEAT, DAIRY, BEVERAGE, DRY_GOODS, EQUIPMENT
+  leadTimeDays Int     @default(1)
+  minOrder    Float    @default(0)
+  paymentTerms String? // NET_30, COD, etc
+  notes       String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  ingredients      Ingredient[]
+  purchaseOrders    PurchaseOrder[]
+}
+
+model PurchaseOrder {
+  id          String   @id @default(cuid())
+  vendorId    String
+  vendor      Vendor   @relation(fields: [vendorId], references: [id])
+  status      String   @default("DRAFT") // DRAFT, SENT, CONFIRMED, DELIVERED, CANCELLED
+  totalAmount Float    @default(0)
+  notes       String?
+  orderedAt   DateTime?
+  deliveredAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  items       PurchaseOrderItem[]
+
+  @@index([vendorId])
+}
+
+model PurchaseOrderItem {
+  id            String   @id @default(cuid())
+  purchaseOrderId String
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  ingredientId  String
+  ingredient    Ingredient @relation(fields: [ingredientId], references: [id])
+  quantity      Float
+  unitPrice     Float
+  totalPrice    Float
+  notes         String?
+
+  @@index([purchaseOrderId])
+  @@index([ingredientId])
+}
+
+// ============================================================
+// ORDER MANAGEMENT
+// ============================================================
+
+model Order {
+  id            String   @id @default(cuid())
+  tableId       String
+  table         RestaurantTable @relation(fields: [tableId], references: [id])
+  createdBy     String
+  creator       User     @relation("OrderCreator", fields: [createdBy], references: [id])
+  status        String   @default("PENDING") // PENDING, IN_PROGRESS, READY, SERVED, CANCELLED
+  type          String   @default("DINE_IN") // DINE_IN, TAKEAWAY, DELIVERY
+  guestCount    Int      @default(1)
+  subtotal      Float    @default(0)
+  taxAmount     Float    @default(0)
+  discountAmount Float   @default(0)
+  totalAmount   Float    @default(0)
+  paymentStatus String   @default("PENDING") // PENDING, COMPLETED, REFUNDED, PARTIAL
+  paymentMethod String?  // CASH, CARD, MOBILE, SPLIT
+  notes         String?
+  closedAt      DateTime?
+  customerId    String?
+  customer      Customer? @relation(fields: [customerId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  items        OrderItem[]
+  payments     Payment[]
+
+  @@index([tableId])
+  @@index([createdBy])
+  @@index([customerId])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId  String
+  menuItem    MenuItem @relation(fields: [menuItemId], references: [id])
+  quantity    Int      @default(1)
+  unitPrice   Float
+  totalPrice  Float
+  seatNumber  Int?     // For split billing by seat
+  status      String   @default("PENDING") // PENDING, FIRED, PREPARING, READY, SERVED, CANCELLED
+  station     String   @default("KITCHEN") // KITCHEN, BAR
+  notes       String?  // Modifications, allergies, etc
+  firedAt     DateTime?
+  readyAt     DateTime?
+  servedAt    DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  extras      OrderItemExtra[]
+
+  @@index([orderId])
+  @@index([menuItemId])
+  @@index([createdAt])
+}
+
+model Payment {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  amount      Float
+  method      String   // CASH, CARD, MOBILE
+  status      String   @default("COMPLETED") // PENDING, COMPLETED, REFUNDED
+  tipAmount   Float    @default(0)
+  reference   String?  // Transaction reference
+  createdAt   DateTime @default(now())
+
+  @@index([orderId])
+  @@index([createdAt])
+}
+
+// ============================================================
+// STAFF / ROTA
+// ============================================================
+
+model ShiftTemplate {
+  id          String   @id @default(cuid())
+  name        String   // e.g. "Lunch Rush", "Dinner Service"
+  startTime   String   // "10:00"
+  endTime     String   // "16:00"
+  type        String   // MORNING, AFTERNOON, EVENING, NIGHT, SPLIT
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assignments ShiftAssignment[]
+}
+
+model ShiftAssignment {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  shiftTemplateId String
+  shiftTemplate ShiftTemplate @relation(fields: [shiftTemplateId], references: [id])
+  date          DateTime // The specific date
+  startTime     String?  // Override start if needed
+  endTime       String?  // Override end if needed
+  position      String?  // BARTENDER, SERVER, HOST, CHEF, BUSBOY, MANAGER
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+  @@index([shiftTemplateId])
+  @@index([date])
+}
+
+model ClockLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String   // IN, OUT, BREAK_START, BREAK_END
+  timestamp DateTime @default(now())
+  note      String?
+
+  @@index([userId])
+  @@index([timestamp])
+}
+
+// ============================================================
+// CRM / CUSTOMER
+// ============================================================
+
+model Customer {
+  id            String   @id @default(cuid())
+  firstName     String
+  lastName      String
+  email         String?  @unique
+  phone         String?  @unique
+  birthday      DateTime?
+  allergies     String?  // Comma-separated
+  notes         String?
+  loyaltyPoints Int      @default(0)
+  loyaltyTier   String   @default("BRONZE") // BRONZE, SILVER, GOLD, PLATINUM
+  lifetimeSpend Float    @default(0)
+  visitCount    Int      @default(0)
+  lastVisit     DateTime?
+  marketingOptIn Boolean @default(false)
+  allowedCredit  Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  reservations   Reservation[]
+  favorites      CustomerFavorite[]
+  visits         CustomerVisit[]
+  orders         Order[]
+  tables         RestaurantTable[]
+}
+
+model CustomerFavorite {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@index([customerId])
+  @@index([menuItemId])
+}
+
+model CustomerVisit {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  visitDate  DateTime @default(now())
+  tableId    String?
+  partySize  Int      @default(1)
+  totalSpend Float    @default(0)
+  orderId    String?
+  notes      String?
+
+  @@index([customerId])
+  @@index([visitDate])
+}
+
+// ============================================================
+// ANALYTICS / DAILY SNAPSHOT
+// ============================================================
+
+model DailySnapshot {
+  id              String   @id @default(cuid())
+  date            DateTime @unique
+  totalRevenue    Float    @default(0)
+  totalOrders     Int      @default(0)
+  avgOrderValue   Float    @default(0)
+  laborCost       Float    @default(0)
+  laborPercent    Float    @default(0)
+  foodCost        Float    @default(0)
+  seatTurnoverRate Float   @default(0)
+  inventoryValue  Float    @default(0)
+  wastageValue    Float    @default(0)
+  guestCount      Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model TopSellingItem {
+  id          String   @id @default(cuid())
+  date        DateTime
+  menuItemId  String
+  menuItem    MenuItem  @relation(fields: [menuItemId], references: [id])
+  quantity    Int      @default(0)
+  revenue     Float    @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([menuItemId])
+  @@index([date])
+}
+
+model MenuItemExtra {
+  id         String   @id @default(cuid())
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  name       String
+  price      Float
+  cost       Float    @default(0)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  orderItemExtras OrderItemExtra[]
+
+  @@index([menuItemId])
+}
+
+model OrderItemExtra {
+  id              String        @id @default(cuid())
+  orderItemId     String
+  orderItem       OrderItem     @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  menuItemExtraId String?
+  menuItemExtra   MenuItemExtra? @relation(fields: [menuItemExtraId], references: [id], onDelete: SetNull)
+  name            String
+  price           Float
+  createdAt       DateTime      @default(now())
+
+  @@index([orderItemId])
+  @@index([menuItemExtraId])
+}

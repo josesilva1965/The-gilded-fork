@@ -31,6 +31,7 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from '@/components/ui/tooltip';
+import { LocalExitButton } from '@/components/local-exit-button';
 
 const ICON_MAP: Record<string, LucideIcon> = {
   LayoutDashboard,
@@ -86,14 +87,20 @@ export function Sidebar() {
 
   const { data: activeOrders = [] } = useQuery<any[]>({
     queryKey: ['active-orders'],
-    queryFn: () => fetch('/api/orders').then((r) => r.json()),
+    queryFn: () => fetch('/api/orders').then((r) => {
+      if (!r.ok) throw new Error('Unauthorized or failed to fetch orders');
+      return r.json();
+    }),
     enabled: sidebarOpen,
     staleTime: 10000,
   });
 
   const { data: inventoryData } = useQuery<{ lowStock: any[] }>({
     queryKey: ['inventory'],
-    queryFn: () => fetch('/api/inventory').then((r) => r.json()),
+    queryFn: () => fetch('/api/inventory').then((r) => {
+      if (!r.ok) throw new Error('Unauthorized or failed to fetch inventory');
+      return r.json();
+    }),
     enabled: sidebarOpen,
     staleTime: 30000,
   });
@@ -243,6 +250,7 @@ export function Sidebar() {
             </TooltipContent>
           </Tooltip>
         )}
+        <LocalExitButton sidebarOpen={sidebarOpen} />
       </div>
     </aside>
   );
@@ -381,6 +389,7 @@ export function MobileSidebar({
           <ArrowLeftRight className="size-3.5" />
           <span className="text-xs">{t.auth.switchRole}</span>
         </Button>
+        <LocalExitButton sidebarOpen={true} />
       </div>
     </div>
   );

@@ -118,7 +118,7 @@ export function useBranding() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    Promise.resolve().then(() => setMounted(true));
 
     const fetchBranding = () => {
       fetch('/api/admin/branding')
