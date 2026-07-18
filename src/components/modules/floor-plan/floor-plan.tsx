@@ -2025,9 +2025,9 @@ function TableDetailSheet({
               {table.orders.map((order) => (
                 <Card key={order.id} className="bg-zinc-800/50 border-zinc-700/50">
                   <CardContent className="p-3 space-y-2">
-                    <div className="flex items-center justify-between text-xs">
+                     <div className="flex items-center justify-between text-xs">
                       <span className="text-zinc-400">
-                        {t.floorPlan.server}: {order.creator.name}
+                        {t.floorPlan.server}: {order.creator?.name || 'System'}
                       </span>
                       <span className="text-zinc-500">
                         {order.guestCount} {order.guestCount > 1 ? t.floorPlan.guests : t.floorPlan.guest}
@@ -2036,14 +2036,14 @@ function TableDetailSheet({
 
                     <ScrollArea className="max-h-40">
                       <div className="space-y-1.5">
-                        {order.items.map((item) => (
+                        {order.items?.map((item) => (
                           <div
                             key={item.id}
                             className="flex items-center justify-between text-xs py-0.5"
                           >
                             <div className="flex items-center gap-1.5 min-w-0">
                               <span className="text-zinc-500 shrink-0">&times;{item.quantity}</span>
-                              <span className="text-zinc-300 truncate">{item.menuItem.name}</span>
+                              <span className="text-zinc-300 truncate">{item.menuItem?.name || 'Deleted Item'}</span>
                             </div>
                             <span className="text-zinc-400 shrink-0 ml-2">
                               {formatCurrencyByLocale(item.totalPrice, locale)}
@@ -2897,9 +2897,9 @@ export function FloorPlan() {
           if (t.id !== table.id) return t;
           return {
             ...t,
-            orders: t.orders.map((o) => ({
+            orders: (t.orders || []).map((o) => ({
               ...o,
-              items: o.items.map((item) =>
+              items: (o.items || []).map((item) =>
                 item.status === 'READY' ? { ...item, status: 'SERVED' } : item
               ),
             })),

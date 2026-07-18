@@ -1201,14 +1201,14 @@ export function POSSystem() {
                 "flex items-center justify-center w-9 h-9 rounded-lg font-bold text-sm",
                 order.type === 'TAKEAWAY' ? "bg-emerald-600/20 text-emerald-400" : "bg-zinc-800 text-zinc-200"
               )}>
-                {order.type === 'TAKEAWAY' ? <ShoppingBag className="size-4" /> : order.table.number}
+                {order.type === 'TAKEAWAY' ? <ShoppingBag className="size-4" /> : (order.table?.number ?? '—')}
               </div>
               <div>
                 <p className="text-sm font-medium text-zinc-100">
-                  {order.type === 'TAKEAWAY' ? t.pos.takeaway : order.table.name}
+                  {order.type === 'TAKEAWAY' ? t.pos.takeaway : (order.table?.name ?? 'Quick Bar')}
                 </p>
                 <p className="text-[11px] text-zinc-500">
-                  {order.creator.name} · <TimeElapsed createdAt={order.createdAt} />
+                  {order.creator?.name || 'System'} · <TimeElapsed createdAt={order.createdAt} />
                 </p>
               </div>
             </div>
@@ -1233,7 +1233,7 @@ export function POSSystem() {
           <div className="flex items-center gap-4 text-[11px] text-zinc-400 mb-2">
             <span className="flex items-center gap-1">
               <ShoppingBag className="size-3" />
-              {order.items.length} items
+              {(order.items?.length || 0)} items
             </span>
             {order.type === 'TAKEAWAY' ? (
               <Badge className="bg-emerald-600/20 text-emerald-400 border-none text-[9px] h-4 py-0 px-1 font-semibold">
@@ -1260,13 +1260,13 @@ export function POSSystem() {
               >
                 <Separator className="bg-zinc-800 my-3" />
                 <div className="space-y-2">
-                  {order.items.map((item) => (
+                  {order.items?.map((item) => (
                     <div
                       key={item.id}
                       className="flex items-center justify-between gap-2 py-1.5 px-2 rounded bg-zinc-800/50"
                     >
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-xs text-zinc-200 truncate">{item.menuItem.name}</span>
+                        <span className="text-xs text-zinc-200 truncate">{item.menuItem?.name || 'Deleted Item'}</span>
                         <span className="text-[10px] text-zinc-500">x{item.quantity}</span>
                         {item.seatNumber && (
                           <Badge className="text-[9px] px-1 py-0 h-4 bg-zinc-700 text-zinc-300">

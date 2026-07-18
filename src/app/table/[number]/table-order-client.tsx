@@ -868,12 +868,12 @@ export function TableOrderClient({ table, menu }: { table: Table; menu: MenuCate
                       <Separator className="bg-zinc-800/60" />
 
                       <div className="space-y-2.5">
-                        {order.items.map((item) => (
+                        {order.items?.map((item) => (
                           <div key={item.id} className="flex items-start justify-between gap-3 text-xs">
                             <div className="min-w-0 space-y-0.5">
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <span className="font-bold text-zinc-400 shrink-0">&times;{item.quantity}</span>
-                                <span className="font-semibold text-zinc-200 truncate">{item.menuItem.name}</span>
+                                <span className="font-semibold text-zinc-200 truncate">{item.menuItem?.name || 'Deleted Item'}</span>
                               </div>
                               
                               {item.extras && item.extras.length > 0 && (
